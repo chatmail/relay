@@ -26,6 +26,7 @@ class Config:
         self.max_mailbox_size = params["max_mailbox_size"]
         self.max_message_size = int(params.get("max_message_size", "31457280"))
         self.delete_mails_after = params["delete_mails_after"]
+        self.delete_large_after = params["delete_large_after"]
         self.delete_inactive_users_after = int(params["delete_inactive_users_after"])
         self.username_min_length = int(params["username_min_length"])
         self.username_max_length = int(params["username_max_length"])

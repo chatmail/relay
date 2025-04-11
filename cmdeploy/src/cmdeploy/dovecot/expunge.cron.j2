@@ -1,5 +1,5 @@
 # delete already seen big mails after 7 days, in the INBOX
-2 0 * * * vmail find {{ config.mailboxes_dir }} -path '*/cur/*' -mtime +7 -size +200k -type f -delete
+2 0 * * * vmail find {{ config.mailboxes_dir }} -path '*/cur/*' -mtime +{{ config.delete_large_after }} -size +200k -type f -delete
 # delete all mails after {{ config.delete_mails_after }} days, in the Inbox
 2 0 * * * vmail find {{ config.mailboxes_dir }} -path '*/cur/*' -mtime +{{ config.delete_mails_after }} -type f -delete
 # or in any IMAP subfolder

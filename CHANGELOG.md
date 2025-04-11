@@ -2,6 +2,8 @@
 
 ## untagged
 
+- Add config value after how many days large files are deleted
+  ([#555](https://github.com/chatmail/relay/pull/555))
 
 ## 1.6.0 2025-04-11
 

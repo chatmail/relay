@@ -23,6 +23,9 @@ max_message_size = 31457280
 # days after which mails are unconditionally deleted
 delete_mails_after = 20
 
+# days after which large messages (>200k) are unconditionally deleted
+delete_large_after = 7
+
 # days after which users without a successful login are deleted (database and mails)
 delete_inactive_users_after = 90
 

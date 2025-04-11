@@ -182,6 +182,8 @@ def test_expunged(remote, chatmail_config):
         f"find {chatmail_config.mailboxes_dir} -path '*/tmp/*' -mtime +{outdated_days} -type f",
         f"find {chatmail_config.mailboxes_dir} -path '*/.*/tmp/*' -mtime +{outdated_days} -type f",
     ]
+    outdated_days = int(chatmail_config.delete_large_after) + 1
+    find_cmds.append("find {chatmail_config.mailboxes_dir} -path '*/cur/*' -mtime +{outdated_days} -size +200k -type f")
     for cmd in find_cmds:
         for line in remote.iter_output(cmd):
             assert not line
