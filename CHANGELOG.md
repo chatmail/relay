@@ -2,6 +2,9 @@
 
 ## untagged
 
+- chatmaild: allow echobot to receive unencrypted messages by default
+  ([#556](https://github.com/chatmail/relay/pull/556))
+
 
 ## 1.6.0 2025-04-11
 
