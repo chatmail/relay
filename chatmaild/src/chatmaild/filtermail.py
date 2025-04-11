@@ -251,6 +251,7 @@ class OutgoingBeforeQueueHandler:
                     return
 
         passthrough_recipients = self.config.passthrough_recipients
+        passthrough_recipients.append("echo@" + self.config.mail_domain)
 
         for recipient in envelope.rcpt_tos:
             if recipient_matches_passthrough(recipient, passthrough_recipients):

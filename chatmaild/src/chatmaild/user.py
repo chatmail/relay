@@ -58,7 +58,8 @@ class User:
             if not self.addr.startswith("echo@"):
                 logging.error(f"could not write password for: {self.addr}")
                 raise
-        self.enforce_E2EE_path.touch()
+        if not self.addr.startswith("echo@"):
+            self.enforce_E2EE_path.touch()
 
     def set_last_login_timestamp(self, timestamp):
         """Track login time with daily granularity
