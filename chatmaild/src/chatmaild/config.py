@@ -116,6 +116,7 @@ def get_default_config_content(mail_domain, **overrides):
         lines = []
         for line in content.split("\n"):
             for key, value in privacy.items():
+                value = value.format(mail_domain=mail_domain)
                 value_lines = value.strip().split("\n")
                 if not line.startswith(f"{key} =") or not value_lines:
                     continue
