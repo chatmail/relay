@@ -675,10 +675,28 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     # to use 127.0.0.1 as the resolver.
     from cmdeploy.cmdeploy import Out
 
-    process_on_53 = host.get_fact(Port, port=53)
-    if process_on_53 not in (None, "unbound"):
-        Out().red(f"Can't install unbound: port 53 is occupied by: {process_on_53}")
-        exit(1)
+    port_services = [
+        ("master", 25),
+        ("unbound", 53),
+        ("acmetool", 80),
+        ("imap-login", 143),
+        ("nginx", 443),
+        ("master", 465),
+        ("master", 587),
+        ("imap-login", 993),
+        ("iroh-relay", 3340),
+        ("nginx", 8443),
+        ("master", 10025),
+        ("master", 10026),
+        ("filtermail", 10080),
+        ("filtermail", 10081),
+    ]
+    for service, port in port_services:
+        running_service = host.get_fact(Port, port=port)
+        if running_service not in (service, None):
+            Out().red(f"Can't install chatmail relay: port {port} is occupied by: {running_service}")
+            exit(1)
+
     apt.packages(
         name="Install unbound",
         packages=["unbound", "unbound-anchor", "dnsutils"],
