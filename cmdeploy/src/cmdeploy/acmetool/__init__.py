@@ -54,12 +54,6 @@ def deploy_acmetool(email="", domains=[]):
         group="root",
         mode="644",
     )
-    if host.get_fact(SystemdStatus).get("nginx.service"):
-        systemd.service(
-            name="Stop nginx service to free port 80",
-            service="nginx",
-            running=False,
-        )
 
     systemd.service(
         name="Setup acmetool-redirector service",
