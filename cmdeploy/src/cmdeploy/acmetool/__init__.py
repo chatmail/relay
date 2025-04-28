@@ -1,7 +1,5 @@
 import importlib.resources
 
-from pyinfra import host
-from pyinfra.facts.systemd import SystemdStatus
 from pyinfra.operations import apt, files, server, systemd
 
 
