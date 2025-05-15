@@ -5,6 +5,9 @@
 - If `dns-utils` needs to be installed before cmdeploy run, apt update to make sure it works
   ([#560](https://github.com/chatmail/relay/pull/560))
 
+- Don't deploy if one of the ports is occupied by an unexpected process
+  ([#568](https://github.com/chatmail/relay/pull/568))
+
 - Add config value after how many days large files are deleted
   ([#555](https://github.com/chatmail/relay/pull/555))
 
