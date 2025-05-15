@@ -367,7 +367,7 @@ def _configure_dovecot(config: Config, debug: bool = False) -> bool:
         if host.get_fact(Sysctl)[key] > 65535:
             # Skip updating limits if already sufficient
             # (enables running in incus containers where sysctl readonly)
-            continue 
+            continue
         server.sysctl(
             name=f"Change {key}",
             key=key,
