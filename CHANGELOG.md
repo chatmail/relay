@@ -8,6 +8,9 @@
 - Add config value after how many days large files are deleted
   ([#555](https://github.com/chatmail/relay/pull/555))
 
+- cmdeploy: push relay version to /etc/chatmail-version
+  ([#573](https://github.com/chatmail/relay/pull/573))
+
 - filtermail: allow partial body length in OpenPGP payloads
   ([#570](https://github.com/chatmail/relay/pull/570))
 
