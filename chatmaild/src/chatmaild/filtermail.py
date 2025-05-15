@@ -173,7 +173,7 @@ async def asyncmain_beforequeue(config, mode):
     else:
         port = config.filtermail_smtp_port_incoming
         handler = IncomingBeforeQueueHandler(config)
-    HackedController(handler, hostname="127.0.0.1", port=port).start()
+    HackedController(handler, hostname="127.0.0.1", port=port, data_size_limit=config.max_message_size).start()
 
 
 def recipient_matches_passthrough(recipient, passthrough_recipients):
