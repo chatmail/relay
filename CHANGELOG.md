@@ -5,6 +5,9 @@
 - If `dns-utils` needs to be installed before cmdeploy run, apt update to make sure it works
   ([#560](https://github.com/chatmail/relay/pull/560))
 
+- filtermail: respect config message size limit
+  ([#572](https://github.com/chatmail/relay/pull/572))
+
 - Add config value after how many days large files are deleted
   ([#555](https://github.com/chatmail/relay/pull/555))
 
