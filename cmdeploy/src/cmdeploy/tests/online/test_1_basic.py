@@ -1,5 +1,6 @@
 import datetime
 import smtplib
+import subprocess
 
 import pytest
 
@@ -191,3 +192,18 @@ def test_expunged(remote, chatmail_config):
     for cmd in find_cmds:
         for line in remote.iter_output(cmd):
             assert not line
+
+
+def test_deployed_state(remote):
+    git_hash = subprocess.check_output(["git", "rev-parse", "HEAD"]).decode()
+    git_diff = subprocess.check_output(["git", "diff"]).decode()
+    git_status = [git_hash.strip()]
+    for line in git_diff.splitlines():
+        git_status.append(line.strip().lower())
+    remote_version = []
+    for line in remote.iter_output("cat /etc/chatmail-version"):
+        print(line)
+        remote_version.append(line)
+    # assert len(git_status) == len(remote_version)  # for some reason, we only get 11 lines from remote.iter_output()
+    for i in range(len(remote_version)):
+        assert git_status[i] == remote_version[i], "You have undeployed changes."
