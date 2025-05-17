@@ -761,7 +761,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     git_hash = subprocess.check_output(["git", "rev-parse", "HEAD"]).decode()
     git_diff = subprocess.check_output(["git", "diff"]).decode()
     files.put(
-        name="Upload chatmail relay version",
+        name="Upload chatmail relay git commiit hash",
         src=StringIO(git_hash + git_diff),
         dest="/etc/chatmail-version",
         mode="700",
