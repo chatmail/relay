@@ -43,7 +43,7 @@ passthrough_senders =
 
 # list of e-mail recipients for which to accept outbound un-encrypted mails
 # (space-separated, item may start with "@" to whitelist whole recipient domains)
-passthrough_recipients = xstore@testrun.org 
+passthrough_recipients = xstore@testrun.org echo@{mail_domain}
 
 #
 # Deployment Details

@@ -65,7 +65,7 @@ class Config:
     def _getbytefile(self):
         return open(self._inipath, "rb")
 
-    def get_user(self, addr):
+    def get_user(self, addr) -> User:
         if not addr or "@" not in addr or "/" in addr:
             raise ValueError(f"invalid address {addr!r}")
 
@@ -116,7 +116,7 @@ def get_default_config_content(mail_domain, **overrides):
         lines = []
         for line in content.split("\n"):
             for key, value in privacy.items():
-                value_lines = value.strip().split("\n")
+                value_lines = value.format(mail_domain=mail_domain).strip().split("\n")
                 if not line.startswith(f"{key} =") or not value_lines:
                     continue
                 if len(value_lines) == 1:

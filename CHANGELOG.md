@@ -11,8 +11,12 @@
 - Add config value after how many days large files are deleted
   ([#555](https://github.com/chatmail/relay/pull/555))
 
+- chatmaild: allow echobot to receive unencrypted messages by default
+  ([#556](https://github.com/chatmail/relay/pull/556))
+
 - filtermail: allow partial body length in OpenPGP payloads
   ([#570](https://github.com/chatmail/relay/pull/570))
+
 
 ## 1.6.0 2025-04-11
 
