@@ -19,7 +19,7 @@ def perform_initial_checks(mail_domain):
     """Collecting initial DNS settings."""
     assert mail_domain
     if not shell("dig", fail_ok=True):
-        shell("apt-get install -y dnsutils")
+        shell("apt-get update && apt-get install -y dnsutils")
     A = query_dns("A", mail_domain)
     AAAA = query_dns("AAAA", mail_domain)
     MTA_STS = query_dns("CNAME", f"mta-sts.{mail_domain}")

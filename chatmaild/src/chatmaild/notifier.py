@@ -95,7 +95,12 @@ class Notifier:
                 logging.warning(f"removing spurious queue item: {queue_path!r}")
                 queue_path.unlink()
                 continue
-            queue_item = PersistentQueueItem.read_from_path(queue_path)
+            try:
+                queue_item = PersistentQueueItem.read_from_path(queue_path)
+            except ValueError:
+                logging.warning(f"removing spurious queue item: {queue_path!r}")
+                queue_path.unlink()
+                continue
             self.queue_for_retry(queue_item)
 
     def queue_for_retry(self, queue_item, retry_num=0):

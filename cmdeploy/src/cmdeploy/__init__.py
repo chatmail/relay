@@ -13,6 +13,7 @@ from chatmaild.config import Config, read_config
 from pyinfra import facts, host
 from pyinfra.api import FactBase
 from pyinfra.facts.files import File
+from pyinfra.facts.server import Sysctl
 from pyinfra.facts.systemd import SystemdEnabled
 from pyinfra.operations import apt, files, pip, server, systemd
 
@@ -363,6 +364,10 @@ def _configure_dovecot(config: Config, debug: bool = False) -> bool:
     # it is recommended to set the following inotify limits
     for name in ("max_user_instances", "max_user_watches"):
         key = f"fs.inotify.{name}"
+        if host.get_fact(Sysctl)[key] > 65535:
+            # Skip updating limits if already sufficient
+            # (enables running in incus containers where sysctl readonly)
+            continue 
         server.sysctl(
             name=f"Change {key}",
             key=key,

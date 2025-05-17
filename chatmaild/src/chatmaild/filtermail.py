@@ -38,6 +38,12 @@ def check_openpgp_payload(payload: bytes):
 
         packet_type_id = payload[i] & 0x3F
         i += 1
+
+        while payload[i] >= 224 and payload[i] < 255:
+            # Partial body length.
+            partial_length = 1 << (payload[i] & 0x1F)
+            i += 1 + partial_length
+
         if payload[i] < 192:
             # One-octet length.
             body_len = payload[i]
@@ -56,7 +62,7 @@ def check_openpgp_payload(payload: bytes):
             )
             i += 5
         else:
-            # Partial body length is not allowed.
+            # Impossible, partial body length was processed above.
             return False
 
         i += body_len
@@ -167,7 +173,12 @@ async def asyncmain_beforequeue(config, mode):
     else:
         port = config.filtermail_smtp_port_incoming
         handler = IncomingBeforeQueueHandler(config)
-    HackedController(handler, hostname="127.0.0.1", port=port).start()
+    HackedController(
+        handler,
+        hostname="127.0.0.1",
+        port=port,
+        data_size_limit=config.max_message_size,
+    ).start()
 
 
 def recipient_matches_passthrough(recipient, passthrough_recipients):

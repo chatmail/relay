@@ -1,5 +1,18 @@
 #!/bin/sh
 set -e
+
+if command -v lsb_release 2>&1 >/dev/null; then
+  case "$(lsb_release -is)" in
+    Ubuntu | Debian )
+      if ! dpkg -l | grep python3-dev 2>&1 >/dev/null
+      then
+        echo "You need to install python3-dev for installing the other dependencies."
+        exit 1
+      fi
+      ;;
+  esac
+fi
+
 python3 -m venv --upgrade-deps venv
 
 venv/bin/pip install -e chatmaild 

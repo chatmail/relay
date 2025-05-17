@@ -242,6 +242,22 @@ def test_requeue_removes_tmp_files(notifier, metadata, testaddr, caplog):
     assert queue_item.addr == testaddr
 
 
+def test_requeue_removes_invalid_files(notifier, metadata, testaddr, caplog):
+    metadata.add_token_to_addr(testaddr, "01234")
+    notifier.new_message_for_addr(testaddr, metadata)
+    # empty/invalid files should be ignored
+    p = notifier.queue_dir.joinpath("1203981203")
+    p.touch()
+    notifier2 = notifier.__class__(notifier.queue_dir)
+    notifier2.requeue_persistent_queue_items()
+    assert "spurious" in caplog.records[0].msg
+    assert not p.exists()
+    assert notifier2.retry_queues[0].qsize() == 1
+    when, queue_item = notifier2.retry_queues[0].get()
+    assert when <= int(time.time())
+    assert queue_item.addr == testaddr
+
+
 def test_start_and_stop_notification_threads(notifier, testaddr):
     threads = notifier.start_notification_threads(None)
     for retry_num, threadlist in threads.items():
