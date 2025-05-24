@@ -686,10 +686,10 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
         ("imap-login", 993),
         ("iroh-relay", 3340),
         ("nginx", 8443),
-        ("master", 10025),
-        ("master", 10026),
-        ("filtermail", 10080),
-        ("filtermail", 10081),
+        ("master", config.postfix_reinject_port),
+        ("master", config.postfix_reinject_port_incoming),
+        ("filtermail", config.filtermail_smtp_port),
+        ("filtermail", config.filtermail_smtp_port_incoming),
     ]
     for service, port in port_services:
         running_service = host.get_fact(Port, port=port)
