@@ -12,6 +12,7 @@ Please fill out as much of this form as you can (leaving out stuff that is not a
 
 - Server OS (Operating System) - preferably Debian 12: 
 - On which OS you run cmdeploy:
+- chatmail/relay version: `git rev-parse HEAD`
 
 ## Expected behavior
 

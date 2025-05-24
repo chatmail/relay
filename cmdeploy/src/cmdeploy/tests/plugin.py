@@ -307,6 +307,7 @@ def cmfactory(request, gencreds, tmpdir, maildomain):
     class Data:
         def read_path(self, path):
             return
+
     am = ACFactory(request=request, tmpdir=tmpdir, testprocess=testproc, data=Data())
 
     # nb. a bit hacky

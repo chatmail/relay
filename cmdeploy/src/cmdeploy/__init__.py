@@ -7,6 +7,7 @@ import io
 import shutil
 import subprocess
 import sys
+from io import StringIO
 from pathlib import Path
 
 from chatmaild.config import Config, read_config
@@ -367,7 +368,7 @@ def _configure_dovecot(config: Config, debug: bool = False) -> bool:
         if host.get_fact(Sysctl)[key] > 65535:
             # Skip updating limits if already sufficient
             # (enables running in incus containers where sysctl readonly)
-            continue 
+            continue
         server.sysctl(
             name=f"Change {key}",
             key=key,
@@ -756,6 +757,14 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     apt.packages(
         name="Ensure cron is installed",
         packages=["cron"],
+    )
+    git_hash = subprocess.check_output(["git", "rev-parse", "HEAD"]).decode()
+    git_diff = subprocess.check_output(["git", "diff"]).decode()
+    files.put(
+        name="Upload chatmail relay git commiit hash",
+        src=StringIO(git_hash + git_diff),
+        dest="/etc/chatmail-version",
+        mode="700",
     )
 
     deploy_mtail(config)
