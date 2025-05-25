@@ -2,15 +2,6 @@ function dovecot_lua_notify_begin_txn(user)
   return user
 end
 
-function contains(v, needle)
-  for _, keyword in ipairs(v) do
-    if keyword == needle then
-      return true
-    end
-  end
-  return false
-end
-
 function dovecot_lua_notify_event_message_new(user, event)
   local mbox = user:mailbox(event.mailbox)
   mbox:sync()
