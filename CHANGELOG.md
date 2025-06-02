@@ -2,6 +2,9 @@
 
 ## untagged
 
+- Reconfigure Dovecot imap-login service to high-performance mode
+  ([#578](https://github.com/chatmail/relay/pull/578))
+
 - Increase nginx connection limits
   ([#576](https://github.com/chatmail/relay/pull/576))
 

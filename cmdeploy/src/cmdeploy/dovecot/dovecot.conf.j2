@@ -177,20 +177,34 @@ service auth-worker {
 }
 
 service imap-login {
-    # High-security mode.
-    # Each process serves a single connection and exits afterwards.
-    # This is the default, but we set it explicitly to be sure.
-    # See <https://doc.dovecot.org/admin_manual/login_processes/#high-security-mode> for details.
-    service_count = 1
-
-    # Inrease the number of simultaneous connections.
+    # High-performance mode as described in
+    # <https://doc.dovecot.org/2.3/admin_manual/login_processes/#high-performance-mode>
     #
-    # As of Dovecot 2.3.19.1 the default is 100 processes.
-    # Combined with `service_count = 1` it means only 100 connections
-    # can be handled simultaneously.
-    process_limit = 10000
+    # So-called high-security mode described in
+    # <https://doc.dovecot.org/2.3/admin_manual/login_processes/#high-security-mode>
+    # and enabled by default with `service_count = 1` starts one process per connection
+    # and has problems logging in thousands of users after Dovecot restart.
+    service_count = 0
+
+    # Increase virtual memory size limit.
+    # Since imap-login processes handle TLS connections
+    # even after logging users in
+    # and many connections are handled by each process,
+    # memory size limit should be increased.
+    #
+    # Otherwise the whole process eventually dies
+    # with an error similar to
+    #   imap-login: Fatal: master: service(imap-login):
+    #   child 1422951 returned error 83
+    #   (Out of memory (service imap-login { vsz_limit=256 MB },
+    #    you may need to increase it)
+    # and takes down all its TLS connections at once.
+    vsz_limit = 1G
 
     # Avoid startup latency for new connections.
+    #
+    # Should be set to at least the number of CPU cores
+    # according to the documentation.
     process_min_avail = 10
 }
 
