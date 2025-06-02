@@ -2,11 +2,25 @@ load_module modules/ngx_stream_module.so;
 
 user www-data;
 worker_processes auto;
+
+# Increase the number of connections
+# that a worker process can open
+# to avoid errors such as
+#   accept4() failed (24: Too many open files)
+# and
+#   socket() failed (24: Too many open files) while connecting to upstream
+# in the logs.
+# <https://nginx.org/en/docs/ngx_core_module.html#worker_rlimit_nofile>
+worker_rlimit_nofile 2048;
 pid /run/nginx.pid;
 error_log syslog:server=unix:/dev/log,facility=local3;
 
 events {
-	worker_connections 768;
+        # Increase to avoid errors such as
+        #   768 worker_connections are not enough while connecting to upstream
+        # in the logs.
+        # <https://nginx.org/en/docs/ngx_core_module.html#worker_connections>
+	worker_connections 2048;
 	# multi_accept on;
 }
 

@@ -2,6 +2,9 @@
 
 ## untagged
 
+- Increase nginx connection limits
+  ([#576](https://github.com/chatmail/relay/pull/576))
+
 - If `dns-utils` needs to be installed before cmdeploy run, apt update to make sure it works
   ([#560](https://github.com/chatmail/relay/pull/560))
 
