@@ -11,8 +11,47 @@ All functions of this module
 """
 
 import re
+import os
+import glob
 
 from .rshell import CalledProcessError, shell
+
+
+def get_acme_account_url():
+    """Get the acmetool account URL with fallback methods.
+    
+    First tries the acmetool command, then falls back to searching the filesystem
+    if the command fails or returns empty.
+    """
+    # Try the acmetool command first
+    acme_url = shell("acmetool account-url", fail_ok=True)
+    if acme_url:
+        return acme_url
+    
+    # Fallback: search for URL files in acme accounts directory
+    try:
+        acct_base = "/var/lib/acme/accounts/"
+        # Find Let's Encrypt directory
+        le_dirs = glob.glob(os.path.join(acct_base, "*letsencrypt*"))
+        if not le_dirs:
+            return ""
+        
+        # Find account directories
+        for le_dir in le_dirs:
+            acct_dirs = glob.glob(os.path.join(le_dir, "*"))
+            for acct_dir in acct_dirs:
+                url_file = os.path.join(acct_dir, "url")
+                if os.path.isfile(url_file):
+                    # Read the URL file content
+                    with open(url_file, "r") as f:
+                        url = f.read().strip()
+                        if url:
+                            return url
+    except Exception:
+        # Any exception during fallback should be ignored
+        pass
+    
+    return ""
 
 
 def perform_initial_checks(mail_domain):
@@ -26,7 +65,7 @@ def perform_initial_checks(mail_domain):
     WWW = query_dns("CNAME", f"www.{mail_domain}")
 
     res = dict(mail_domain=mail_domain, A=A, AAAA=AAAA, MTA_STS=MTA_STS, WWW=WWW)
-    res["acme_account_url"] = shell("acmetool account-url", fail_ok=True)
+    res["acme_account_url"] = get_acme_account_url()
     res["dkim_entry"], res["web_dkim_entry"] = get_dkim_entry(
         mail_domain, dkim_selector="opendkim"
     )
