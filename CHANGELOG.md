@@ -2,6 +2,9 @@
 
 ## untagged
 
+- Increase dovecot imap-login limits
+  ([#577](https://github.com/chatmail/relay/pull/577))
+
 - Increase nginx connection limits
   ([#576](https://github.com/chatmail/relay/pull/576))
 

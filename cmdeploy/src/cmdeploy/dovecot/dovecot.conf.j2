@@ -177,17 +177,20 @@ service auth-worker {
 }
 
 service imap-login {
-    # High-security mode.
-    # Each process serves a single connection and exits afterwards.
-    # This is the default, but we set it explicitly to be sure.
+    # We are not using "high-security-mode" because even if dovecot
+    # login would be compromised, there are only E2EE messages to be
+    # found or sent, and an attacker doesn't have the key used with this address. 
     # See <https://doc.dovecot.org/admin_manual/login_processes/#high-security-mode> for details.
-    service_count = 1
+    
+    # Performance Mode. Each process serves up to 100 connections and exits afterwards. 
+    service_count = 100
 
     # Inrease the number of simultaneous connections.
     #
     # As of Dovecot 2.3.19.1 the default is 100 processes.
     # Combined with `service_count = 1` it means only 100 connections
     # can be handled simultaneously.
+    # We allow up to 5000 * 100 = 500K connections 
     process_limit = 10000
 
     # Avoid startup latency for new connections.
