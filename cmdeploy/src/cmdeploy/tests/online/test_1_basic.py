@@ -1,6 +1,7 @@
 import datetime
 import smtplib
 import subprocess
+import socket
 
 import pytest
 
@@ -118,14 +119,19 @@ def test_authenticated_from(cmsetup, maildata):
 
 @pytest.mark.parametrize("from_addr", ["fake@example.org", "fake@testrun.org"])
 def test_reject_missing_dkim(cmsetup, maildata, from_addr):
+    domain = cmsetup.maildomain
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.settimeout(10)
+    try:
+        sock.connect((domain, 25))
+    except socket.timeout:
+        pytest.skip(f"port 25 not reachable for {domain}")
+
     recipient = cmsetup.gen_users(1)[0]
     msg = maildata(
         "encrypted.eml", from_addr=from_addr, to_addr=recipient.addr
     ).as_string()
-    try:
-        conn = smtplib.SMTP(cmsetup.maildomain, 25, timeout=10)
-    except TimeoutError:
-        pytest.skip(f"port 25 not reachable for {cmsetup.maildomain}")
+    conn = smtplib.SMTP(cmsetup.maildomain, 25, timeout=10)
 
     with conn as s:
         with pytest.raises(smtplib.SMTPDataError, match="No valid DKIM signature"):
