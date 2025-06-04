@@ -10,6 +10,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        # Checkout pull request HEAD commit instead of merge commit
+        # Otherwise `test_deployed_state` will be unhappy.
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
 
       - name: run chatmaild tests 
         working-directory: chatmaild
