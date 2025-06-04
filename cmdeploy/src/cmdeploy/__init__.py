@@ -457,9 +457,30 @@ def check_config(config):
 
 
 def deploy_mtail(config):
+    # Uninstall mtail package, we are going to install a static binary.
     apt.packages(
-        name="Install mtail",
+        name="Uninstall mtail",
         packages=["mtail"],
+        present=False
+    )
+
+    (url, sha256sum) = {
+        "x86_64": (
+            "https://github.com/google/mtail/releases/download/v3.0.8/mtail_3.0.8_linux_amd64.tar.gz",
+            "123c2ee5f48c3eff12ebccee38befd2233d715da736000ccde49e3d5607724e4",
+        ),
+        "aarch64": (
+            "https://github.com/google/mtail/releases/download/v3.0.8/mtail_3.0.8_linux_arm64.tar.gz",
+            "aa04811c0929b6754408676de520e050c45dddeb3401881888a092c9aea89cae",
+        ),
+    }[host.get_fact(facts.server.Arch)]
+
+    server.shell(
+        name="Download mtail",
+        commands=[
+            f"(echo '{sha256sum} /usr/local/bin/mtail' | sha256sum -c) || (curl -L {url} | gunzip | tar -x -f - mtail -O >/usr/local/bin/mtail.new && mv /usr/local/bin/mtail.new /usr/local/bin/mtail)",
+            "chmod 755 /usr/local/bin/mtail",
+        ],
     )
 
     # Using our own systemd unit instead of `/usr/lib/systemd/system/mtail.service`.

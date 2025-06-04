@@ -3,7 +3,7 @@ Description=mtail
 
 [Service]
 Type=simple
-ExecStart=/bin/sh -c "journalctl -f -o short-iso -n 0 | /usr/bin/mtail --address={{ address }} --port={{ port }} --progs /etc/mtail --logtostderr --logs /dev/stdin"
+ExecStart=/bin/sh -c "journalctl -f -o short-iso -n 0 | /usr/local/bin/mtail --address={{ address }} --port={{ port }} --progs /etc/mtail --logtostderr --logs -"
 Restart=on-failure
 
 [Install]
