@@ -1,5 +1,7 @@
 import logging
 import sys
+import time
+from contextlib import contextmanager
 
 from .config import read_config
 from .dictproxy import DictProxy
@@ -7,8 +9,15 @@ from .filedict import FileDict
 from .notifier import Notifier
 
 
+def _is_valid_token_timestamp(timestamp, now):
+    # Token if invalid after 90 days
+    # or if the timestamp is in the future.
+    return timestamp > now - 3600 * 24 * 90 and timestamp < now + 60
+
+
 class Metadata:
-    # each SETMETADATA on this key appends to a list of unique device tokens
+    # each SETMETADATA on this key appends to dictionary
+    # mapping of unique device tokens
     # which only ever get removed if the upstream indicates the token is invalid
     DEVICETOKEN_KEY = "devicetoken"
 
@@ -18,21 +27,51 @@ class Metadata:
     def get_metadata_dict(self, addr):
         return FileDict(self.vmail_dir / addr / "metadata.json")
 
-    def add_token_to_addr(self, addr, token):
+    @contextmanager
+    def _modify_tokens(self, addr):
         with self.get_metadata_dict(addr).modify() as data:
-            tokens = data.setdefault(self.DEVICETOKEN_KEY, [])
-            if token not in tokens:
-                tokens.append(token)
+            tokens = data.setdefault(self.DEVICETOKEN_KEY, {})
+            now = int(time.time())
+            if isinstance(tokens, list):
+                data[self.DEVICETOKEN_KEY] = tokens = {t: now for t in tokens}
+
+            expired_tokens = [
+                token
+                for token, timestamp in tokens.items()
+                if not _is_valid_token_timestamp(tokens[token], now)
+            ]
+            for expired_token in expired_tokens:
+                del tokens[expired_token]
+
+            yield tokens
+
+    def add_token_to_addr(self, addr, token):
+        with self._modify_tokens(addr) as tokens:
+            tokens[token] = int(time.time())
 
     def remove_token_from_addr(self, addr, token):
-        with self.get_metadata_dict(addr).modify() as data:
-            tokens = data.get(self.DEVICETOKEN_KEY, [])
+        with self._modify_tokens(addr) as tokens:
             if token in tokens:
-                tokens.remove(token)
+                del tokens[token]
 
     def get_tokens_for_addr(self, addr):
         mdict = self.get_metadata_dict(addr).read()
-        return mdict.get(self.DEVICETOKEN_KEY, [])
+        tokens = mdict.get(self.DEVICETOKEN_KEY, {})
+
+        now = int(time.time())
+        if isinstance(tokens, dict):
+            token_list = [
+                token
+                for token, timestamp in tokens.items()
+                if _is_valid_token_timestamp(timestamp, now)
+            ]
+            if len(token_list) < len(tokens):
+                # Some tokens have expired, remove them.
+                with self._modify_tokens(addr) as _tokens:
+                    pass
+        else:
+            token_list = []
+        return token_list
 
 
 class MetadataDictProxy(DictProxy):

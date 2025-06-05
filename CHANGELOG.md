@@ -2,6 +2,9 @@
 
 ## untagged
 
+- Expire push notification tokens after 90 days
+  ([#583](https://github.com/chatmail/relay/pull/583))
+
 - Use official `mtail` binary instead of `mtail` package
   ([#581](https://github.com/chatmail/relay/pull/581))
 
