@@ -376,6 +376,13 @@ def _configure_dovecot(config: Config, debug: bool = False) -> bool:
             persist=True,
         )
 
+    timezone_env = files.line(
+        name="Set TZ environment variable",
+        path="/etc/environment",
+        line="TZ=:/etc/localtime",
+    )
+    need_restart |= timezone_env.changed
+
     return need_restart
 
 
