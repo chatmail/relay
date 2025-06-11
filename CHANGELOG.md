@@ -11,6 +11,9 @@
 - Reconfigure Dovecot imap-login service to high-performance mode
   ([#578](https://github.com/chatmail/relay/pull/578))
 
+- Set timezone to improve dovecot performance
+  ([#584](https://github.com/chatmail/relay/pull/584))
+
 - Increase nginx connection limits
   ([#576](https://github.com/chatmail/relay/pull/576))
 
