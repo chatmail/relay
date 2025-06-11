@@ -64,6 +64,14 @@ class TestSSHExecutor:
         assert (now - since_date).total_seconds() < 60 * 60 * 51
 
 
+def test_timezone_env(remote):
+    for line in remote.iter_output("env"):
+        print(line)
+        if line == "tz=:/etc/localtime":
+            return True
+    pytest.fail("TZ is not set")
+
+
 def test_remote(remote, imap_or_smtp):
     lineproducer = remote.iter_output(imap_or_smtp.logcmd)
     imap_or_smtp.connect()
