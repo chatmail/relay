@@ -41,3 +41,6 @@ lint.select = [
   "PLE", # Pylint Error
   "PLW", # Pylint Warning
 ]
+lint.ignore = [
+  "PLC0415" # import-outside-top-level
+]

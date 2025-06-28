@@ -458,11 +458,7 @@ def check_config(config):
 
 def deploy_mtail(config):
     # Uninstall mtail package, we are going to install a static binary.
-    apt.packages(
-        name="Uninstall mtail",
-        packages=["mtail"],
-        present=False
-    )
+    apt.packages(name="Uninstall mtail", packages=["mtail"], present=False)
 
     (url, sha256sum) = {
         "x86_64": (
