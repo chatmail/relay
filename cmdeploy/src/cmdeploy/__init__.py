@@ -683,9 +683,16 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     else:
         print(arch)
     apt.deb(
-        name="Install Dovecot",
+        name="Install dovecot-core",
+        src=f"https://download.delta.chat/dovecot/dovecot-core_2.3.21%2Bdfsg1-3_{arch}.deb",
+    )
+    apt.deb(
+        name="Install dovecot-imapd",
         src=f"https://download.delta.chat/dovecot/dovecot-imapd_2.3.21%2Bdfsg1-3_{arch}.deb",
-        force=True,
+    )
+    apt.deb(
+        name="Install dovecot-lmtpd",
+        src=f"https://download.delta.chat/dovecot/dovecot-lmtpd_2.3.21%2Bdfsg1-3_{arch}.deb",
     )
 
     apt.packages(
