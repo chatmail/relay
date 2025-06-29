@@ -8,6 +8,9 @@
 - Use official `mtail` binary instead of `mtail` package
   ([#581](https://github.com/chatmail/relay/pull/581))
 
+- dovecot: install from download.delta.chat instead of openSUSE Build Service
+  ([#590](https://github.com/chatmail/relay/pull/590))
+
 - Reconfigure Dovecot imap-login service to high-performance mode
   ([#578](https://github.com/chatmail/relay/pull/578))
 
