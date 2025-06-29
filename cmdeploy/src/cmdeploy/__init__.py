@@ -612,7 +612,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
         path="/etc/apt/sources.list",
         line="deb [signed-by=/etc/apt/keyrings/obs-home-deltachat.gpg] https://download.opensuse.org/repositories/home:/deltachat/Debian_12/ ./",
         escape_regex_characters=True,
-        ensure_newline=True,
+        present=False,
     )
 
     if host.get_fact(Port, port=53) != "unbound":
@@ -675,9 +675,24 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
         packages="postfix",
     )
 
-    apt.packages(
-        name="Install Dovecot",
-        packages=["dovecot-imapd", "dovecot-lmtpd"],
+    arch = host.get_fact(facts.server.Arch)
+    if "x86_64" in arch:
+        arch = "amd64"
+    elif "aarch64" in arch:
+        arch = "arm64"
+    else:
+        print(arch)
+    apt.deb(
+        name="Install dovecot-core",
+        src=f"https://download.delta.chat/dovecot/dovecot-core_2.3.21%2Bdfsg1-3_{arch}.deb",
+    )
+    apt.deb(
+        name="Install dovecot-imapd",
+        src=f"https://download.delta.chat/dovecot/dovecot-imapd_2.3.21%2Bdfsg1-3_{arch}.deb",
+    )
+    apt.deb(
+        name="Install dovecot-lmtpd",
+        src=f"https://download.delta.chat/dovecot/dovecot-lmtpd_2.3.21%2Bdfsg1-3_{arch}.deb",
     )
 
     apt.packages(
