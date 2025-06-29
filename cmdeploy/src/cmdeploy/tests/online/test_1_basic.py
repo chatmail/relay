@@ -1,7 +1,7 @@
 import datetime
 import smtplib
-import subprocess
 import socket
+import subprocess
 
 import pytest
 
