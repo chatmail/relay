@@ -676,6 +676,12 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     )
 
     arch = host.get_fact(facts.server.Arch)
+    if "x86_64" in arch:
+        arch = "amd64"
+    elif "aarch64" in arch:
+        arch = "arm64"
+    else:
+        print(arch)
     apt.deb(
         name="Install Dovecot",
         src=f"https://download.delta.chat/dovecot/dovecot-imapd_2.3.21%2Bdfsg1-3_{arch}.deb",
