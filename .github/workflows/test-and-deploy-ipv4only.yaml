@@ -71,7 +71,7 @@ jobs:
           ssh -o StrictHostKeyChecking=accept-new -v root@staging-ipv4.testrun.org chown root:root -R /var/lib/acme || true
 
       - name: run formatting checks 
-        run: cmdeploy fmt -v 
+        run: cmdeploy fmt -v --check
 
       - name: run deploy-chatmail offline tests 
         run: pytest --pyargs cmdeploy 
