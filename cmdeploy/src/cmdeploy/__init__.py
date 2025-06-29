@@ -685,6 +685,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     apt.deb(
         name="Install Dovecot",
         src=f"https://download.delta.chat/dovecot/dovecot-imapd_2.3.21%2Bdfsg1-3_{arch}.deb",
+        force=True,
     )
 
     apt.packages(
