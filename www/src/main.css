@@ -80,9 +80,8 @@ code {
 }
 
 .cta-button, .cta-button:hover, .cta-button:visited {
-  border: 1.5px solid #a4c2d0;
-  border-radius: 5px;
-  padding: 10px;
+  border-radius: 10px;
+  padding: 10px 20px;
 
   background: linear-gradient(120deg, #77888f, #364e59);
   color: white !important;
