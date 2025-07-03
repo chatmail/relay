@@ -1,4 +1,3 @@
-
 body {
   font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif;
   line-height: 1.4;
@@ -74,13 +73,13 @@ code {
 }
 
 .cta-button, .cta-button:hover, .cta-button:visited {
-    border: 1.5px solid #a4c2d0;
-    border-radius: 5px;
-    padding: 10px;
-    display: inline-block;
-    margin: 10px 0;
+  border: 1.5px solid #a4c2d0;
+  border-radius: 5px;
+  padding: 10px;
+  display: inline-block;
+  margin: 10px 0;
 
-    background: linear-gradient(120deg, #77888f, #364e59);
-    color: white !important;
-    font-weight: bold;
+  background: linear-gradient(120deg, #77888f, #364e59);
+  color: white !important;
+  font-weight: bold;
 }
