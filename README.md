@@ -69,7 +69,7 @@ Please substitute it with your own domain.
     mta-sts.chat.example.com. 3600 IN CNAME chat.example.com.
    ```
 
-2. Clone the repository and bootstrap the Python virtualenv.
+2. On your local PC, clone the repository and bootstrap the Python virtualenv.
 
    ```
     git clone https://github.com/chatmail/relay
@@ -83,24 +83,23 @@ Please substitute it with your own domain.
     scripts/cmdeploy init chat.example.org  # <-- use your domain 
    ```
 
-4. Verify that SSH root login works:
+4. Verify that SSH root login to your remote server works:
 
    ```
-    ssh root@chat.example.org   # <-- use your domain 
+    ssh root@chat.example.org  # <-- use your domain 
    ```
-
 
 5. Deploy the remote chatmail relay server:
 
    ```
     scripts/cmdeploy run
    ```
-   This script will check that you have all necessary DNS records.
+   This script will also check that you have all necessary DNS records.
    If DNS records are missing, it will recommend
    which you should configure at your DNS provider
    (it can take some time until they are public).
 
-### Other helpful commands:
+### Other helpful commands
 
 To check the status of your remotely running chatmail service:
 
