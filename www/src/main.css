@@ -85,8 +85,9 @@ li#domain a {
 }
 
 .cta-button, .cta-button:hover, .cta-button:visited {
-  border-radius: 0.4rem;
-  padding: 0.5rem 0.9rem;
+  border: 0.05rem solid #a4c2d0;
+  border-radius: 0.25rem;
+  padding: 0.5rem;
 
   background: linear-gradient(120deg, #77888f, #364e59);
   color: #fff;
