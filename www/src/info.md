@@ -1,4 +1,3 @@
-
 ## More information 
 
 {{ config.mail_domain }} provides a low-maintenance, resource efficient and 
