@@ -77,7 +77,7 @@ Please substitute it with your own domain.
     scripts/initenv.sh
    ```
 
-3. Create chatmail configuration file `chatmail.ini`:
+3. On your local PC, create chatmail configuration file `chatmail.ini`:
 
    ```
     scripts/cmdeploy init chat.example.org  # <-- use your domain 
@@ -90,7 +90,7 @@ Please substitute it with your own domain.
    ```
 
 
-5. Deploy the remote chatmail relay server:
+5. From your local PC, deploy the remote chatmail relay server:
 
    ```
     scripts/cmdeploy run
