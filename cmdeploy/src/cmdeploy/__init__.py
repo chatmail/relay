@@ -318,6 +318,39 @@ def _configure_postfix(config: Config, debug: bool = False) -> bool:
     return need_restart
 
 
+def _install_dovecot_package(package: str, arch: str):
+    arch = "amd64" if arch == "x86_64" else arch
+    arch = "arm64" if arch == "aarch64" else arch
+    url = f"https://download.delta.chat/dovecot/dovecot-{package}_2.3.21%2Bdfsg1-3_{arch}.deb"
+    deb_filename = "/root/" + url.split("/")[-1]
+
+    match (package, arch):
+        case ("core", "amd64"):
+            sha256 = "43f593332e22ac7701c62d58b575d2ca409e0f64857a2803be886c22860f5587"
+        case ("core", "arm64"):
+            sha256 = "4d21eba1a83f51c100f08f2e49f0c9f8f52f721ebc34f75018e043306da993a7"
+        case ("imapd", "amd64"):
+            sha256 = "8d8dc6fc00bbb6cdb25d345844f41ce2f1c53f764b79a838eb2a03103eebfa86"
+        case ("imapd", "arm64"):
+            sha256 = "178fa877ddd5df9930e8308b518f4b07df10e759050725f8217a0c1fb3fd707f"
+        case ("lmtpd", "amd64"):
+            sha256 = "2f69ba5e35363de50962d42cccbfe4ed8495265044e244007d7ccddad77513ab"
+        case ("lmtpd", "arm64"):
+            sha256 = "89f52fb36524f5877a177dff4a713ba771fd3f91f22ed0af7238d495e143b38f"
+        case _:
+            sha256 = None
+
+    files.download(
+        name=f"Download dovecot-{package}",
+        src=url,
+        dest=deb_filename,
+        sha256sum=sha256,
+        cache_time=60 * 60 * 24 * 30,  # cache the .deb for a month
+    )
+
+    apt.deb(name=f"Install dovecot-{package}", src=deb_filename)
+
+
 def _configure_dovecot(config: Config, debug: bool = False) -> bool:
     """Configures Dovecot IMAP server."""
     need_restart = False
@@ -675,25 +708,9 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
         packages="postfix",
     )
 
-    arch = host.get_fact(facts.server.Arch)
-    if "x86_64" in arch:
-        arch = "amd64"
-    elif "aarch64" in arch:
-        arch = "arm64"
-    else:
-        print(arch)
-    apt.deb(
-        name="Install dovecot-core",
-        src=f"https://download.delta.chat/dovecot/dovecot-core_2.3.21%2Bdfsg1-3_{arch}.deb",
-    )
-    apt.deb(
-        name="Install dovecot-imapd",
-        src=f"https://download.delta.chat/dovecot/dovecot-imapd_2.3.21%2Bdfsg1-3_{arch}.deb",
-    )
-    apt.deb(
-        name="Install dovecot-lmtpd",
-        src=f"https://download.delta.chat/dovecot/dovecot-lmtpd_2.3.21%2Bdfsg1-3_{arch}.deb",
-    )
+    _install_dovecot_package("core", host.get_fact(facts.server.Arch))
+    _install_dovecot_package("imapd", host.get_fact(facts.server.Arch))
+    _install_dovecot_package("lmtpd", host.get_fact(facts.server.Arch))
 
     apt.packages(
         name="Install nginx",
