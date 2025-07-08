@@ -3,6 +3,7 @@
 """CGI script for creating new accounts."""
 
 import json
+import os
 import random
 import secrets
 import string
@@ -20,7 +21,9 @@ def create_newemail_dict(config: Config):
         secrets.choice(ALPHANUMERIC_PUNCT)
         for _ in range(config.password_min_length + 3)
     )
-    return dict(email=f"{user}@{config.mail_domain}", password=f"{password}")
+    redirect_uri = os.getenv("REQUEST_URI")
+    invite_token = redirect_uri[5:] if redirect_uri != "/new" else ""
+    return dict(email=f"{user}@{config.mail_domain}", password=f"{invite_token}{password}")
 
 
 def print_new_account():

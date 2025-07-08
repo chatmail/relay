@@ -346,7 +346,7 @@ def _install_dovecot_package(package: str, arch: str):
         src=url,
         dest=deb_filename,
         sha256sum=sha256,
-        cache_time=9999999999999,  # never redownload the package
+        cache_time=60 * 60 * 24 * 365 * 10,  # never redownload the package
     )
 
     apt.deb(name=f"Install dovecot-{package}", src=deb_filename)
@@ -709,9 +709,10 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
         packages="postfix",
     )
 
-    _install_dovecot_package("core", host.get_fact(facts.server.Arch))
-    _install_dovecot_package("imapd", host.get_fact(facts.server.Arch))
-    _install_dovecot_package("lmtpd", host.get_fact(facts.server.Arch))
+    if not "dovecot.service" in host.get_fact(SystemdEnabled):
+        _install_dovecot_package("core", host.get_fact(facts.server.Arch))
+        _install_dovecot_package("imapd", host.get_fact(facts.server.Arch))
+        _install_dovecot_package("lmtpd", host.get_fact(facts.server.Arch))
 
     apt.packages(
         name="Install nginx",
