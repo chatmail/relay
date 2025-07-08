@@ -338,7 +338,8 @@ def _install_dovecot_package(package: str, arch: str):
         case ("lmtpd", "arm64"):
             sha256 = "89f52fb36524f5877a177dff4a713ba771fd3f91f22ed0af7238d495e143b38f"
         case _:
-            sha256 = None
+            apt.packages(packages=[f"dovecot-{package}"])
+            return
 
     files.download(
         name=f"Download dovecot-{package}",
