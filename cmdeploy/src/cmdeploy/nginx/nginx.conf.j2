@@ -90,6 +90,7 @@ http {
 			fastcgi_pass unix:/run/fcgiwrap.socket;
 			include /etc/nginx/fastcgi_params;
 			fastcgi_param SCRIPT_FILENAME /usr/lib/cgi-bin/newemail.py;
+			fastcgi_param QUERY_STRING $query_string;
 		}
 
 		# Old URL for compatibility with e.g. printed QR codes.
