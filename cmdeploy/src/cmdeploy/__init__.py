@@ -709,15 +709,10 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
         packages="postfix",
     )
 
-    _install_dovecot_package("core", host.get_fact(facts.server.Arch))
-    systemd.service(
-        name="Disable dovecot for now",
-        service="dovecot",
-        enabled=False,
-        running=False,
-    )
-    _install_dovecot_package("imapd", host.get_fact(facts.server.Arch))
-    _install_dovecot_package("lmtpd", host.get_fact(facts.server.Arch))
+    if not "dovecot.service" in host.get_fact(SystemdEnabled):
+        _install_dovecot_package("core", host.get_fact(facts.server.Arch))
+        _install_dovecot_package("imapd", host.get_fact(facts.server.Arch))
+        _install_dovecot_package("lmtpd", host.get_fact(facts.server.Arch))
 
     apt.packages(
         name="Install nginx",
