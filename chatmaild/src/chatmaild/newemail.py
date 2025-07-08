@@ -21,9 +21,11 @@ def create_newemail_dict(config: Config):
         secrets.choice(ALPHANUMERIC_PUNCT)
         for _ in range(config.password_min_length + 3)
     )
-    redirect_uri = os.getenv("REQUEST_URI")
-    invite_token = redirect_uri[5:] if redirect_uri != "/new" else ""
-    return dict(email=f"{user}@{config.mail_domain}", password=f"{invite_token}{password}")
+    redirect_uri = os.getenv("REQUEST_URI", "/new")
+    invite_token = "" if redirect_uri == "/new" else redirect_uri[5:]
+    return dict(
+        email=f"{user}@{config.mail_domain}", password=f"{invite_token}{password}"
+    )
 
 
 def print_new_account():
