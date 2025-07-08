@@ -1,3 +1,4 @@
+
 # Privacy Policy for {{ config.mail_domain }} 
 
 {% if config.mail_domain == "nine.testrun.org" %}
@@ -39,6 +40,7 @@ Nevertheless, we provide legal details below to make life easier
 for data protection specialists and lawyers scrutinizing chatmail operations.
 
 
+
 ## 1. Name and contact information 
 
 Responsible for the processing of your personal data is:
@@ -49,10 +51,10 @@ Responsible for the processing of your personal data is:
 E-mail: {{ config.privacy_mail }}
 
 We have appointed a data protection officer:
+
 ```
 {{ config.privacy_pdo }}
 ```
-
 
 ## 2. Processing when using chat e-mail services
 
@@ -105,7 +107,6 @@ The legal basis for the processing is
 Art. 6 (1) lit. b GDPR,
 as you have a usage contract with us
 by using our services.
-
 
 ### 2.2 Processing of E-Mail-Messages
 
@@ -205,7 +206,6 @@ from the aforementioned purposes of data collection.
 We will not use the collected data
 for the purpose of drawing conclusions about your person.
 
-
 ## 4. Transfer of Data
 
 We do not retain any personal data but e-mail messages waiting to be delivered 
@@ -239,7 +239,6 @@ among other things,
 to implement appropriate security measures
 and grants us comprehensive control powers.
 
-
 ## 5. Rights of the data subject
 
 The rights arise from Articles 12 to 23 GDPR.
@@ -250,8 +249,8 @@ on these or possible objections.
 A deletion can be made
 directly in the Delta Chat email messenger.
 
-If you have any questions or complaints,
-please feel free to contact us by email:
+If you have any questions or complaints, 
+please feel free to contact us by email:  
 {{ config.privacy_mail }}
 
 As a rule, you can contact the supervisory authority of your usual place of residence
@@ -268,3 +267,5 @@ as of *October 2024*.
 Due to the further development of our service and offers
 or due to changed legal or official requirements,
 it may become necessary to revise this data protection declaration from time to time.
+
+
