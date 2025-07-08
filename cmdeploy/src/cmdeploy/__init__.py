@@ -346,7 +346,7 @@ def _install_dovecot_package(package: str, arch: str):
         src=url,
         dest=deb_filename,
         sha256sum=sha256,
-        cache_time=9999999999999,  # never redownload the package
+        cache_time=60 * 60 * 24 * 365 * 10,  # never redownload the package
     )
 
     apt.deb(name=f"Install dovecot-{package}", src=deb_filename)
@@ -710,6 +710,12 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     )
 
     _install_dovecot_package("core", host.get_fact(facts.server.Arch))
+    systemd.service(
+        name="Disable dovecot for now",
+        service="dovecot",
+        enabled=False,
+        running=False,
+    )
     _install_dovecot_package("imapd", host.get_fact(facts.server.Arch))
     _install_dovecot_package("lmtpd", host.get_fact(facts.server.Arch))
 
