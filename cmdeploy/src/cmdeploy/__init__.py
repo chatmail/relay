@@ -346,7 +346,7 @@ def _install_dovecot_package(package: str, arch: str):
         src=url,
         dest=deb_filename,
         sha256sum=sha256,
-        cache_time=9999999999999,  # never redownload the package
+        cache_time=60 * 60 * 24 * 365,  # cache the .deb for a year,
     )
 
     apt.deb(name=f"Install dovecot-{package}", src=deb_filename)
