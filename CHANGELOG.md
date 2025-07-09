@@ -2,6 +2,10 @@
 
 ## untagged
 
+- Enable invite-only chatmail relays with invite tokens
+  that can override disabled account creation
+  ([#600](https://github.com/chatmail/relay/pull/600))
+
 - Expire push notification tokens after 90 days
   ([#583](https://github.com/chatmail/relay/pull/583))
 

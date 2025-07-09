@@ -64,12 +64,34 @@ def test_dont_overwrite_password_on_wrong_login(dictproxy):
     assert res["password"] == res2["password"]
 
 
-def test_nocreate_file(monkeypatch, tmpdir, dictproxy):
-    p = tmpdir.join("nocreate")
-    p.write("")
-    monkeypatch.setattr(chatmaild.doveauth, "NOCREATE_FILE", str(p))
-    dictproxy.lookup_passdb("newuser12@chat.example.org", "zequ0Aimuchoodaechik")
-    assert not dictproxy.lookup_userdb("newuser12@chat.example.org")
+@pytest.mark.parametrize(
+    ["nocreate_file", "account", "invite_token", "password"],
+    [
+        (False, True, "asdf", "asdfasdmaimfelsgwerw"),
+        (False, True, "asdf", "z9873240187420913798"),
+        (False, True, "", "dsaiujfw9fjiwf9w"),
+        (True, True, "asdf", "asdfmosadkdkfwdofkw"),
+        (True, False, "asdf", "z9873240187420913798"),
+        (True, False, "", "dsaiujfw9fjiwf9w"),
+    ],
+)
+def test_nocreate_file(
+    monkeypatch,
+    tmpdir,
+    dictproxy,
+    example_config,
+    nocreate_file: bool,
+    account: bool,
+    invite_token: str,
+    password: str,
+):
+    if nocreate_file:
+        p = tmpdir.join("nocreate")
+        p.write("")
+        monkeypatch.setattr(chatmaild.doveauth, "NOCREATE_FILE", str(p))
+    example_config.invite_token = invite_token
+    dictproxy.lookup_passdb("newuser12@chat.example.org", password)
+    assert bool(dictproxy.lookup_userdb("newuser12@chat.example.org")) == account
 
 
 def test_handle_dovecot_request(dictproxy):
