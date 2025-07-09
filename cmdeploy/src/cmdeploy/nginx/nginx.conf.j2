@@ -84,7 +84,7 @@ http {
 			if ($request_method = GET) {
 				# Redirect to Delta Chat,
 				# which will in turn do a POST request.
-				return 301 dcaccount:https://{{ config.domain_name }}/new;
+				return 301 dcaccount:https://{{ config.domain_name }}$request_uri;
 			}
 
 			fastcgi_pass unix:/run/fcgiwrap.socket;
@@ -101,7 +101,7 @@ http {
 		# Redirects are only for browsers.
 		location /cgi-bin/newemail.py {
 			if ($request_method = GET) {
-				return 301 dcaccount:https://{{ config.domain_name }}/new;
+				return 301 dcaccount:https://{{ config.domain_name }}$request_uri;
 			}
 
 			fastcgi_pass unix:/run/fcgiwrap.socket;
