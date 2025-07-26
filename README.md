@@ -541,3 +541,6 @@ Here are some related projects that you may be interested in:
   progress](https://github.com/mjl-/mox/issues/251) to modify it to support all
   of the features and configuration settings required to operate as a chatmail
   relay.
+- [Maddy-Chatmail](https://github.com/wiiz-ir/maddy_chatmail/): a plugin for the
+  [Maddy email server](https://maddy.email/) which aims to implement the
+  chatmail relay features and configuration options.
