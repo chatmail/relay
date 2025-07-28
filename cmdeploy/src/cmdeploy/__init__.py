@@ -816,8 +816,14 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
         name="Ensure cron is installed",
         packages=["cron"],
     )
-    git_hash = subprocess.check_output(["git", "rev-parse", "HEAD"]).decode()
-    git_diff = subprocess.check_output(["git", "diff"]).decode()
+    try:
+        git_hash = subprocess.check_output(["git", "rev-parse", "HEAD"]).decode()
+    except Exception:
+        git_hash = "unknown\n"
+    try:
+        git_diff = subprocess.check_output(["git", "diff"]).decode()
+    except Exception:
+        git_diff = ""
     files.put(
         name="Upload chatmail relay git commiit hash",
         src=StringIO(git_hash + git_diff),
