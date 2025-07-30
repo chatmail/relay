@@ -395,15 +395,6 @@ in this case, just run `ssh-keygen -R "mail.example.org"` as recommended.
    Postfix and Dovecot are disabled for now; we will enable them later. 
    We first need to make the new site fully operational. 
 
-3. On the new site, run the following to ensure the ownership is correct in case UIDs/GIDs changed:
-
-   ```
-    chown root: -R /var/lib/acme
-    chown opendkim: -R /etc/dkimkeys
-    chown vmail: -R /home/vmail/mail
-    chown echobot: -R /run/echobot
-   ```
-
 4. Now, update DNS entries. 
 
    If other MTAs try to deliver messages to your chatmail domain they may fail intermittently,
