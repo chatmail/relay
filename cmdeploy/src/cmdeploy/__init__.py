@@ -748,6 +748,20 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     _remove_rspamd()
     opendkim_need_restart = _configure_opendkim(mail_domain, "opendkim")
 
+    #
+    # If this system is pre-populated with data from a previous instance,
+    # we might need to adjust ownership of files.
+    #
+    stateful_paths = {
+        "/etc/dkimkeys": "opendkim",
+        "/home/vmail/mail": "vmail",
+        "/run/echobot": "echobot",
+        "/var/lib/acme": "root",
+    }
+    for stateful_path, path_owner in stateful_paths.items():
+        files.directory(stateful_path)  # In case it doesn't exist yet.
+        server.shell("chown {}: -R {}".format(path_owner, stateful_path))
+
     systemd.service(
         name="Start and enable OpenDKIM",
         service="opendkim.service",
