@@ -13,8 +13,6 @@ class LastLoginDictProxy(DictProxy):
         keyname = parts[1].split("/")
         value = parts[2] if len(parts) > 2 else ""
         if keyname[0] == "shared" and keyname[1] == "last-login":
-            if addr.startswith("echo@"):
-                return True
             addr = keyname[2]
             timestamp = int(value)
             user = self.config.get_user(addr)
