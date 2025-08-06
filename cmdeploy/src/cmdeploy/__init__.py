@@ -326,9 +326,9 @@ def _install_dovecot_package(package: str, arch: str):
 
     match (package, arch):
         case ("core", "amd64"):
-            sha256 = "43f593332e22ac7701c62d58b575d2ca409e0f64857a2803be886c22860f5587"
+            sha256 = "dd060706f52a306fa863d874717210b9fe10536c824afe1790eec247ded5b27d"
         case ("core", "arm64"):
-            sha256 = "4d21eba1a83f51c100f08f2e49f0c9f8f52f721ebc34f75018e043306da993a7"
+            sha256 = "e7548e8a82929722e973629ecc40fcfa886894cef3db88f23535149e7f730dc9"
         case ("imapd", "amd64"):
             sha256 = "8d8dc6fc00bbb6cdb25d345844f41ce2f1c53f764b79a838eb2a03103eebfa86"
         case ("imapd", "arm64"):
