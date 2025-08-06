@@ -321,7 +321,7 @@ def _configure_postfix(config: Config, debug: bool = False) -> bool:
 def _install_dovecot_package(package: str, arch: str):
     arch = "amd64" if arch == "x86_64" else arch
     arch = "arm64" if arch == "aarch64" else arch
-    url = f"https://download.delta.chat/dovecot/dovecot-{package}_2.3.21%2Bdfsg1-3_{arch}.deb"
+    url = f"https://download.delta.chat/dovecot/staging-drop-libicu/dovecot-{package}_2.3.21%2Bdfsg1-3_{arch}.deb"
     deb_filename = "/root/" + url.split("/")[-1]
 
     match (package, arch):
