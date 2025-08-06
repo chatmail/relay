@@ -19,7 +19,7 @@ class User:
 
     @property
     def can_track(self):
-        return "@" in self.addr and not self.addr.startswith("echo@")
+        return "@" in self.addr
 
     def get_userdb_dict(self):
         """Return a non-empty dovecot 'userdb' style dict
@@ -55,11 +55,9 @@ class User:
         try:
             write_bytes_atomic(self.password_path, password)
         except PermissionError:
-            if not self.addr.startswith("echo@"):
-                logging.error(f"could not write password for: {self.addr}")
-                raise
-        if not self.addr.startswith("echo@"):
-            self.enforce_E2EE_path.touch()
+            logging.error(f"could not write password for: {self.addr}")
+            raise
+        self.enforce_E2EE_path.touch()
 
     def set_last_login_timestamp(self, timestamp):
         """Track login time with daily granularity
