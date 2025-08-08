@@ -2,6 +2,9 @@
 
 ## untagged
 
+- Check whether GCC is installed in initenv.sh
+  ([#608](https://github.com/chatmail/relay/pull/608))
+
 - Expire push notification tokens after 90 days
   ([#583](https://github.com/chatmail/relay/pull/583))
 
