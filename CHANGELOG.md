@@ -2,6 +2,12 @@
 
 ## untagged
 
+- Check whether GCC is installed in initenv.sh
+  ([#608](https://github.com/chatmail/relay/pull/608))
+
+- Automate file ownership setting from host migration process
+  ([#609](https://github.com/chatmail/relay/pull/609))
+
 - Expire push notification tokens after 90 days
   ([#583](https://github.com/chatmail/relay/pull/583))
 
