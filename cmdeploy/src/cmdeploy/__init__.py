@@ -15,7 +15,7 @@ from pyinfra import facts, host
 from pyinfra.api import FactBase
 from pyinfra.facts.files import File
 from pyinfra.facts.server import Sysctl
-from pyinfra.facts.systemd import SystemdEnabled
+from pyinfra.facts.systemd import SystemdEnabled, SystemdStatus
 from pyinfra.operations import apt, files, pip, server, systemd
 
 from .acmetool import deploy_acmetool
@@ -395,20 +395,21 @@ def _configure_dovecot(config: Config, debug: bool = False) -> bool:
         config=config,
     )
 
-    # as per https://doc.dovecot.org/configuration_manual/os/
+    # as per https://doc.dovecot.org/2.3/configuration_manual/os/
     # it is recommended to set the following inotify limits
-    for name in ("max_user_instances", "max_user_watches"):
-        key = f"fs.inotify.{name}"
-        if host.get_fact(Sysctl)[key] > 65535:
-            # Skip updating limits if already sufficient
-            # (enables running in incus containers where sysctl readonly)
-            continue
-        server.sysctl(
-            name=f"Change {key}",
-            key=key,
-            value=65535,
-            persist=True,
-        )
+    if config.change_kernel_settings:
+        for name in ("max_user_instances", "max_user_watches"):
+            key = f"fs.inotify.{name}"
+            if host.get_fact(Sysctl)[key] == config.fs_inotify_max_user_instances_and_watchers:
+                # Skip updating limits if already sufficient
+                # (enables running in incus containers where sysctl readonly)
+                continue
+            server.sysctl(
+                name=f"Change {key}",
+                key=key,
+                value=config.fs_inotify_max_user_instances_and_watchers,
+                persist=True,
+            )
 
     timezone_env = files.line(
         name="Set TZ environment variable",
@@ -676,8 +677,10 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     from cmdeploy.cmdeploy import Out
 
     process_on_53 = host.get_fact(Port, port=53)
+    if host.get_fact(SystemdStatus, services="unbound").get("unbound.service"):
+        process_on_53 = "unbound"
     if process_on_53 not in (None, "unbound"):
-        Out().red(f"Can't install unbound: port 53 is occupied by: {process_on_53}")
+        Out().red(f"Can't install unbound: port 53 is occupied by: {process_on_53}") 
         exit(1)
     apt.packages(
         name="Install unbound",
@@ -700,10 +703,12 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     deploy_iroh_relay(config)
 
     # Deploy acmetool to have TLS certificates.
-    tls_domains = [mail_domain, f"mta-sts.{mail_domain}", f"www.{mail_domain}"]
-    deploy_acmetool(
-        domains=tls_domains,
-    )
+    if not config.use_foreign_cert_manager:
+        tls_domains = [mail_domain, f"mta-sts.{mail_domain}", f"www.{mail_domain}"]
+        deploy_acmetool(
+            email = config.acme_email,
+            domains=tls_domains,
+        )
 
     apt.packages(
         # required for setfacl for echobot
@@ -782,6 +787,13 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
         running=True,
         enabled=True,
         restarted=nginx_need_restart,
+    )
+    
+    systemd.service(
+        name="Start and enable fcgiwrap",
+        service="fcgiwrap.service",
+        running=True,
+        enabled=True,
     )
 
     # This file is used by auth proxy.

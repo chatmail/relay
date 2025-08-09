@@ -1,0 +1,115 @@
+services:
+  chatmail:
+    build: 
+      context: ./docker
+      dockerfile: chatmail_server.dockerfile
+      tags:
+        - chatmail-relay:latest
+    image: chatmail-relay:latest
+    restart: unless-stopped
+    container_name: chatmail
+    depends_on:
+      - traefik-certs-dumper
+    cgroup: host # required for systemd
+    tty: true # required for logs
+    tmpfs: # required for systemd
+      - /tmp
+      - /run
+      - /run/lock
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    environment: #all possible variables you can check inside README and /chatmaild/src/chatmaild/ini/chatmail.ini.f
+      MAIL_DOMAIN: $MAIL_DOMAIN
+      # MAX_MESSAGE_SIZE: "50M"
+      # DEBUG_COMMANDS_ENABLED: "true"
+      # FORCE_REINIT_INI_FILE: "true"
+      USE_FOREIGN_CERT_MANAGER: "true"
+      CHANGE_KERNEL_SETTINGS: "false"
+      PATH_TO_SSL_CONTAINER: $PATH_TO_SSL_CONTAINER
+      ENABLE_CERTS_MONITORING: "true"
+      # CERTS_MONITORING_TIMEOUT: 60
+      # IS_DEVELOPMENT_INSTANCE: "true"
+    ports:
+      - "25:25"
+      - "587:587"
+      - "143:143"
+      - "993:993"
+    volumes:
+      ## system
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw # required for systemd
+      - ./:/opt/chatmail
+      - ${PATH_TO_SSL_HOST}:${PATH_TO_SSL_CONTAINER}:ro
+      
+      ## data
+      - ./data/chatmail:/home
+      # - ./data/chatmail-dkimkeys:/etc/dkimkeys
+      # - ./data/chatmail-echobot:/run/echobot
+      # - ./data/chatmail-acme:/var/lib/acme
+
+      ## custom resources
+      # - ./custom/www/src/index.md:/opt/chatmail/www/src/index.md
+
+      ## debug
+      # - ./docker/files/setup_chatmail_docker.sh:/setup_chatmail_docker.sh
+      # - ./docker/files/entrypoint.sh:/entrypoint.sh
+      # - ./docker/files/update_ini.sh:/update_ini.sh
+
+    labels:
+      - traefik.enable=true
+      - traefik.http.services.chatmail-relay.loadbalancer.server.scheme=https
+      - traefik.http.services.chatmail-relay.loadbalancer.server.port=443
+      - traefik.http.services.chatmail-relay.loadbalancer.serverstransport=insecure@file
+      - traefik.http.routers.chatmail-relay.rule=Host(`${MAIL_DOMAIN}`) || Host(`mta-sts.${MAIL_DOMAIN}`) || Host(`www.${MAIL_DOMAIN}`)
+      - traefik.http.routers.chatmail-relay.service=chatmail-relay
+      - traefik.http.routers.chatmail-relay.tls=true
+      - traefik.http.routers.chatmail-relay.tls.certresolver=letsEncrypt
+
+  traefik:
+    image: traefik:v3.3
+    container_name: traefik
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    command:
+      - --configFile=/config.yaml
+    # ports:
+    #   - "80:80"
+    #   - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./data/traefik/config.yaml:/config.yaml
+      - ./data/traefik/acme.json:/acme.json
+      - ./data/traefik/dynamic-configs:/dynamic/conf
+
+    network_mode: host
+    
+  traefik-certs-dumper:
+    image: ldez/traefik-certs-dumper:v2.10.0
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    depends_on:
+      - traefik
+    entrypoint: sh -c '
+      apk add openssl &&
+      while ! [ -e /data/acme.json ]
+      || ! [ `jq ".[] | .Certificates | length" /data/acme.json | jq -s "add" ` != 0 ]; do
+      sleep 1
+      ; done
+      && traefik-certs-dumper file --version v3 --watch --domain-subdir=true
+      --source /data/acme.json --dest /data/letsencrypt/certs --post-hook "sh /post-hook.sh"'
+    environment:
+      CERTS_DIR: /data/letsencrypt/certs
+    volumes:
+      - ./data/traefik/letsencrypt:/data/letsencrypt
+      - ./data/traefik/acme.json:/data/acme.json
+      - ./data/traefik/post-hook.sh:/post-hook.sh

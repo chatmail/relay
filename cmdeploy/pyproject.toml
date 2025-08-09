@@ -20,6 +20,7 @@ dependencies = [
   "pytest-xdist", 
   "execnet",
   "imap_tools",
+  "pymdown-extensions",
 ]
 
 [project.scripts]
