@@ -49,7 +49,7 @@ passthrough_recipients = xstore@testrun.org echo@{mail_domain}
 # Deployment Details
 #
 
-# SMTP outgoing filtermail and reinjection 
+# SMTP outgoing filtermail and reinjection
 filtermail_smtp_port = 10080
 postfix_reinject_port = 10025
 
@@ -59,6 +59,16 @@ postfix_reinject_port_incoming = 10026
 
 # if set to "True" IPv6 is disabled
 disable_ipv6 = False
+
+#
+# Kernel settings
+#
+
+# if you set "True", the kernel settings will be configured according to the values below
+change_kernel_settings  = True
+
+# change fs.inotify.max_user_instances and fs.inotify.max_user_watches kernel settings
+fs_inotify_max_user_instances_and_watchers = 65535
 
 # Defaults to https://iroh.{{mail_domain}} and running `iroh-relay` on the chatmail
 # service.
