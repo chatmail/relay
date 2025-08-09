@@ -78,6 +78,13 @@ steps. Please substitute it with your own domain.
    configure at your DNS provider (it can take some time until they are
    public).
 
+Docker installation
+-------------------
+
+We have experimental support for `docker compose <https://github.com/chatmail/relay/blob/docker-rebase/docs/DOCKER_INSTALLATION_EN.md>`_,
+but it is not covered by automated tests yet,
+so don't expect everything to work.
+
 Other helpful commands
 ----------------------
 
