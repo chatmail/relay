@@ -123,6 +123,19 @@ def run_cmd(args, out):
             else:
                 out.red("Website deployment failed.")
         elif retcode == 0:
+            if not args.disable_mail:
+                print("\nYou can try out the relay by talking to this echo bot: ")
+                sshexec = SSHExec(args.config.mail_domain, verbose=args.verbose)
+                print(
+                    sshexec(
+                        call=remote.rshell.shell,
+                        kwargs=dict(command="cat /var/lib/echobot/invite-link.txt"),
+                    )
+                )
+
+            server_deployed_message = f"Chatmail server started: https://{args.config.mail_domain}/"
+            delimiter_line = "=" * len(server_deployed_message)
+            out.green(f"{delimiter_line}\n{server_deployed_message}\n{delimiter_line}")
             out.green("Deploy completed, call `cmdeploy dns` next.")
         elif not args.dns_check_disabled and not remote_data["acme_account_url"]:
             out.red("Deploy completed but letsencrypt not configured")

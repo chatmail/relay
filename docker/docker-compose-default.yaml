@@ -1,0 +1,57 @@
+services:
+  chatmail:
+    build: 
+      context: ./docker
+      dockerfile: chatmail_server.dockerfile
+      tags:
+        - chatmail-relay:latest
+    image: chatmail-relay:latest
+    restart: unless-stopped
+    container_name: chatmail 
+    cgroup: host # required for systemd
+    tty: true # required for logs
+    tmpfs: # required for systemd
+      - /tmp
+      - /run
+      - /run/lock
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    environment:
+      MAIL_DOMAIN: <your_domain>
+      ACME_EMAIL: <your_email>
+
+      MAX_MESSAGE_SIZE: "50M"
+      # DEBUG_COMMANDS_ENABLED: "true"
+      # FORCE_REINIT_INI_FILE: "true"
+      # USE_FOREIGN_CERT_MANAGER: "True"
+      # ENABLE_CERTS_MONITORING: "true"
+      # CERTS_MONITORING_TIMEOUT: 10
+      # IS_DEVELOPMENT_INSTANCE: "True"
+    ports:
+      - "25:25"
+      - "587:587"
+      - "143:143"
+      - "993:993"
+      - "443:443"
+    volumes:
+      ## system
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw # required for systemd
+      - ./:/opt/chatmail
+      - ./data/acme:/var/lib/acme
+      
+      ## data
+      - ./data/chatmail:/home
+      - ./data/chatmail-dkimkeys:/etc/dkimkeys
+      - ./data/chatmail-echobot:/run/echobot
+      - ./data/chatmail-acme:/var/lib/acme
+
+      ## custom resources
+      # - ./custom/www/src/index.md:/opt/chatmail/www/src/index.md
+
+      ## debug
+      # - ./docker/files/setup_chatmail_docker.sh:/setup_chatmail_docker.sh
+      # - ./docker/files/entrypoint.sh:/entrypoint.sh
+      # - ./docker/files/update_ini.sh:/update_ini.sh
