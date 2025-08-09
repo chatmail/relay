@@ -74,22 +74,23 @@ Please substitute it with your own domain.
    ```
     git clone https://github.com/chatmail/relay
     cd relay
+   ```
+
+### Manual installation
+1. On your local PC, create chatmail configuration file `chatmail.ini`:
+
+   ```
     scripts/initenv.sh
-   ```
-
-3. On your local PC, create chatmail configuration file `chatmail.ini`:
-
-   ```
     scripts/cmdeploy init chat.example.org  # <-- use your domain 
    ```
 
-4. Verify that SSH root login to your remote server works:
+2. Verify that SSH root login to your remote server works:
 
    ```
     ssh root@chat.example.org  # <-- use your domain 
    ```
 
-5. From your local PC, deploy the remote chatmail relay server:
+3. From your local PC, deploy the remote chatmail relay server:
 
    ```
     scripts/cmdeploy run
@@ -98,6 +99,9 @@ Please substitute it with your own domain.
    If DNS records are missing, it will recommend
    which you should configure at your DNS provider
    (it can take some time until they are public).
+
+### Docker installation
+Installation using docker compose is presented [here](./docs/DOCKER_INSTALLATION_EN.md)
 
 ### Other helpful commands
 

@@ -66,6 +66,16 @@ disable_ipv6 = False
 # Your email adress, which will be used in acmetool to manage Let's Encrypt SSL certificates
 acme_email = 
 
+#
+# Kernel settings
+#
+
+# if you set "True", the kernel settings will be configured according to the values below
+change_kernel_settings  = True
+
+# change fs.inotify.max_user_instances and fs.inotify.max_user_watches kernel settings
+fs_inotify_max_user_instances_and_watchers = 65535
+
 # Defaults to https://iroh.{{mail_domain}} and running `iroh-relay` on the chatmail
 # service.
 # If you set it to anything else, the service will be disabled

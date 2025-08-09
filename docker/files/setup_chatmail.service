@@ -1,0 +1,14 @@
+[Unit]
+Description=Run container setup commands
+After=multi-user.target
+ConditionPathExists=/setup_chatmail_docker.sh
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash /setup_chatmail_docker.sh
+RemainAfterExit=true
+WorkingDirectory=/opt/chatmail
+PassEnvironment=<envs_list>
+
+[Install]
+WantedBy=multi-user.target
