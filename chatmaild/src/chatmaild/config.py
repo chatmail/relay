@@ -45,6 +45,12 @@ class Config:
         self.mtail_address = params.get("mtail_address")
         self.disable_ipv6 = params.get("disable_ipv6", "false").lower() == "true"
         self.acme_email = params.get("acme_email", "")
+        self.change_kernel_settings = (
+            params.get("change_kernel_settings", "true").lower() == "true"
+        )
+        self.fs_inotify_max_user_instances_and_watchers = int(
+            params["fs_inotify_max_user_instances_and_watchers"]
+        )
         self.imap_rawlog = params.get("imap_rawlog", "false").lower() == "true"
         if "iroh_relay" not in params:
             self.iroh_relay = "https://" + params["mail_domain"]
