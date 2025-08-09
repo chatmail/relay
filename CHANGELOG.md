@@ -2,6 +2,35 @@
 
 ## untagged
 
+- Add installation via docker compose (MVP 1). The instructions, known issues and limitations are located in `/docs` 
+  ([#614](https://github.com/chatmail/relay/pull/614))
+
+- Add markdown tabs blocks for rendering multilingual pages. Add russian language support to `index.md`, `privacy.md`, and `info.md`.
+  ([#614](https://github.com/chatmail/relay/pull/614))
+
+- Fix [Issue 604](https://github.com/chatmail/relay/issues/604), now the `--ssh_host` argument of the `cmdeploy run` command works correctly and does not depend on `config.mail_domain`.
+  ([#614](https://github.com/chatmail/relay/pull/614))
+
+- Add `--skip-dns-check` argument to `cmdeploy run` command, which disables DNS record checking before installation.
+  ([#614](https://github.com/chatmail/relay/pull/614))
+
+- Add `--force` argument to `cmdeploy init` command, which recreates the `config.ini` file.
+  ([#614](https://github.com/chatmail/relay/pull/614))
+
+- Add startup for `fcgiwrap.service` because sometimes it did not start automatically.
+  ([#614](https://github.com/chatmail/relay/pull/614))
+
+- Add extended check when installing `unbound.service`. Now, if it is not shown who exactly is occupying port 53, but `unbound.service` is running, it is considered that the port is occupied by `unbound.service`.
+  ([#614](https://github.com/chatmail/relay/pull/614))
+
+- Add configuration parameters
+  ([#614](https://github.com/chatmail/relay/pull/614)):
+  - `is_development_instance` - Indicates that this instance is installed as a temporary/test one (default: `True`)
+  - `use_foreign_cert_manager` - Use a third-party certificate manager instead of acmetool (default: `False`)
+  - `acme_email` - Email address used by acmetool to obtain Let's Encrypt certificates (default: empty)
+  - `change_kernel_settings` - Whether to change kernel parameters during installation (default: `True`)
+  - `fs_inotify_max_user_instances_and_watchers` - Value for kernel parameters `fs.inotify.max_user_instances` and `fs.inotify.max_user_watches` (default: `65535`)
+
 - Expire push notification tokens after 90 days
   ([#583](https://github.com/chatmail/relay/pull/583))
 
