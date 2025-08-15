@@ -1,4 +1,5 @@
-This diagram shows components of the chatmail server:
+This diagram shows components of the chatmail server; this is a draft
+overview as of mid-August 2025:
 
 ```mermaid
 graph LR;
