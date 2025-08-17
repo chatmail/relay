@@ -49,7 +49,7 @@ passthrough_recipients = xstore@testrun.org echo@{mail_domain}
 # Deployment Details
 #
 
-# if set to "True" on main page will be showed dev banner 
+# set to "False" to remove the "development instance" banner on the main page.
 is_development_instance = True
 
 # SMTP outgoing filtermail and reinjection 

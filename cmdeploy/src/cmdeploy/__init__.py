@@ -680,7 +680,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     if host.get_fact(SystemdStatus, services="unbound").get("unbound.service"):
         process_on_53 = "unbound"
     if process_on_53 not in (None, "unbound"):
-        Out().red(f"Can't install unbound: port 53 is occupied by: {process_on_53}") 
+        Out().red(f"Can't install unbound: port 53 is occupied by: {process_on_53}")
         exit(1)
     apt.packages(
         name="Install unbound",
