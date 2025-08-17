@@ -32,17 +32,28 @@ def init_cmd_options(parser):
         action="store",
         help="fully qualified DNS domain name for your chatmail instance",
     )
+    parser.add_argument(
+        "--force",
+        dest="recreate_ini",
+        action="store_true",
+        help="force reacreate ini file",
+    )
 
 
 def init_cmd(args, out):
     """Initialize chatmail config file."""
     mail_domain = args.chatmail_domain
+    inipath = args.inipath
     if args.inipath.exists():
-        print(f"Path exists, not modifying: {args.inipath}")
-        return 1
-    else:
-        write_initial_config(args.inipath, mail_domain, overrides={})
-        out.green(f"created config file for {mail_domain} in {args.inipath}")
+        if not args.recreate_ini:
+            out.green(f"[WARNING] Path exists, not modifying: {inipath}")
+            return 0
+        else:
+            out.yellow(f"[WARNING] Force argument was provided, deleting config file: {inipath}")
+            inipath.unlink()
+    
+    write_initial_config(inipath, mail_domain, overrides={})
+    out.green(f"created config file for {mail_domain} in {inipath}")
 
 
 def run_cmd_options(parser):
@@ -63,6 +74,12 @@ def run_cmd_options(parser):
         dest="ssh_host",
         help="specify an SSH host to deploy to; uses mail_domain from chatmail.ini by default",
     )
+    parser.add_argument(
+        "--skip-dns-check",
+        dest="dns_check_disabled",
+        action="store_true",
+        help="disable checks nslookup for dns",
+    )
 
 
 def run_cmd(args, out):
@@ -70,9 +87,10 @@ def run_cmd(args, out):
 
     sshexec = args.get_sshexec()
     require_iroh = args.config.enable_iroh_relay
-    remote_data = dns.get_initial_remote_data(sshexec, args.config.mail_domain)
-    if not dns.check_initial_remote_data(remote_data, print=out.red):
-        return 1
+    if not args.dns_check_disabled:
+        remote_data = dns.get_initial_remote_data(sshexec, args.config.mail_domain)
+        if not dns.check_initial_remote_data(remote_data, print=out.red):
+            return 1
 
     env = os.environ.copy()
     env["CHATMAIL_INI"] = args.inipath
@@ -89,6 +107,9 @@ def run_cmd(args, out):
     try:
         retcode = out.check_call(cmd, env=env)
         if retcode == 0:
+            server_deployed_message = f"Chatmail server started: https://{args.config.mail_domain}/"
+            delimiter_line = "=" * len(server_deployed_message)
+            out.green(f"{delimiter_line}\n{server_deployed_message}\n{delimiter_line}")
             out.green("Deploy completed, call `cmdeploy dns` next.")
         elif not remote_data["acme_account_url"]:
             out.red("Deploy completed but letsencrypt not configured")
@@ -251,8 +272,17 @@ class Out:
     def green(self, msg, file=sys.stderr):
         print(colored(msg, "green"), file=file)
 
-    def __call__(self, msg, red=False, green=False, file=sys.stdout):
-        color = "red" if red else ("green" if green else None)
+    def yellow(self, msg, file=sys.stderr):
+        print(colored(msg, "yellow"), file=file)
+
+    def __call__(self, msg, red=False, green=False, yellow=False, file=sys.stdout):
+        color = None
+        if red:
+            color = "red"
+        elif green:
+            color = "green"
+        elif yellow:
+            color = "yellow"
         print(colored(msg, color), file=file)
 
     def check_call(self, arg, env=None, quiet=False):
@@ -331,8 +361,9 @@ def main(args=None):
         return parser.parse_args(["-h"])
 
     def get_sshexec():
-        print(f"[ssh] login to {args.config.mail_domain}")
-        return SSHExec(args.config.mail_domain, verbose=args.verbose)
+        host = args.ssh_host if hasattr(args, "ssh_host") and args.ssh_host else args.config.mail_domain
+        print(f"[ssh] login to {host}")
+        return SSHExec(host, verbose=args.verbose)
 
     args.get_sshexec = get_sshexec
 

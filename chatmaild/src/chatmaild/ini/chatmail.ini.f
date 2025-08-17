@@ -49,6 +49,9 @@ passthrough_recipients = xstore@testrun.org echo@{mail_domain}
 # Deployment Details
 #
 
+# if set to "True" on main page will be showed dev banner 
+is_development_instance = True
+
 # SMTP outgoing filtermail and reinjection 
 filtermail_smtp_port = 10080
 postfix_reinject_port = 10025
@@ -59,6 +62,22 @@ postfix_reinject_port_incoming = 10026
 
 # if set to "True" IPv6 is disabled
 disable_ipv6 = False
+
+# if you set "True", acmetool will not be installed and you will have to manage certificates yourself.
+use_foreign_cert_manager = False
+
+# Your email adress, which will be used in acmetool to manage Let's Encrypt SSL certificates. Required if `use_foreign_cert_manager` param set as "False". 
+acme_email = 
+
+#
+# Kernel settings
+#
+
+# if you set "True", the kernel settings will be configured according to the values below
+change_kernel_settings  = True
+
+# change fs.inotify.max_user_instances and fs.inotify.max_user_watches kernel settings
+fs_inotify_max_user_instances_and_watchers = 65535
 
 # Defaults to https://iroh.{{mail_domain}} and running `iroh-relay` on the chatmail
 # service.
