@@ -31,6 +31,9 @@
   - `change_kernel_settings` - Whether to change kernel parameters during installation (default: `True`)
   - `fs_inotify_max_user_instances_and_watchers` - Value for kernel parameters `fs.inotify.max_user_instances` and `fs.inotify.max_user_watches` (default: `65535`)
 
+- Check whether GCC is installed in initenv.sh
+  ([#608](https://github.com/chatmail/relay/pull/608))
+
 - Expire push notification tokens after 90 days
   ([#583](https://github.com/chatmail/relay/pull/583))
 
