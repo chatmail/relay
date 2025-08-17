@@ -14,7 +14,7 @@
 - Add `--skip-dns-check` argument to `cmdeploy run` command, which disables DNS record checking before installation.
   ([#614](https://github.com/chatmail/relay/pull/614))
 
-- Add `--force` argument to `cmdeploy init` command, which recreates the `config.ini` file.
+- Add `--force` argument to `cmdeploy init` command, which recreates the `chatmail.ini` file.
   ([#614](https://github.com/chatmail/relay/pull/614))
 
 - Add startup for `fcgiwrap.service` because sometimes it did not start automatically.
