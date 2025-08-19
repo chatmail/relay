@@ -257,7 +257,16 @@ This starts a local live development cycle for chatmail web pages:
 
 #### Custom web pages
 
-If you want to include other pages,
+You can skip uploading a web page
+by setting `www_folder=disabled` in `chatmail.ini`.
+
+If you want to manage your web pages outside this git repository,
+you can set `www_folder` in `chatmail.ini` to a custom directory.
+`cmdeploy run` will upload it as the server's home page,
+and if it contains a `src/index.md` file,
+will build it with hugo.
+
+If you want to include existing web pages,
 they need their separate nginx config
 under `/etc/nginx/sites-enabled/`.
 Note that they need to listen on port 8443 instead of 443.

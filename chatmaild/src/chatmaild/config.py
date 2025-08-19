@@ -33,6 +33,7 @@ class Config:
         self.password_min_length = int(params["password_min_length"])
         self.passthrough_senders = params["passthrough_senders"].split()
         self.passthrough_recipients = params["passthrough_recipients"].split()
+        self.www_folder = params.get("www_folder", "")
         self.filtermail_smtp_port = int(params["filtermail_smtp_port"])
         self.filtermail_smtp_port_incoming = int(
             params["filtermail_smtp_port_incoming"]
