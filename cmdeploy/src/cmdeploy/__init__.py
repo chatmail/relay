@@ -618,7 +618,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     check_config(config)
     mail_domain = config.mail_domain
 
-    from .www import build_webpages
+    from .www import build_webpages, get_paths
 
     server.group(name="Create vmail group", group="vmail", system=True)
     server.user(name="Create vmail user", user="vmail", group="vmail", system=True)
@@ -751,24 +751,16 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
         packages=["fcgiwrap"],
     )
 
-    reporoot = importlib.resources.files(__package__).joinpath("../../../").resolve()
-    www_path = Path(config.www_folder)
-    # if www_folder was not set, use default directory
-    if not config.www_folder:
-        www_path = reporoot.joinpath("www")
+    www_path, src_dir, build_dir = get_paths(config)
     # if www_folder was set to a non-existing folder, skip upload
     if not www_path.is_dir():
         logger.warning("Building web pages is disabled in chatmail.ini, skipping")
     else:
-        build_dir = www_path.joinpath("build")
-        src_dir = www_path.joinpath("src")
         # if www_folder is a hugo page, build it
-        if src_dir.joinpath("index.md").is_file():
-            build_webpages(src_dir, build_dir, config)
+        if build_dir:
+            www_path = build_webpages(src_dir, build_dir, config)
         # if it is not a hugo page, upload it as is
-        else:
-            build_dir = www_path
-        files.rsync(f"{build_dir}/", "/var/www/html", flags=["-avz"])
+        files.rsync(f"{www_path}/", "/var/www/html", flags=["-avz"])
 
     _install_remote_venv_with_chatmaild(config)
     debug = False
