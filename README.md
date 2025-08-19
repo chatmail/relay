@@ -255,6 +255,19 @@ This starts a local live development cycle for chatmail web pages:
 
 - Starts a browser window automatically where you can "refresh" as needed.
 
+#### Custom web pages
+
+If you want to include other pages,
+they need their separate nginx config
+under `/etc/nginx/sites-enabled/`.
+Note that they need to listen on port 8443 instead of 443.
+
+To request TLS certificates for the corresponding domains,
+point the DNS records to your Server and run `acmetool want <domain>`.
+You can find the TLS certificates under `/var/lib/acme/live`.
+They will be automatically renewed.
+
+
 ## Mailbox directory layout
 
 Fresh chatmail addresses have a mailbox directory that contains: 

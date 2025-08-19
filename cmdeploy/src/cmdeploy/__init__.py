@@ -424,6 +424,12 @@ def _configure_nginx(config: Config, debug: bool = False) -> bool:
     """Configures nginx HTTP server."""
     need_restart = False
 
+    files.link(
+        name="disable nginx default site",
+        path="/etc/nginx/sites-enabled/default",
+        present=False,
+    )
+
     main_config = files.template(
         src=importlib.resources.files(__package__).joinpath("nginx/nginx.conf.j2"),
         dest="/etc/nginx/nginx.conf",
