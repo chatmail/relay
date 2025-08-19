@@ -3,6 +3,7 @@ import importlib.resources
 import time
 import traceback
 import webbrowser
+from pathlib import Path
 
 import markdown
 from chatmaild.config import read_config
@@ -106,7 +107,9 @@ def main():
     config = read_config(inipath)
     config.webdev = True
     assert config.mail_domain
-    www_path = reporoot.joinpath("www")
+    www_path = Path(config.www_folder)
+    if not config.www_folder:
+        www_path = reporoot.joinpath("www")
     src_path = www_path.joinpath("src")
     stats = None
     build_dir = www_path.joinpath("build")

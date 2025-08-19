@@ -2,6 +2,9 @@
 
 ## untagged
 
+- Make www upload path configurable
+  ([#618](https://github.com/chatmail/relay/pull/618))
+
 - Allow custom nginx config files
   ([#617](https://github.com/chatmail/relay/pull/617))
 
