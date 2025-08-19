@@ -136,4 +136,7 @@ http {
 		return 301 $scheme://{{ config.domain_name }}$request_uri;
 		access_log syslog:server=unix:/dev/log,facility=local7;
 	}
+
+    # Include custom pages; they need to listen on port 8443 instead of port 443
+	include /etc/nginx/sites-enabled/*;
 }

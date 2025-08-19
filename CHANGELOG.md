@@ -2,6 +2,9 @@
 
 ## untagged
 
+- Allow custom nginx config files
+  ([#617](https://github.com/chatmail/relay/pull/617))
+
 - Check whether GCC is installed in initenv.sh
   ([#608](https://github.com/chatmail/relay/pull/608))
 
