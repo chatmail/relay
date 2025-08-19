@@ -2,6 +2,9 @@
 
 ## untagged
 
+- Make www upload path configurable
+  ([#618](https://github.com/chatmail/relay/pull/618))
+
 - Check whether GCC is installed in initenv.sh
   ([#608](https://github.com/chatmail/relay/pull/608))
 
