@@ -1,5 +1,6 @@
 import inspect
 import os
+import subprocess
 import sys
 from queue import Queue
 
@@ -44,30 +45,16 @@ def print_stderr(item="", end="\n"):
     print(item, file=sys.stderr, end=end)
 
 
-class SSHExec:
-    RemoteError = execnet.RemoteError
+class Exec:
     FuncError = FuncError
 
-    def __init__(self, host, verbose=False, python="python3", timeout=60):
-        self.gateway = execnet.makegateway(f"ssh=root@{host}//python={python}")
-        self._remote_cmdloop_channel = bootstrap_remote(self.gateway, remote)
+    def __init__(self, host, verbose, timeout):
+        self.host = host
         self.timeout = timeout
         self.verbose = verbose
 
     def __call__(self, call, kwargs=None, log_callback=None):
-        if kwargs is None:
-            kwargs = {}
-        assert call.__module__.startswith("cmdeploy.remote")
-        modname = call.__module__.replace("cmdeploy.", "")
-        self._remote_cmdloop_channel.send((modname, call.__name__, kwargs))
-        while 1:
-            code, data = self._remote_cmdloop_channel.receive(timeout=self.timeout)
-            if log_callback is not None and code == "log":
-                log_callback(data)
-            elif code == "finish":
-                return data
-            elif code == "error":
-                raise self.FuncError(data)
+        return subprocess.check_output(call)
 
     def logged(self, call, kwargs):
         def log_progress(data):
@@ -85,3 +72,33 @@ class SSHExec:
             res = self(call, kwargs, log_callback=log_progress)
             print_stderr()
             return res
+
+
+class Local(Exec):
+
+    def __init__(self, host, verbose=False, timeout=60):
+        super().__init__(host, verbose, timeout)
+
+
+class SSHExec(Exec):
+    RemoteError = execnet.RemoteError
+
+    def __init__(self, host, verbose=False, timeout=60):
+        super().__init__(host, verbose, timeout)
+        self.gateway = execnet.makegateway(f"ssh=root@{host}//python=python3")
+        self._remote_cmdloop_channel = bootstrap_remote(self.gateway, remote)
+
+    def __call__(self, call, kwargs=None, log_callback=None):
+        if kwargs is None:
+            kwargs = {}
+        assert call.__module__.startswith("cmdeploy.remote")
+        modname = call.__module__.replace("cmdeploy.", "")
+        self._remote_cmdloop_channel.send((modname, call.__name__, kwargs))
+        while 1:
+            code, data = self._remote_cmdloop_channel.receive(timeout=self.timeout)
+            if log_callback is not None and code == "log":
+                log_callback(data)
+            elif code == "finish":
+                return data
+            elif code == "error":
+                raise self.FuncError(data)
