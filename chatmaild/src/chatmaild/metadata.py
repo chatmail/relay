@@ -7,6 +7,7 @@ from .config import read_config
 from .dictproxy import DictProxy
 from .filedict import FileDict
 from .notifier import Notifier
+from .turnserver import turn_credentials
 
 
 def _is_valid_token_timestamp(timestamp, now):
@@ -75,11 +76,12 @@ class Metadata:
 
 
 class MetadataDictProxy(DictProxy):
-    def __init__(self, notifier, metadata, iroh_relay=None):
+    def __init__(self, notifier, metadata, iroh_relay=None, turn_hostname=None):
         super().__init__()
         self.notifier = notifier
         self.metadata = metadata
         self.iroh_relay = iroh_relay
+        self.turn_hostname = turn_hostname
 
     def handle_lookup(self, parts):
         # Lpriv/43f5f508a7ea0366dff30200c15250e3/devicetoken\tlkj123poi@c2.testrun.org
@@ -98,6 +100,11 @@ class MetadataDictProxy(DictProxy):
             ):
                 # Handle `GETMETADATA "" /shared/vendor/deltachat/irohrelay`
                 return f"O{self.iroh_relay}\n"
+            elif keyname == "vendor/vendor.dovecot/pvt/server/vendor/deltachat/turn":
+                res = turn_credentials()
+                port = 3478
+                return f"O{self.turn_hostname}:{port}:{res}\n"
+
         logging.warning(f"lookup ignored: {parts!r}")
         return "N\n"
 
@@ -121,6 +128,7 @@ def main():
 
     config = read_config(config_path)
     iroh_relay = config.iroh_relay
+    mail_domain = config.mail_domain
 
     vmail_dir = config.mailboxes_dir
     if not vmail_dir.exists():
@@ -134,7 +142,10 @@ def main():
     notifier.start_notification_threads(metadata.remove_token_from_addr)
 
     dictproxy = MetadataDictProxy(
-        notifier=notifier, metadata=metadata, iroh_relay=iroh_relay
+        notifier=notifier,
+        metadata=metadata,
+        iroh_relay=iroh_relay,
+        turn_hostname=mail_domain,
     )
 
     dictproxy.serve_forever_from_socket(socket)

@@ -2,6 +2,9 @@
 
 ## untagged
 
+- Setup TURN server
+  ([#621](https://github.com/chatmail/relay/pull/621))
+
 - Update iroh-relay to 0.35.0
   ([#650](https://github.com/chatmail/relay/pull/650))
 

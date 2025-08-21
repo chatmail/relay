@@ -128,6 +128,7 @@ def _install_remote_venv_with_chatmaild(config) -> None:
         "echobot",
         "chatmail-metadata",
         "lastlogin",
+        "turnserver",
     ):
         execpath = fn if fn != "filtermail-incoming" else "filtermail"
         params = dict(
@@ -497,6 +498,56 @@ def check_config(config):
     return config
 
 
+def deploy_turn_server(config):
+    (url, sha256sum) = {
+        "x86_64": (
+            "https://github.com/chatmail/chatmail-turn/releases/download/v0.3/chatmail-turn-x86_64-linux",
+            "841e527c15fdc2940b0469e206188ea8f0af48533be12ecb8098520f813d41e4",
+        ),
+        "aarch64": (
+            "https://github.com/chatmail/chatmail-turn/releases/download/v0.3/chatmail-turn-aarch64-linux",
+            "a5fc2d06d937b56a34e098d2cd72a82d3e89967518d159bf246dc69b65e81b42",
+        ),
+    }[host.get_fact(facts.server.Arch)]
+
+    need_restart = False
+
+    existing_sha256sum = host.get_fact(Sha256File, "/usr/local/bin/chatmail-turn")
+    if existing_sha256sum != sha256sum:
+        server.shell(
+            name="Download chatmail-turn",
+            commands=[
+                f"(curl -L {url} >/usr/local/bin/chatmail-turn.new && (echo '{sha256sum} /usr/local/bin/chatmail-turn.new' | sha256sum -c) && mv /usr/local/bin/chatmail-turn.new /usr/local/bin/chatmail-turn)",
+                "chmod 755 /usr/local/bin/chatmail-turn",
+            ],
+        )
+        need_restart = True
+
+    source_path = importlib.resources.files(__package__).joinpath(
+        "service", "turnserver.service.f"
+    )
+    content = source_path.read_text().format(mail_domain=config.mail_domain).encode()
+
+    systemd_unit = files.put(
+        name="Upload turnserver.service",
+        src=io.BytesIO(content),
+        dest="/etc/systemd/system/turnserver.service",
+        user="root",
+        group="root",
+        mode="644",
+    )
+    need_restart |= systemd_unit.changed
+
+    systemd.service(
+        name="Setup turnserver service",
+        service="turnserver.service",
+        running=True,
+        enabled=True,
+        restarted=need_restart,
+        daemon_reload=systemd_unit.changed,
+    )
+
+
 def deploy_mtail(config):
     # Uninstall mtail package, we are going to install a static binary.
     apt.packages(name="Uninstall mtail", packages=["mtail"], present=False)
@@ -672,6 +723,8 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
         name="Install rsync",
         packages=["rsync"],
     )
+
+    deploy_turn_server(config)
 
     # Run local DNS resolver `unbound`.
     # `resolvconf` takes care of setting up /etc/resolv.conf
