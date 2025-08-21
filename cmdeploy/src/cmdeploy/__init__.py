@@ -128,6 +128,7 @@ def _install_remote_venv_with_chatmaild(config) -> None:
         "echobot",
         "chatmail-metadata",
         "lastlogin",
+        "turnserver",
     ):
         execpath = fn if fn != "filtermail-incoming" else "filtermail"
         params = dict(
