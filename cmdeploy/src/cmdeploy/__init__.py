@@ -482,6 +482,22 @@ def _remove_rspamd() -> None:
     apt.packages(name="Remove rspamd", packages="rspamd", present=False)
 
 
+def _configure_coturn(config) -> bool:
+    """Configures coturn STUN and TURN server."""
+    coturn_config = files.template(
+        src=importlib.resources.files(__package__).joinpath(
+            "coturn/turnserver.conf.j2"
+        ),
+        dest="/etc/turnserver.conf",
+        user="root",
+        group="root",
+        mode="640",
+        config=config,
+    )
+    need_restart = coturn_config.changed
+    return need_restart
+
+
 def check_config(config):
     mail_domain = config.mail_domain
     if mail_domain != "testrun.org" and not mail_domain.endswith(".testrun.org"):
@@ -731,6 +747,11 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
         packages=["fcgiwrap"],
     )
 
+    apt.packages(
+        name="Install coturn STUN and TURN server",
+        packages=["coturn"],
+    )
+
     www_path = importlib.resources.files(__package__).joinpath("../../../www").resolve()
 
     build_dir = www_path.joinpath("build")
@@ -743,6 +764,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     dovecot_need_restart = _configure_dovecot(config, debug=debug)
     postfix_need_restart = _configure_postfix(config, debug=debug)
     nginx_need_restart = _configure_nginx(config)
+    coturn_need_restart = _configure_coturn(config)
     _uninstall_mta_sts_daemon()
 
     _remove_rspamd()
@@ -782,6 +804,14 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
         running=True,
         enabled=True,
         restarted=nginx_need_restart,
+    )
+
+    systemd.service(
+        name="Start and enable coturn",
+        service="coturn.service",
+        running=True,
+        enabled=True,
+        restarted=coturn_need_restart,
     )
 
     # This file is used by auth proxy.
