@@ -6,6 +6,7 @@ export ENABLE_CERTS_MONITORING="${ENABLE_CERTS_MONITORING:-true}"
 export CERTS_MONITORING_TIMEOUT="${CERTS_MONITORING_TIMEOUT:-60}"
 export PATH_TO_SSL_CONTAINER="${PATH_TO_SSL_CONTAINER:-/var/lib/acme/live/${MAIL_DOMAIN}}"
 export CHANGE_KERNEL_SETTINGS=${CHANGE_KERNEL_SETTINGS:-"False"}
+export RECREATE_VENV=${RECREATE_VENV:-"false"}
 
 if [ -z "$MAIL_DOMAIN" ]; then
     echo "ERROR: Environment variable 'MAIL_DOMAIN' must be set!" >&2
@@ -61,6 +62,9 @@ chown opendkim:opendkim /etc/dkimkeys/opendkim.txt
 
 # TODO: Move to debug_commands after git clone is moved to dockerfile. 
 git config --global --add safe.directory /opt/chatmail
+if [ "$RECREATE_VENV" == "true" ]; then
+    rm -rf venv
+fi
 ./scripts/initenv.sh
 
 ./scripts/cmdeploy init --config "${INI_FILE}" $INI_CMD_ARGS $MAIL_DOMAIN
