@@ -156,8 +156,8 @@ monitor_certificates() {
         current_hash=$(calculate_hash)
         if [[ "$current_hash" != "$previous_hash" ]]; then
         # TODO: add an option to restart at a specific time interval 
-            echo "[INFO] Certificate's folder hash was changed, restarting nginx, dovecot and postfix services."
-            systemctl restart nginx.service
+            echo "[INFO] Certificate's folder hash was changed, reloading nginx, dovecot and postfix services."
+            systemctl reload nginx.service
             systemctl reload dovecot.service
             systemctl reload postfix.service
             previous_hash=$current_hash
