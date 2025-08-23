@@ -29,7 +29,7 @@ services:
       # RECREATE_VENV: "false"
       USE_FOREIGN_CERT_MANAGER: "true"
       CHANGE_KERNEL_SETTINGS: "false"
-      PATH_TO_SSL_CONTAINER: $PATH_TO_SSL_CONTAINER
+      PATH_TO_SSL: "${CERTS_ROOT_DIR_CONTAINER}/${MAIL_DOMAIN}"
       ENABLE_CERTS_MONITORING: "true"
       # CERTS_MONITORING_TIMEOUT: 60
       # IS_DEVELOPMENT_INSTANCE: "true"
@@ -43,7 +43,7 @@ services:
       ## system
       - /sys/fs/cgroup:/sys/fs/cgroup:rw # required for systemd
       - ./:/opt/chatmail
-      - ${PATH_TO_SSL_HOST}:${PATH_TO_SSL_CONTAINER}:ro
+      - ${CERTS_ROOT_DIR_HOST}:${CERTS_ROOT_DIR_CONTAINER}:ro
       
       ## data
       - ./data/chatmail:/home
