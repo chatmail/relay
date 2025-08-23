@@ -26,6 +26,7 @@ services:
       # MAX_MESSAGE_SIZE: "50M"
       # DEBUG_COMMANDS_ENABLED: "true"
       # FORCE_REINIT_INI_FILE: "true"
+      # RECREATE_VENV: "false"
       USE_FOREIGN_CERT_MANAGER: "true"
       CHANGE_KERNEL_SETTINGS: "false"
       PATH_TO_SSL_CONTAINER: $PATH_TO_SSL_CONTAINER
