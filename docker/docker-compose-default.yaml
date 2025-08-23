@@ -20,9 +20,9 @@ services:
         max-size: "10m"
         max-file: "3"
     environment:
-      MAIL_DOMAIN: <your_domain>
+      MAIL_DOMAIN: $MAIL_DOMAIN
       CHANGE_KERNEL_SETTINGS: "False"
-      ACME_EMAIL: <your_email>
+      ACME_EMAIL: $ACME_EMAIL
       # RECREATE_VENV: "false"
       # MAX_MESSAGE_SIZE: "50M"
       # DEBUG_COMMANDS_ENABLED: "true"

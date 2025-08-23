@@ -39,7 +39,9 @@ Please substitute it with your own domain.
 cp ./docker/docker-compose-default.yaml docker-compose.yaml
 ```
 
-3. Configure kernel parameters because they cannot be changed inside the container, specifically `fs.inotify.max_user_instances` and `fs.inotify.max_user_watches`. Run the following:
+3. Configure environment variables in the `.env` file. These variables are used in the `docker-compose.yaml` file to pass repeated values.
+
+4. Configure kernel parameters because they cannot be changed inside the container, specifically `fs.inotify.max_user_instances` and `fs.inotify.max_user_watches`. Run the following:
 
 ```shell
 echo "fs.inotify.max_user_instances=65536" | sudo tee -a /etc/sysctl.d/99-inotify.conf
@@ -47,7 +49,7 @@ echo "fs.inotify.max_user_watches=65536" | sudo tee -a /etc/sysctl.d/99-inotify.
 sudo sysctl --system
 ```
 
-4. Configure container environment variables. Below is the list of variables used during deployment:
+5. Configure container environment variables. Below is the list of variables used during deployment:
 
 - `MAIL_DOMAIN` – The domain name of the future server. (required)
 - `DEBUG_COMMANDS_ENABLED` – Run debug commands before installation. (default: `false`)
@@ -64,8 +66,6 @@ You can also use any variables from the [ini configuration file](https://github.
 Mandatory variables for deployment via Docker:
 
 - `CHANGE_KERNEL_SETTINGS` – Change kernel settings (`fs.inotify.max_user_instances` and `fs.inotify.max_user_watches`) on startup. Changing kernel settings inside the container is not possible! (default: `False`)
-
-5. Configure environment variables in the `.env` file. These variables are used in the `docker-compose.yaml` file to pass repeated values.
 
 6. Build the Docker image:
 
