@@ -31,6 +31,7 @@ services:
       # CERTS_MONITORING_TIMEOUT: 10
       # IS_DEVELOPMENT_INSTANCE: "True"
     ports:
+      - "80:80"
       - "25:25"
       - "587:587"
       - "143:143"
