@@ -99,7 +99,11 @@ def run_cmd(args, out):
     deploy_path = importlib.resources.files(__package__).joinpath("deploy.py").resolve()
     pyinf = "pyinfra --dry" if args.dry_run else "pyinfra"
     ssh_host = args.config.mail_domain if not args.ssh_host else args.ssh_host
+
     cmd = f"{pyinf} --ssh-user root {ssh_host} {deploy_path} -y"
+    if sshexec == "localhost":
+        cmd = f"{pyinf} @local {deploy_path} -y"
+
     if version.parse(pyinfra.__version__) < version.parse("3"):
         out.red("Please re-run scripts/initenv.sh to update pyinfra to version 3.")
         return 1
@@ -362,6 +366,9 @@ def main(args=None):
 
     def get_sshexec():
         host = args.ssh_host if hasattr(args, "ssh_host") and args.ssh_host else args.config.mail_domain
+        if host in [ "@local", "localhost" ]:
+            return "localhost"
+        
         print(f"[ssh] login to {host}")
         return SSHExec(host, verbose=args.verbose)
 
