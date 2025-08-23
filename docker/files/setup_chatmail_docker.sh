@@ -4,7 +4,7 @@ set -eo pipefail
 export INI_FILE="${INI_FILE:-chatmail.ini}"
 export ENABLE_CERTS_MONITORING="${ENABLE_CERTS_MONITORING:-true}"
 export CERTS_MONITORING_TIMEOUT="${CERTS_MONITORING_TIMEOUT:-60}"
-export PATH_TO_SSL_CONTAINER="${PATH_TO_SSL_CONTAINER:-/var/lib/acme/live/${MAIL_DOMAIN}}"
+export PATH_TO_SSL="${PATH_TO_SSL:-/var/lib/acme/live/${MAIL_DOMAIN}}"
 export RECREATE_VENV=${RECREATE_VENV:-"false"}
 
 if [ -z "$MAIL_DOMAIN" ]; then
@@ -19,7 +19,7 @@ debug_commands() {
 }
 
 calculate_hash() {
-    find "$PATH_TO_SSL_CONTAINER" -type f -exec sha1sum {} \; | sort | sha1sum | awk '{print $1}'
+    find "$PATH_TO_SSL" -type f -exec sha1sum {} \; | sort | sha1sum | awk '{print $1}'
 }
 
 monitor_certificates() {
