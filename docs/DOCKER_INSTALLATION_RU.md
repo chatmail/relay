@@ -51,7 +51,7 @@ sudo sysctl --system
 - `USE_FOREIGN_CERT_MANAGER` - Использовать сторонний менеджер сертификатов. (default: `false`)
 - `RECREATE_VENV` - Пересоздать виртуальное окружение (venv). Если выставлено `true`, то окружение будет пересоздано при запуске контейнера, из-за чего включение сервиса займет больше времени, но поможет избежать ряда ошибок. (default: `false`)
 - `INI_FILE` - путь к ini файлу конфигурации. (default: `./chatmail.ini`)
-- `PATH_TO_SSL_CONTAINER` - Путь где располагаются сертификаты. (default: `/var/lib/acme/live/${MAIL_DOMAIN}`)
+- `PATH_TO_SSL` - Путь где располагаются сертификаты. (default: `/var/lib/acme/live/${MAIL_DOMAIN}`)
 - `ENABLE_CERTS_MONITORING` - Включить мониторинг сертификатов, если `USE_FOREIGN_CERT_MANAGER=true`.  Если сертфикаты изменятся сервисы будут автоматически перезапущены. (default: `false`)
 - `CERTS_MONITORING_TIMEOUT` - Раз во сколько секунд проверять что изменились сертификаты. (default: `'60'`)
 
@@ -137,10 +137,10 @@ set -eo pipefail
 
 export ENABLE_CERTS_MONITORING="${ENABLE_CERTS_MONITORING:-true}"
 export CERTS_MONITORING_TIMEOUT="${CERTS_MONITORING_TIMEOUT:-60}"
-export PATH_TO_SSL_CONTAINER="${PATH_TO_SSL_CONTAINER:-/var/lib/acme/live/${MAIL_DOMAIN}}"
+export PATH_TO_SSL="${PATH_TO_SSL:-/var/lib/acme/live/${MAIL_DOMAIN}}"
 
 calculate_hash() {
-    find "$PATH_TO_SSL_CONTAINER" -type f -exec sha1sum {} \; | sort | sha1sum | awk '{print $1}'
+    find "$PATH_TO_SSL" -type f -exec sha1sum {} \; | sort | sha1sum | awk '{print $1}'
 }
 
 monitor_certificates() {
