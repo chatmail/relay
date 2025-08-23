@@ -32,11 +32,12 @@ services:
       # IS_DEVELOPMENT_INSTANCE: "True"
     ports:
       - "80:80"
+      - "443:443"
       - "25:25"
       - "587:587"
       - "143:143"
+      - "465:465"
       - "993:993"
-      - "443:443"
     volumes:
       ## system
       - /sys/fs/cgroup:/sys/fs/cgroup:rw # required for systemd
