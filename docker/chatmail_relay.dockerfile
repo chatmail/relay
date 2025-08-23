@@ -18,8 +18,6 @@ RUN echo 'APT::Install-Recommends "0";' > /etc/apt/apt.conf.d/01norecommend && \
 
 RUN apt-get update && \
     apt-get install -y \
-        openssh-client \
-        openssh-server \
         git \
         python3 \
         python3-venv \
@@ -53,23 +51,6 @@ RUN apt-get update && \
       rm -f "$file"; \
     done \
     && rm -rf /var/lib/apt/lists/*
-
-RUN systemctl enable \
-        ssh \
-        fcgiwrap
-
-RUN sed -i 's/^#PasswordAuthentication .*/PasswordAuthentication no/' /etc/ssh/sshd_config && \
-    sed -i 's/^#PermitRootLogin .*/PermitRootLogin prohibit-password/' /etc/ssh/sshd_config && \
-    ssh-keygen -P "" -t rsa -b 2048 -f /root/.ssh/id_rsa && \
-    mkdir -p /root/.ssh && \
-    cat /root/.ssh/id_rsa.pub >> /root/.ssh/authorized_keys && \
-    SSH_USER_CONFIG="/root/.ssh/config" && \
-    echo "Host localhost" >  "$SSH_USER_CONFIG" && \
-    echo "    HostName localhost" >>  "$SSH_USER_CONFIG" && \
-    echo "    User root" >>  "$SSH_USER_CONFIG" && \
-    echo "    StrictHostKeyChecking no" >>  "$SSH_USER_CONFIG" && \
-    echo "    UserKnownHostsFile /dev/null" >>  "$SSH_USER_CONFIG"
-    ## TODO: deny access for all insteed root form 127.0.0.1 https://unix.stackexchange.com/a/406264
 
 WORKDIR /opt/chatmail
 
