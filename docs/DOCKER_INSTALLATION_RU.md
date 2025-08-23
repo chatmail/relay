@@ -47,6 +47,7 @@ sudo sysctl --system
 - `DEBUG_COMMANDS_ENABLED` - Выполнить debug команды перед установкой. (default: `false`)
 - `FORCE_REINIT_INI_FILE` - Пересоздавать ini файл конфигурации при запуске. (default: `false`)
 - `USE_FOREIGN_CERT_MANAGER` - Использовать сторонний менеджер сертификатов. (default: `false`)
+- `RECREATE_VENV` - Пересоздать виртуальное окружение (venv). Если выставлено `true`, то окружение будет пересоздано при запуске контейнера, из-за чего включение сервиса займет больше времени, но поможет избежать ряда ошибок. (default: `false`)
 - `INI_FILE` - путь к ini файлу конфигурации. (default: `./chatmail.ini`)
 - `PATH_TO_SSL_CONTAINER` - Путь где располагаются сертификаты. (default: `/var/lib/acme/live/${MAIL_DOMAIN}`)
 - `ENABLE_CERTS_MONITORING` - Включить мониторинг сертификатов, если `USE_FOREIGN_CERT_MANAGER=true`.  Если сертфикаты изменятся сервисы будут автоматически перезапущены. (default: `false`)
