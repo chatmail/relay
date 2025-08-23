@@ -69,6 +69,22 @@ services:
       - traefik.http.routers.chatmail-relay.tls=true
       - traefik.http.routers.chatmail-relay.tls.certresolver=letsEncrypt
 
+  traefik_init:
+    image: alpine:latest
+    restart: on-failure
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    working_dir: /app
+    entrypoint: sh -c '
+      touch acme.json &&
+      sudo chown 0:0 ./acme.json &&
+      sudo chmod 600 ./acme.json'
+    volumes:
+      - ./traefik/data:/app
+
   traefik:
     image: traefik:v3.3
     container_name: traefik
@@ -79,17 +95,20 @@ services:
         max-size: "10m"
         max-file: "3"
     command:
-      - --configFile=/config.yaml
+      - "--configFile=/config.yaml"
+      - "--certificatesresolvers.letsEncrypt.acme.email=${ACME_EMAIL:-my.email@gmail.com}"
     # ports:
     #   - "80:80"
     #   - "443:443"
+    network_mode: host
+    depends_on:
+      traefik_init:
+        condition: service_completed_successfully
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ./data/traefik/config.yaml:/config.yaml
-      - ./data/traefik/acme.json:/acme.json
-      - ./data/traefik/dynamic-configs:/dynamic/conf
-
-    network_mode: host
+      - ./traefik/config.yaml:/config.yaml
+      - ./traefik/data/acme.json:/acme.json
+      - ./traefik/dynamic-configs:/dynamic/conf
     
   traefik-certs-dumper:
     image: ldez/traefik-certs-dumper:v2.10.0
@@ -112,6 +131,6 @@ services:
     environment:
       CERTS_DIR: /data/letsencrypt/certs
     volumes:
-      - ./data/traefik/letsencrypt:/data/letsencrypt
-      - ./data/traefik/acme.json:/data/acme.json
-      - ./data/traefik/post-hook.sh:/post-hook.sh
+      - ./traefik/data/letsencrypt:/data/letsencrypt
+      - ./traefik/data/acme.json:/data/acme.json
+      - ./traefik/post-hook.sh:/post-hook.sh
