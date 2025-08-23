@@ -2,7 +2,7 @@ services:
   chatmail:
     build: 
       context: ./docker
-      dockerfile: chatmail_server.dockerfile
+      dockerfile: chatmail_relay.dockerfile
       tags:
         - chatmail-relay:latest
     image: chatmail-relay:latest
