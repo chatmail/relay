@@ -43,19 +43,21 @@ cp ./docker/docker-compose-default.yaml docker-compose.yaml
 # cp ./docker/docker-compose-traefik.yaml docker-compose.yaml
 ```
 
-2. Скопировать `./docker/example.env` и переименовать в `.env`. Здесь хранятся переменные, которые используятся в `docker-compose.yaml`. Нужен только для установки совместно с traefik, если используется default - можно пропустить
+2. Скопировать `./docker/example.env` и переименовать в `.env`. Здесь хранятся переменные, которые используятся в `docker-compose.yaml`.
 ```shell
 cp ./docker/example.env .env
 ```
 
-3. Настроить параметры ядра, потому что внутри контейнера их нельзя изменить, а конкретно `fs.inotify.max_user_instances` и `fs.inotify.max_user_watches`. Для этого выполнить следующее:
+3. Настроить переменные окружения в `.env` файле. Эти переменные используются в `docker-compose.yaml` файле, чтобы передавать повторяющиеся значения.
+
+4. Настроить параметры ядра, потому что внутри контейнера их нельзя изменить, а конкретно `fs.inotify.max_user_instances` и `fs.inotify.max_user_watches`. Для этого выполнить следующее:
 ```shell
 echo "fs.inotify.max_user_instances=65536" | sudo tee -a /etc/sysctl.d/99-inotify.conf
 echo "fs.inotify.max_user_watches=65536" | sudo tee -a /etc/sysctl.d/99-inotify.conf
 sudo sysctl --system
 ```
 
-4. Настроить переменные окружения контейнера. Ниже перечислен список переменных учавствующих при развертывании.
+5. Настроить переменные окружения контейнера. Ниже перечислен список переменных учавствующих при развертывании.
 - `MAIL_DOMAIN` - Доменное имя будущего сервера. (required)
 - `DEBUG_COMMANDS_ENABLED` - Выполнить debug команды перед установкой. (default: `false`)
 - `FORCE_REINIT_INI_FILE` - Пересоздавать ini файл конфигурации при запуске. (default: `false`)
@@ -70,8 +72,6 @@ sudo sysctl --system
 
 Ниже перечислены переменные, которые обязательны быть выставлены при развертывании через docker:
 - `CHANGE_KERNEL_SETTINGS` - Менять настройки ядра (`fs.inotify.max_user_instances` и `fs.inotify.max_user_watches`) при запуске. При запуске в контейнере смена настроек ядра не может быть выполнена! (default: `False`)
-
-5. Настроить переменные окружения в `.env` файле. Эти переменные используются в `docker-compose.yaml` файле, чтобы передавать повторяющиеся значения.
 
 6. Собрать docker образ
 ```shell
