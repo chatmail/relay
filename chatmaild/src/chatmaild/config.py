@@ -33,7 +33,9 @@ class Config:
         self.password_min_length = int(params["password_min_length"])
         self.passthrough_senders = params["passthrough_senders"].split()
         self.passthrough_recipients = params["passthrough_recipients"].split()
-        self.is_development_instance = params.get("is_development_instance", "true").lower() == "true"
+        self.is_development_instance = (
+            params.get("is_development_instance", "true").lower() == "true"
+        )
         self.filtermail_smtp_port = int(params["filtermail_smtp_port"])
         self.filtermail_smtp_port_incoming = int(
             params["filtermail_smtp_port_incoming"]
@@ -44,9 +46,13 @@ class Config:
         )
         self.mtail_address = params.get("mtail_address")
         self.disable_ipv6 = params.get("disable_ipv6", "false").lower() == "true"
-        self.use_foreign_cert_manager = params.get("use_foreign_cert_manager", "false").lower() == "true"
+        self.use_foreign_cert_manager = (
+            params.get("use_foreign_cert_manager", "false").lower() == "true"
+        )
         self.acme_email = params["acme_email"]
-        self.change_kernel_settings = params.get("change_kernel_settings", "true").lower() == "true"
+        self.change_kernel_settings = (
+            params.get("change_kernel_settings", "true").lower() == "true"
+        )
         self.fs_inotify_max_user_instances_and_watchers = int(
             params["fs_inotify_max_user_instances_and_watchers"]
         )
