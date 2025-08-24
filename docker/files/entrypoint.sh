@@ -1,6 +1,8 @@
 #!/bin/bash
 set -eo pipefail
 
+unlink /etc/nginx/sites-enabled/default
+
 SETUP_CHATMAIL_SERVICE_PATH="${SETUP_CHATMAIL_SERVICE_PATH:-/lib/systemd/system/setup_chatmail.service}"
 
 env_vars=$(printenv | cut -d= -f1 | xargs)

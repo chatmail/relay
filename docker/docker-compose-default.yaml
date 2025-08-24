@@ -42,7 +42,6 @@ services:
       ## system
       - /sys/fs/cgroup:/sys/fs/cgroup:rw # required for systemd
       - ./:/opt/chatmail
-      - ./data/acme:/var/lib/acme
       
       ## data
       - ./data/chatmail:/home
