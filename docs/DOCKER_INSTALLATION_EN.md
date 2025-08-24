@@ -1,6 +1,5 @@
 # Known issues and limitations
 
-- Installation using acmetool (`docker-compose-default.yaml`) may NOT work. In this case, use installation via traefik (`docker-compose-traefik.yaml`). Personally, during my tests, I encountered the error `could not install DNS challenge, no hooks succeeded;`, which I was unable to fix.
 - Chatmail will be reinstalled every time the container is started (longer the first time, faster on subsequent starts). This is how the original installer works because it wasn’t designed for Docker. At the end of the documentation, there’s a [proposed solution](#locking-the-chatmail-version).
 - Requires cgroups v2 configured in the system. Operation with cgroups v1 has not been tested.
 - Yes, of course, using systemd inside a container is a hack, and it would be better to split it into several services, but since this is an MVP, it turned out to be easier to do it this way initially than to rewrite the entire deployment system.
