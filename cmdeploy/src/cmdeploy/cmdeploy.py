@@ -91,7 +91,12 @@ def run_cmd(args, out):
         if retcode == 0:
             print("\nYou can try out the relay by talking to this echo bot: ")
             sshexec = args.get_sshexec()
-            print(sshexec(call=remote.rshell.shell, kwargs=dict(command="cat /var/lib/echobot/invite-link.txt")))
+            print(
+                sshexec(
+                    call=remote.rshell.shell,
+                    kwargs=dict(command="cat /var/lib/echobot/invite-link.txt"),
+                )
+            )
             out.green("Deploy completed, call `cmdeploy dns` next.")
         elif not remote_data["acme_account_url"]:
             out.red("Deploy completed but letsencrypt not configured")
