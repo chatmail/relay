@@ -25,7 +25,8 @@ def prepare_template(source):
     assert source.exists(), source
     render_vars = {}
     render_vars["pagename"] = "home" if source.stem == "index" else source.stem
-    render_vars["markdown_html"] = markdown.markdown(source.read_text())
+    # tabs usage for multiple languages https://facelessuser.github.io/pymdown-extensions/extensions/blocks/plugins/tab/
+    render_vars["markdown_html"] = markdown.markdown(source.read_text(), extensions=['pymdownx.blocks.tab'])
     page_layout = source.with_name("page-layout.html").read_text()
     return render_vars, page_layout
 
