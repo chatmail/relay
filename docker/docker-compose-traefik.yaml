@@ -96,7 +96,7 @@ services:
         max-file: "3"
     command:
       - "--configFile=/config.yaml"
-      - "--certificatesresolvers.letsEncrypt.acme.email=${ACME_EMAIL:-my.email@gmail.com}"
+      - "--certificatesresolvers.letsEncrypt.acme.email=${ACME_EMAIL}"
     # ports:
     #   - "80:80"
     #   - "443:443"
