@@ -1,7 +1,7 @@
 #!/bin/bash
 set -eo pipefail
 
-unlink /etc/nginx/sites-enabled/default
+unlink /etc/nginx/sites-enabled/default || true
 
 if [ "${USE_FOREIGN_CERT_MANAGER,,}" == "true" ]; then
     if [ ! -f "$PATH_TO_SSL/fullchain" ]; then
