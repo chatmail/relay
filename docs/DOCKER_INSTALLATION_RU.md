@@ -74,7 +74,7 @@ sudo sysctl --system
 
 6. Собрать docker образ
 ```shell
-docker compose build chatmail
+docker compose build
 ```
 
 7. Запустить docker compose и дождаться завершения установки

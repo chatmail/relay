@@ -84,7 +84,7 @@ Mandatory variables for deployment via Docker:
 6. Build the Docker image:
 
 ```shell
-docker compose build chatmail
+docker compose build
 ```
 
 7. Start docker compose and wait for the installation to finish:
