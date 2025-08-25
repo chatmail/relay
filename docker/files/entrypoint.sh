@@ -1,7 +1,7 @@
 #!/bin/bash
 set -eo pipefail
 
-unlink /etc/nginx/sites-enabled/default
+unlink /etc/nginx/sites-enabled/default || true
 
 SETUP_CHATMAIL_SERVICE_PATH="${SETUP_CHATMAIL_SERVICE_PATH:-/lib/systemd/system/setup_chatmail.service}"
 
