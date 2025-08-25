@@ -694,7 +694,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     for service, port in port_services:
         running_service = host.get_fact(Port, port=port)
         if running_service not in (service, None):
-            Out().red(f"Can't install chatmail relay: port {port} is occupied by: {running_service}")
+            Out().red(f"Deploy failed: port {port} is occupied by: {running_service}")
             exit(1)
 
     apt.packages(
