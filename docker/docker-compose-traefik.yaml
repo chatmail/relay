@@ -80,8 +80,8 @@ services:
     working_dir: /app
     entrypoint: sh -c '
       touch acme.json &&
-      sudo chown 0:0 ./acme.json &&
-      sudo chmod 600 ./acme.json'
+      chown 0:0 ./acme.json &&
+      chmod 600 ./acme.json'
     volumes:
       - ./traefik/data:/app
 
