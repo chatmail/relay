@@ -12,21 +12,21 @@ All functions of this module
 
 import re
 
-from .rshell import CalledProcessError, shell
+from .rshell import CalledProcessError, shell, log_progress
 
 
 def perform_initial_checks(mail_domain, pre_command=""):
     """Collecting initial DNS settings."""
     assert mail_domain
-    if not shell("dig", fail_ok=True):
-        shell("apt-get update && apt-get install -y dnsutils")
+    if not shell("dig", fail_ok=True, print=log_progress):
+        shell("apt-get update && apt-get install -y dnsutils", print=log_progress)
     A = query_dns("A", mail_domain)
     AAAA = query_dns("AAAA", mail_domain)
     MTA_STS = query_dns("CNAME", f"mta-sts.{mail_domain}")
     WWW = query_dns("CNAME", f"www.{mail_domain}")
 
     res = dict(mail_domain=mail_domain, A=A, AAAA=AAAA, MTA_STS=MTA_STS, WWW=WWW)
-    res["acme_account_url"] = shell(pre_command + "acmetool account-url", fail_ok=True)
+    res["acme_account_url"] = shell(pre_command + "acmetool account-url", fail_ok=True, print=log_progress)
     res["dkim_entry"], res["web_dkim_entry"] = get_dkim_entry(
         mail_domain, pre_command, dkim_selector="opendkim"
     )
@@ -44,7 +44,8 @@ def get_dkim_entry(mail_domain, pre_command, dkim_selector):
     try:
         dkim_pubkey = shell(
             f"{pre_command} openssl rsa -in /etc/dkimkeys/{dkim_selector}.private "
-            "-pubout 2>/dev/null | awk '/-/{next}{printf(\"%s\",$0)}'"
+            "-pubout 2>/dev/null | awk '/-/{next}{printf(\"%s\",$0)}'",
+            print=log_progress
         )
     except CalledProcessError:
         return
@@ -61,7 +62,7 @@ def query_dns(typ, domain):
     # Get autoritative nameserver from the SOA record.
     soa_answers = [
         x.split()
-        for x in shell(f"dig -r -q {domain} -t SOA +noall +authority +answer").split(
+        for x in shell(f"dig -r -q {domain} -t SOA +noall +authority +answer", print=log_progress).split(
             "\n"
         )
     ]
@@ -71,13 +72,13 @@ def query_dns(typ, domain):
     ns = soa[0][4]
 
     # Query authoritative nameserver directly to bypass DNS cache.
-    res = shell(f"dig @{ns} -r -q {domain} -t {typ} +short")
+    res = shell(f"dig @{ns} -r -q {domain} -t {typ} +short", print=log_progress)
     if res:
         return res.split("\n")[0]
     return ""
 
 
-def check_zonefile(zonefile, mail_domain):
+def check_zonefile(zonefile, mail_domain, verbose=True):
     """Check expected zone file entries."""
     required = True
     required_diff = []
@@ -89,7 +90,7 @@ def check_zonefile(zonefile, mail_domain):
             continue
         if not zf_line.strip() or zf_line.startswith(";"):
             continue
-        print(f"dns-checking {zf_line!r}")
+        print(f"dns-checking {zf_line!r}") if verbose else log_progress("")
         zf_domain, zf_typ, zf_value = zf_line.split(maxsplit=2)
         zf_domain = zf_domain.rstrip(".")
         zf_value = zf_value.strip()

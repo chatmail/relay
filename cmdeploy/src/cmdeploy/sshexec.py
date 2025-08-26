@@ -70,10 +70,6 @@ class SSHExec:
                 raise self.FuncError(data)
 
     def logged(self, call, kwargs):
-        def log_progress(data):
-            sys.stderr.write(".")
-            sys.stderr.flush()
-
         title = call.__doc__
         if not title:
             title = call.__name__
@@ -82,6 +78,6 @@ class SSHExec:
             return self(call, kwargs, log_callback=print_stderr)
         else:
             print_stderr(title, end="")
-            res = self(call, kwargs, log_callback=log_progress)
+            res = self(call, kwargs, log_callback=remote.rshell.log_progress)
             print_stderr()
             return res
