@@ -54,6 +54,8 @@ class TestSSHExecutor:
         assert res["A"] or res["AAAA"]
 
     def test_logged(self, sshexec, maildomain, capsys):
+        if isinstance(sshexec, DockerExec):
+            pytest.skip("This test only works via SSH")
         sshexec.logged(
             remote.rdns.perform_initial_checks, kwargs=dict(mail_domain=maildomain)
         )
