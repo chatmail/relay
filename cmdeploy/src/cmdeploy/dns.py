@@ -1,5 +1,6 @@
 import datetime
 import importlib
+import subprocess
 
 from jinja2 import Template
 
@@ -8,9 +9,9 @@ from . import remote
 
 def get_initial_remote_data(sshexec, mail_domain):
     if sshexec == "docker":
-        return remote.rdns.perform_initial_checks(mail_domain, pre_command="docker exec chatmail ")
+        return remote.rdns.perform_initial_checks(mail_domain, pre_command="docker exec chatmail ", shell=subprocess.check_output)
     elif sshexec == "localhost":
-        return remote.rdns.perform_initial_checks(mail_domain, pre_command="")
+        return remote.rdns.perform_initial_checks(mail_domain, pre_command="", shell=subprocess.check_output)
     return sshexec.logged(
         call=remote.rdns.perform_initial_checks, kwargs=dict(mail_domain=mail_domain)
     )
@@ -49,7 +50,7 @@ def check_full_zone(sshexec, remote_data, out, zonefile) -> int:
     and return (exitcode, remote_data) tuple."""
 
     if sshexec in ["docker", "localhost"]:
-        required_diff, recommended_diff = remote.rdns.check_zonefile(zonefile, remote_data["mail_domain"])
+        required_diff, recommended_diff = remote.rdns.check_zonefile(zonefile, remote_data["mail_domain"], shell=subprocess.check_output)
     else:
         required_diff, recommended_diff = sshexec.logged(
             remote.rdns.check_zonefile,
