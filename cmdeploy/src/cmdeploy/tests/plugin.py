@@ -337,10 +337,14 @@ class Remote:
 
     def iter_output(self, logcmd=""):
         getjournal = "journalctl -f" if not logcmd else logcmd
-        self.popen = subprocess.Popen(
-            ["ssh", f"root@{self.sshdomain}", getjournal],
-            stdout=subprocess.PIPE,
-        )
+        try:
+            self.popen = subprocess.Popen(
+                ["ssh", f"root@{self.sshdomain}", getjournal],
+                stdout=subprocess.PIPE,
+            )
+        except FileNotFoundError:
+            # inside docker container, run locally
+            self.popen = subprocess.Popen([getjournal], stdout=subprocess.PIPE)
         while 1:
             line = self.popen.stdout.readline()
             res = line.decode().strip().lower()
