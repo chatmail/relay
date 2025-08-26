@@ -26,9 +26,6 @@ def perform_initial_checks(mail_domain, pre_command=""):
     WWW = query_dns("CNAME", f"www.{mail_domain}")
 
     res = dict(mail_domain=mail_domain, A=A, AAAA=AAAA, MTA_STS=MTA_STS, WWW=WWW)
-    if pre_command == "running on localhost":
-        return res
-
     res["acme_account_url"] = shell(pre_command + "acmetool account-url", fail_ok=True)
     res["dkim_entry"], res["web_dkim_entry"] = get_dkim_entry(
         mail_domain, pre_command, dkim_selector="opendkim"

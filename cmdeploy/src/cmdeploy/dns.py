@@ -10,7 +10,7 @@ def get_initial_remote_data(sshexec, mail_domain):
     if sshexec == "docker":
         return remote.rdns.perform_initial_checks(mail_domain, pre_command="docker exec chatmail ")
     elif sshexec == "localhost":
-        return remote.rdns.perform_initial_checks(mail_domain, pre_command="running on localhost")
+        return remote.rdns.perform_initial_checks(mail_domain, pre_command="")
     return sshexec.logged(
         call=remote.rdns.perform_initial_checks, kwargs=dict(mail_domain=mail_domain)
     )

@@ -72,7 +72,7 @@ def run_cmd_options(parser):
     parser.add_argument(
         "--ssh-host",
         dest="ssh_host",
-        help="specify an SSH host to deploy to; uses mail_domain from chatmail.ini by default",
+        help="Deploy to 'localhost', via 'docker', or to a specific SSH host",
     )
     parser.add_argument(
         "--skip-dns-check",
@@ -134,6 +134,11 @@ def dns_cmd_options(parser):
         type=pathlib.Path,
         default=None,
         help="write out a zonefile",
+    )
+    parser.add_argument(
+        "--ssh-host",
+        dest="ssh_host",
+        help="Run the DNS queries on 'localhost', in the chatmail 'docker' container, or on a specific SSH host",
     )
 
 
