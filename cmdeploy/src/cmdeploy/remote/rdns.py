@@ -15,7 +15,7 @@ import re
 from .rshell import CalledProcessError, shell
 
 
-def perform_initial_checks(mail_domain, pre_command="", shell=shell):
+def perform_initial_checks(mail_domain, pre_command=""):
     """Collecting initial DNS settings."""
     assert mail_domain
     if not shell("dig", fail_ok=True):
@@ -28,7 +28,7 @@ def perform_initial_checks(mail_domain, pre_command="", shell=shell):
     res = dict(mail_domain=mail_domain, A=A, AAAA=AAAA, MTA_STS=MTA_STS, WWW=WWW)
     res["acme_account_url"] = shell(pre_command + "acmetool account-url", fail_ok=True)
     res["dkim_entry"], res["web_dkim_entry"] = get_dkim_entry(
-        mail_domain, pre_command, shell, dkim_selector="opendkim"
+        mail_domain, pre_command, dkim_selector="opendkim"
     )
 
     if not MTA_STS or not WWW or (not A and not AAAA):
@@ -40,7 +40,7 @@ def perform_initial_checks(mail_domain, pre_command="", shell=shell):
     return res
 
 
-def get_dkim_entry(mail_domain, pre_command, shell, dkim_selector):
+def get_dkim_entry(mail_domain, pre_command, dkim_selector):
     try:
         dkim_pubkey = shell(
             f"{pre_command} openssl rsa -in /etc/dkimkeys/{dkim_selector}.private "
@@ -57,7 +57,7 @@ def get_dkim_entry(mail_domain, pre_command, shell, dkim_selector):
     )
 
 
-def query_dns(typ, domain, shell):
+def query_dns(typ, domain):
     # Get autoritative nameserver from the SOA record.
     soa_answers = [
         x.split()
@@ -77,7 +77,7 @@ def query_dns(typ, domain, shell):
     return ""
 
 
-def check_zonefile(zonefile, mail_domain, shell=shell):
+def check_zonefile(zonefile, mail_domain):
     """Check expected zone file entries."""
     required = True
     required_diff = []
@@ -93,7 +93,7 @@ def check_zonefile(zonefile, mail_domain, shell=shell):
         zf_domain, zf_typ, zf_value = zf_line.split(maxsplit=2)
         zf_domain = zf_domain.rstrip(".")
         zf_value = zf_value.strip()
-        query_value = query_dns(zf_typ, zf_domain, shell)
+        query_value = query_dns(zf_typ, zf_domain)
         if zf_value != query_value:
             assert zf_typ in ("A", "AAAA", "CNAME", "CAA", "SRV", "MX", "TXT"), zf_line
             if required:
