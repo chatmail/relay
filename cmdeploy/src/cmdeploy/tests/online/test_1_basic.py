@@ -10,10 +10,37 @@ from cmdeploy import remote
 from cmdeploy.sshexec import SSHExec
 
 
+class FuncError(Exception):
+    pass
+
+
+class DockerExec:
+    FuncError = FuncError
+
+    def __init__(self, pre_command):
+        self.pre_command = pre_command
+
+    def __call__(self, call, kwargs=None):
+        if kwargs is None:
+            kwargs = {}
+        return call(**kwargs)
+
+    def logged(self, call, kwargs):
+        title = call.__doc__
+        if not title:
+            title = call.__name__
+        print("[ssh] " + title)
+        return self(call, kwargs)
+
+
 class TestSSHExecutor:
     @pytest.fixture(scope="class")
     def sshexec(self, sshdomain):
-        return SSHExec(sshdomain)
+        try:
+            sshexec = SSHExec(sshdomain)
+        except FileNotFoundError:
+            sshexec = DockerExec("docker exec chatmail ")
+        return sshexec
 
     def test_ls(self, sshexec):
         out = sshexec(call=remote.rdns.shell, kwargs=dict(command="ls"))
