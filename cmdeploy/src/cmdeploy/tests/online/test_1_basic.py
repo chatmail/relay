@@ -82,6 +82,8 @@ class TestSSHExecutor:
         except sshexec.FuncError as e:
             assert "rdns.py" in str(e)
             assert "AssertionError" in str(e)
+        except AssertionError:
+            assert isinstance(sshexec, DockerExec)
         else:
             pytest.fail("didn't raise exception")
 
