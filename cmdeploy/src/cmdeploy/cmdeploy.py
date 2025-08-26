@@ -101,7 +101,7 @@ def run_cmd(args, out):
     ssh_host = args.config.mail_domain if not args.ssh_host else args.ssh_host
 
     cmd = f"{pyinf} --ssh-user root {ssh_host} {deploy_path} -y"
-    if sshexec == "localhost":
+    if sshexec in ["docker", "localhost"]:
         cmd = f"{pyinf} @local {deploy_path} -y"
 
     if version.parse(pyinfra.__version__) < version.parse("3"):
@@ -368,6 +368,8 @@ def main(args=None):
         host = args.ssh_host if hasattr(args, "ssh_host") and args.ssh_host else args.config.mail_domain
         if host in [ "@local", "localhost" ]:
             return "localhost"
+        elif host == "docker":
+            return "docker"
         
         print(f"[ssh] login to {host}")
         return SSHExec(host, verbose=args.verbose)
