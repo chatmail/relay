@@ -25,6 +25,8 @@ from .sshexec import SSHExec
 # cmdeploy sub commands and options
 #
 
+def is_pytest():
+    return "PYTEST_CURRENT_TEST" in os.environ
 
 def init_cmd_options(parser):
     parser.add_argument(
@@ -375,6 +377,12 @@ def main(args=None):
     args.get_sshexec = get_sshexec
 
     out = Out()
+    if is_pytest(): ## issue: https://github.com/chatmail/relay/issues/622
+        out.green = print
+        out.red = print
+        out.yellow = print
+        out.__call__ = print
+
     kwargs = {}
     if args.func.__name__ not in ("init_cmd", "fmt_cmd"):
         if not args.inipath.exists():
