@@ -15,7 +15,7 @@ import re
 from .rshell import CalledProcessError, shell
 
 
-def perform_initial_checks(mail_domain):
+def perform_initial_checks(mail_domain, pre_command=""):
     """Collecting initial DNS settings."""
     assert mail_domain
     if not shell("dig", fail_ok=True):
@@ -26,9 +26,12 @@ def perform_initial_checks(mail_domain):
     WWW = query_dns("CNAME", f"www.{mail_domain}")
 
     res = dict(mail_domain=mail_domain, A=A, AAAA=AAAA, MTA_STS=MTA_STS, WWW=WWW)
-    res["acme_account_url"] = shell("acmetool account-url", fail_ok=True)
+    if pre_command == "running on localhost":
+        return res
+
+    res["acme_account_url"] = shell(pre_command + "acmetool account-url", fail_ok=True)
     res["dkim_entry"], res["web_dkim_entry"] = get_dkim_entry(
-        mail_domain, dkim_selector="opendkim"
+        mail_domain, pre_command, dkim_selector="opendkim"
     )
 
     if not MTA_STS or not WWW or (not A and not AAAA):
@@ -40,10 +43,10 @@ def perform_initial_checks(mail_domain):
     return res
 
 
-def get_dkim_entry(mail_domain, dkim_selector):
+def get_dkim_entry(mail_domain, pre_command, dkim_selector):
     try:
         dkim_pubkey = shell(
-            f"openssl rsa -in /etc/dkimkeys/{dkim_selector}.private "
+            f"{pre_command} openssl rsa -in /etc/dkimkeys/{dkim_selector}.private "
             "-pubout 2>/dev/null | awk '/-/{next}{printf(\"%s\",$0)}'"
         )
     except CalledProcessError:
