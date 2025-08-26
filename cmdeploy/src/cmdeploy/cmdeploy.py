@@ -128,7 +128,7 @@ def dns_cmd_options(parser):
     parser.add_argument(
         "--ssh-host",
         dest="ssh_host",
-        help="Run the DNS queries on 'localhost', via 'docker', or on a specific SSH host",
+        help="Run the DNS queries on 'localhost', in the chatmail 'docker' container, or on a specific SSH host",
     )
 
 

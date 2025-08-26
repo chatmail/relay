@@ -82,6 +82,11 @@ docker compose logs -f chatmail # view container logs, press CTRL+C to exit
 
 8. After installation is complete, you can open `https://<your_domain_name>` in your browser.
 
+9. To send messages to other chatmail relays,
+   you need to set additional DNS records.
+   Run `docker exec chatmail scripts/cmdeploy.sh dns --ssh-host localhost`
+   to see recommended DNS records and check whether they are correct.
+
 ## Using custom files
 
 When using Docker, you can apply modified configuration files to make the installation more personalized. This is usually needed for the `www/src` section so that the Chatmail landing page is customized to your taste, but it can be used for any other cases as well.
