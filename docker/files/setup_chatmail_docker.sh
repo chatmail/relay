@@ -69,7 +69,7 @@ fi
 ./scripts/cmdeploy init --config "${INI_FILE}" $INI_CMD_ARGS $MAIL_DOMAIN
 bash /update_ini.sh
 
-./scripts/cmdeploy run --ssh-host docker --skip-dns-check
+./scripts/cmdeploy run --ssh-host docker
 
 echo "ForwardToConsole=yes" >> /etc/systemd/journald.conf
 systemctl restart systemd-journald
