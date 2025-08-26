@@ -48,10 +48,13 @@ def check_full_zone(sshexec, remote_data, out, zonefile) -> int:
     """Check existing DNS records, optionally write them to zone file
     and return (exitcode, remote_data) tuple."""
 
-    required_diff, recommended_diff = sshexec.logged(
-        remote.rdns.check_zonefile,
-        kwargs=dict(zonefile=zonefile, mail_domain=remote_data["mail_domain"]),
-    )
+    if sshexec in ["docker", "localhost"]:
+        required_diff, recommended_diff = remote.rdns.check_zonefile(zonefile, remote_data["mail_domain"])
+    else:
+        required_diff, recommended_diff = sshexec.logged(
+            remote.rdns.check_zonefile,
+            kwargs=dict(zonefile=zonefile, mail_domain=remote_data["mail_domain"]),
+        )
 
     returncode = 0
     if required_diff:
