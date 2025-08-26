@@ -67,7 +67,7 @@ if [ "$RECREATE_VENV" == "true" ]; then
 fi
 ./scripts/initenv.sh
 
-./scripts/cmdeploy init --config "${INI_FILE}" $INI_CMD_ARGS $MAIL_DOMAIN
+./scripts/cmdeploy init --config "${INI_FILE}" $INI_CMD_ARGS $MAIL_DOMAIN || true
 bash /update_ini.sh
 
 ./scripts/cmdeploy run --ssh-host @local --skip-dns-check
