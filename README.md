@@ -255,6 +255,18 @@ This starts a local live development cycle for chatmail web pages:
 
 - Starts a browser window automatically where you can "refresh" as needed.
 
+#### Custom web pages
+
+You can skip uploading a web page
+by setting `www_folder=disabled` in `chatmail.ini`.
+
+If you want to manage your web pages outside this git repository,
+you can set `www_folder` in `chatmail.ini` to a custom directory on your computer.
+`cmdeploy run` will upload it as the server's home page,
+and if it contains a `src/index.md` file,
+will build it with hugo.
+
+
 ## Mailbox directory layout
 
 Fresh chatmail addresses have a mailbox directory that contains: 

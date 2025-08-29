@@ -11,7 +11,7 @@ from io import StringIO
 from pathlib import Path
 
 from chatmaild.config import Config, read_config
-from pyinfra import facts, host
+from pyinfra import facts, host, logger
 from pyinfra.api import FactBase
 from pyinfra.facts.files import File
 from pyinfra.facts.server import Sysctl
@@ -618,7 +618,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     check_config(config)
     mail_domain = config.mail_domain
 
-    from .www import build_webpages
+    from .www import build_webpages, get_paths
 
     server.group(name="Create vmail group", group="vmail", system=True)
     server.user(name="Create vmail user", user="vmail", group="vmail", system=True)
@@ -751,12 +751,16 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
         packages=["fcgiwrap"],
     )
 
-    www_path = importlib.resources.files(__package__).joinpath("../../../www").resolve()
-
-    build_dir = www_path.joinpath("build")
-    src_dir = www_path.joinpath("src")
-    build_webpages(src_dir, build_dir, config)
-    files.rsync(f"{build_dir}/", "/var/www/html", flags=["-avz"])
+    www_path, src_dir, build_dir = get_paths(config)
+    # if www_folder was set to a non-existing folder, skip upload
+    if not www_path.is_dir():
+        logger.warning("Building web pages is disabled in chatmail.ini, skipping")
+    else:
+        # if www_folder is a hugo page, build it
+        if build_dir:
+            www_path = build_webpages(src_dir, build_dir, config)
+        # if it is not a hugo page, upload it as is
+        files.rsync(f"{www_path}/", "/var/www/html", flags=["-avz"])
 
     _install_remote_venv_with_chatmaild(config)
     debug = False
