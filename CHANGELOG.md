@@ -30,6 +30,7 @@
   - `acme_email` - Email address used by acmetool to obtain Let's Encrypt certificates (default: empty)
   - `change_kernel_settings` - Whether to change kernel parameters during installation (default: `True`)
   - `fs_inotify_max_user_instances_and_watchers` - Value for kernel parameters `fs.inotify.max_user_instances` and `fs.inotify.max_user_watches` (default: `65535`)
+  - `languages`- List of website languages. (default: `EN`. possible: `EN RU` or `ALL`). Current instances can continue to use the current markdown files, the change will not affect rendering.
 
 - Check whether GCC is installed in initenv.sh
   ([#608](https://github.com/chatmail/relay/pull/608))

@@ -33,6 +33,9 @@ class Config:
         self.password_min_length = int(params["password_min_length"])
         self.passthrough_senders = params["passthrough_senders"].split()
         self.passthrough_recipients = params["passthrough_recipients"].split()
+        self.languages = (
+            params.get("languages", "EN").split()
+        )
         self.is_development_instance = (
             params.get("is_development_instance", "true").lower() == "true"
         )

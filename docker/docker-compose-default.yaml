@@ -19,7 +19,7 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-    environment:
+    environment: #all possible variables you can check inside README and /chatmaild/src/chatmaild/ini/chatmail.ini.f
       MAIL_DOMAIN: $MAIL_DOMAIN
       CHANGE_KERNEL_SETTINGS: "False"
       ACME_EMAIL: $ACME_EMAIL
@@ -31,6 +31,7 @@ services:
       # ENABLE_CERTS_MONITORING: "true"
       # CERTS_MONITORING_TIMEOUT: 10
       # IS_DEVELOPMENT_INSTANCE: "True"
+      # LANGUAGES: "EN" # all possible options you can check inside /chatmaild/src/chatmaild/ini/chatmail.ini.f
     ports:
       - "80:80"
       - "443:443"

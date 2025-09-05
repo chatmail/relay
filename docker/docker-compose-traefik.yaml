@@ -33,6 +33,7 @@ services:
       ENABLE_CERTS_MONITORING: "true"
       # CERTS_MONITORING_TIMEOUT: 60
       # IS_DEVELOPMENT_INSTANCE: "true"
+      # LANGUAGES: "EN" # all possible options you can check inside /chatmaild/src/chatmaild/ini/chatmail.ini.f
     ports:
       - "25:25"
       - "587:587"

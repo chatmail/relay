@@ -49,6 +49,12 @@ passthrough_recipients = xstore@testrun.org echo@{mail_domain}
 # Deployment Details
 #
 
+# A space-separated list of languages to be displayed on the site. 
+# Now available languages: EN RU
+# You can also use the keyword "ALL"
+# NOTE: The order of languages affects their order on the page
+languages = EN
+
 # set to "False" to remove the "development instance" banner on the main page.
 is_development_instance = True
 
