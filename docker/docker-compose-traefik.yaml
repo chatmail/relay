@@ -43,7 +43,7 @@ services:
       ## system
       - /sys/fs/cgroup:/sys/fs/cgroup:rw # required for systemd
       - ./:/opt/chatmail
-      - ${CERTS_ROOT_DIR_HOST}:${CERTS_ROOT_DIR_CONTAINER}:ro
+      - ./traefik/data/letsencrypt/certs:${CERTS_ROOT_DIR_CONTAINER}:ro
       
       ## data
       - ./data/chatmail:/home
@@ -96,7 +96,7 @@ services:
         max-file: "3"
     command:
       - "--configFile=/config.yaml"
-      - "--certificatesresolvers.letsEncrypt.acme.email=${ACME_EMAIL}"
+      - "--certificatesresolvers.letsEncrypt.acme.email=${ACME_EMAIL:-}"
     # ports:
     #   - "80:80"
     #   - "443:443"
