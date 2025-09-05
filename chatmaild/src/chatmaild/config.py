@@ -54,7 +54,7 @@ class Config:
             params.get("change_kernel_settings", "true").lower() == "true"
         )
         self.fs_inotify_max_user_instances_and_watchers = int(
-            params["fs_inotify_max_user_instances_and_watchers"]
+            params.get("fs_inotify_max_user_instances_and_watchers", "65535")
         )
         self.imap_rawlog = params.get("imap_rawlog", "false").lower() == "true"
         if "iroh_relay" not in params:
