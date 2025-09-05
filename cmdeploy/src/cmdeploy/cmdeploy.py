@@ -80,7 +80,7 @@ def run_cmd_options(parser):
         "--skip-dns-check",
         dest="dns_check_disabled",
         action="store_true",
-        help="disable checks nslookup for dns",
+        help="disable nslookup checks for DNS",
     )
 
 
