@@ -49,7 +49,7 @@ def init_cmd(args, out):
     if args.inipath.exists():
         if not args.recreate_ini:
             out.green(f"[WARNING] Path exists, not modifying: {inipath}")
-            return 1 ### need research - can we set return code as zero?
+            return 1
         else:
             out.yellow(f"[WARNING] Force argument was provided, deleting config file: {inipath}")
             inipath.unlink()
