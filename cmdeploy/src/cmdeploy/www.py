@@ -44,6 +44,10 @@ def prepare_template(source, locales_dir, languages=["EN"]):
     
     markdown_blocks = []
     
+    tabs_enabled = False
+    if len(selected_langs) > 1:
+        tabs_enabled = True
+
     for lang_code in selected_langs:
         lang_folder = locales_dir / lang_code
         lang_file = lang_folder / f"{base_name}.md"
@@ -55,7 +59,11 @@ def prepare_template(source, locales_dir, languages=["EN"]):
             print(f"[WARNING]: Missing file {lang_file}. Inserting fallback message.")
             content = "Content for this language is not available, please contact your server administrator."
 
-        markdown_blocks.append(f"/// tab | {lang_name}\n{content}\n///")
+        if tabs_enabled:
+            markdown_blocks.append(f"/// tab | {lang_name}\n{content}\n///")
+            continue
+        
+        markdown_blocks.append(content)
 
     if not markdown_blocks:
         print("[WARNING] No valid language content found. Skipping file.")
