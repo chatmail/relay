@@ -120,7 +120,7 @@ def _build_webpages(src_dir, build_dir, config):
     locales_dir = src_dir / "locales"
 
     for path in src_dir.iterdir():
-        if path.suffix == ".md" and '.' not in path.stem:
+        if path.suffix == ".md":
             render_vars, content = prepare_template(path, locales_dir, languages)
 
             if render_vars is None:
