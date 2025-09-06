@@ -21,7 +21,7 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-    environment: #all possible variables you can check inside README and /chatmaild/src/chatmaild/ini/chatmail.ini.f
+    environment: # all possible variables you can check inside README and /chatmaild/src/chatmaild/ini/chatmail.ini.f
       MAIL_DOMAIN: $MAIL_DOMAIN
       # MAX_MESSAGE_SIZE: "50M"
       # DEBUG_COMMANDS_ENABLED: "true"
