@@ -433,6 +433,38 @@ def _configure_dovecot(config: Config, debug: bool = False) -> bool:
     return need_restart
 
 
+class DovecotDeployer(Deployer):
+    def __init__(self, *, config, disable_mail, **kwargs):
+        super().__init__(**kwargs)
+        self.config = config
+        self.disable_mail = disable_mail
+        self.was_restarted = False
+
+    @staticmethod
+    def install_impl():
+        arch = host.get_fact(facts.server.Arch)
+        if not "dovecot.service" in host.get_fact(SystemdEnabled):
+            _install_dovecot_package("core", arch)
+            _install_dovecot_package("imapd", arch)
+            _install_dovecot_package("lmtpd", arch)
+
+    def configure_impl(self):
+        self.need_restart = _configure_dovecot(self.config)
+
+    def activate_impl(self):
+        restart = False if self.disable_mail else self.need_restart
+
+        systemd.service(
+            name="disable dovecot for now" if self.disable_mail else "Start and enable Dovecot",
+            service="dovecot.service",
+            running=False if self.disable_mail else True,
+            enabled=False if self.disable_mail else True,
+            restarted=restart,
+        )
+        self.was_restarted = restart
+        self.need_restart = False
+
+
 def _configure_nginx(config: Config, debug: bool = False) -> bool:
     """Configures nginx HTTP server."""
     need_restart = False
@@ -691,7 +723,10 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
             line="nameserver 9.9.9.9",
         )
 
+    dovecot_deployer = DovecotDeployer(config=config, disable_mail=disable_mail)
+
     all_deployers = [
+        dovecot_deployer,
     ]
 
     #
@@ -818,10 +853,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
         packages="postfix",
     )
 
-    if not "dovecot.service" in host.get_fact(SystemdEnabled):
-        _install_dovecot_package("core", host.get_fact(facts.server.Arch))
-        _install_dovecot_package("imapd", host.get_fact(facts.server.Arch))
-        _install_dovecot_package("lmtpd", host.get_fact(facts.server.Arch))
+    dovecot_deployer.install()
 
     apt.packages(
         name="Install nginx",
@@ -848,7 +880,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
 
     _install_remote_venv_with_chatmaild(config)
     debug = False
-    dovecot_need_restart = _configure_dovecot(config, debug=debug)
+    dovecot_deployer.configure()
     postfix_need_restart = _configure_postfix(config, debug=debug)
     nginx_need_restart = _configure_nginx(config)
     _uninstall_mta_sts_daemon()
@@ -868,13 +900,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     # Dovecot should be started before Postfix
     # because it creates authentication socket
     # required by Postfix.
-    systemd.service(
-        name="disable dovecot for now" if disable_mail else "Start and enable Dovecot",
-        service="dovecot.service",
-        running=False if disable_mail else True,
-        enabled=False if disable_mail else True,
-        restarted=dovecot_need_restart if not disable_mail else False,
-    )
+    dovecot_deployer.activate()
 
     systemd.service(
         name="disable postfix for now" if disable_mail else "Start and enable Postfix",
@@ -902,7 +928,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     systemd.service(
         name="Restart echobot if postfix and dovecot were just started",
         service="echobot.service",
-        restarted=postfix_need_restart and dovecot_need_restart,
+        restarted=postfix_need_restart and dovecot_deployer.was_restarted,
     )
 
     # This file is used by auth proxy.
