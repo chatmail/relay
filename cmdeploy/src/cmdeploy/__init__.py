@@ -333,6 +333,43 @@ def _configure_postfix(config: Config, debug: bool = False) -> bool:
     return need_restart
 
 
+class PostfixDeployer(Deployer):
+    def __init__(self, *, config, disable_mail, **kwargs):
+        super().__init__(**kwargs)
+        self.config = config
+        self.disable_mail = disable_mail
+        self.was_restarted = False
+
+    @staticmethod
+    def required_users():
+        return [
+            ("postfix", None, ["opendkim"]),
+        ]
+
+    @staticmethod
+    def install_impl():
+        apt.packages(
+            name="Install Postfix",
+            packages="postfix",
+        )
+
+    def configure_impl(self):
+        self.need_restart = _configure_postfix(self.config)
+
+    def activate_impl(self):
+        restart = False if self.disable_mail else self.need_restart
+
+        systemd.service(
+            name="disable postfix for now" if self.disable_mail else "Start and enable Postfix",
+            service="postfix.service",
+            running=False if self.disable_mail else True,
+            enabled=False if self.disable_mail else True,
+            restarted=restart,
+        )
+        self.was_restarted = restart
+        self.need_restart = False
+
+
 def _install_dovecot_package(package: str, arch: str):
     arch = "amd64" if arch == "x86_64" else arch
     arch = "arm64" if arch == "aarch64" else arch
@@ -723,10 +760,15 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
             line="nameserver 9.9.9.9",
         )
 
+    # Dovecot should be started before Postfix
+    # because it creates authentication socket
+    # required by Postfix.
     dovecot_deployer = DovecotDeployer(config=config, disable_mail=disable_mail)
+    postfix_deployer = PostfixDeployer(config=config, disable_mail=disable_mail)
 
     all_deployers = [
         dovecot_deployer,
+        postfix_deployer,
     ]
 
     #
@@ -745,12 +787,6 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     server.user(
         name="Create opendkim user",
         user="opendkim",
-        groups=["opendkim"],
-        system=True,
-    )
-    server.user(
-        name="Add postfix user to opendkim group for socket access",
-        user="postfix",
         groups=["opendkim"],
         system=True,
     )
@@ -848,11 +884,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
         packages="acl",
     )
 
-    apt.packages(
-        name="Install Postfix",
-        packages="postfix",
-    )
-
+    postfix_deployer.install()
     dovecot_deployer.install()
 
     apt.packages(
@@ -879,9 +911,8 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
         files.rsync(f"{www_path}/", "/var/www/html", flags=["-avz", "--chown=www-data"])
 
     _install_remote_venv_with_chatmaild(config)
-    debug = False
     dovecot_deployer.configure()
-    postfix_need_restart = _configure_postfix(config, debug=debug)
+    postfix_deployer.configure()
     nginx_need_restart = _configure_nginx(config)
     _uninstall_mta_sts_daemon()
 
@@ -897,18 +928,8 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
         restarted=opendkim_need_restart,
     )
 
-    # Dovecot should be started before Postfix
-    # because it creates authentication socket
-    # required by Postfix.
     dovecot_deployer.activate()
-
-    systemd.service(
-        name="disable postfix for now" if disable_mail else "Start and enable Postfix",
-        service="postfix.service",
-        running=False if disable_mail else True,
-        enabled=False if disable_mail else True,
-        restarted=postfix_need_restart if not disable_mail else False,
-    )
+    postfix_deployer.activate()
 
     systemd.service(
         name="Start and enable nginx",
@@ -928,7 +949,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     systemd.service(
         name="Restart echobot if postfix and dovecot were just started",
         service="echobot.service",
-        restarted=postfix_need_restart and dovecot_deployer.was_restarted,
+        restarted=postfix_deployer.was_restarted and dovecot_deployer.was_restarted,
     )
 
     # This file is used by auth proxy.
