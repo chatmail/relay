@@ -559,6 +559,61 @@ def _configure_nginx(config: Config, debug: bool = False) -> bool:
     return need_restart
 
 
+class NginxDeployer(Deployer):
+    def __init__(self, *, config, **kwargs):
+        super().__init__(**kwargs)
+        self.config = config
+
+    @staticmethod
+    def install_impl():
+        #
+        # If we allow nginx to start up on install, it will grab port
+        # 80, which then will block acmetool from listening on the port.
+        # That in turn prevents getting certificates, which then causes
+        # an error when we try to start nginx on the custom config
+        # that leaves port 80 open but also requires certificates to
+        # be present.  To avoid getting into that interlocking mess,
+        # we use policy-rc.d to prevent nginx from starting up when it
+        # is installed.
+        #
+        # This approach allows us to avoid performing any explicit
+        # systemd operations during the install stage (as opposed to
+        # allowing it to start and then forcing it to stop), which allows
+        # the install stage to run in non-systemd environments like a
+        # container image build.
+        #
+        # For documentation about policy-rc.d, see:
+        # https://people.debian.org/~hmh/invokerc.d-policyrc.d-specification.txt
+        #
+        files.put(
+            src=importlib.resources.files(__package__).joinpath("policy-rc.d"),
+            dest="/usr/sbin/policy-rc.d",
+            user="root",
+            group="root",
+            mode="755",
+        )
+
+        apt.packages(
+            name="Install nginx",
+            packages=["nginx", "libnginx-mod-stream"],
+        )
+
+        files.file("/usr/sbin/policy-rc.d", present=False)
+
+    def configure_impl(self):
+        self.need_restart = _configure_nginx(self.config)
+
+    def activate_impl(self):
+        systemd.service(
+            name="Start and enable nginx",
+            service="nginx.service",
+            running=True,
+            enabled=True,
+            restarted=self.need_restart,
+        )
+        self.need_restart = False
+
+
 def _remove_rspamd() -> None:
     """Remove rspamd"""
     apt.packages(name="Remove rspamd", packages="rspamd", present=False)
@@ -766,9 +821,12 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     dovecot_deployer = DovecotDeployer(config=config, disable_mail=disable_mail)
     postfix_deployer = PostfixDeployer(config=config, disable_mail=disable_mail)
 
+    nginx_deployer = NginxDeployer(config=config)
+
     all_deployers = [
         dovecot_deployer,
         postfix_deployer,
+        nginx_deployer,
     ]
 
     #
@@ -886,11 +944,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
 
     postfix_deployer.install()
     dovecot_deployer.install()
-
-    apt.packages(
-        name="Install nginx",
-        packages=["nginx", "libnginx-mod-stream"],
-    )
+    nginx_deployer.install()
 
     apt.packages(
         name="Install fcgiwrap",
@@ -913,7 +967,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     _install_remote_venv_with_chatmaild(config)
     dovecot_deployer.configure()
     postfix_deployer.configure()
-    nginx_need_restart = _configure_nginx(config)
+    nginx_deployer.configure()
     _uninstall_mta_sts_daemon()
 
     _remove_rspamd()
@@ -930,14 +984,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
 
     dovecot_deployer.activate()
     postfix_deployer.activate()
-
-    systemd.service(
-        name="Start and enable nginx",
-        service="nginx.service",
-        running=True,
-        enabled=True,
-        restarted=nginx_need_restart,
-    )
+    nginx_deployer.activate()
 
     systemd.service(
         name="Start and enable fcgiwrap",
