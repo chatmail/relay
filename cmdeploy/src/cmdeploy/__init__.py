@@ -241,11 +241,6 @@ def _configure_opendkim(domain: str, dkim_selector: str = "dkim") -> bool:
         present=True,
     )
 
-    apt.packages(
-        name="apt install opendkim opendkim-tools",
-        packages=["opendkim", "opendkim-tools"],
-    )
-
     if not host.get_fact(File, f"/etc/dkimkeys/{dkim_selector}.private"):
         server.shell(
             name="Generate OpenDKIM domain keys",
@@ -264,6 +259,39 @@ def _configure_opendkim(domain: str, dkim_selector: str = "dkim") -> bool:
     need_restart |= service_file.changed
 
     return need_restart
+
+
+class OpendkimDeployer(Deployer):
+    def __init__(self, *, mail_domain, **kwargs):
+        super().__init__(**kwargs)
+        self.mail_domain = mail_domain
+
+    @staticmethod
+    def required_users():
+        return [
+            ("opendkim", None, ["opendkim"]),
+        ]
+
+    @staticmethod
+    def install_impl():
+        apt.packages(
+            name="apt install opendkim opendkim-tools",
+            packages=["opendkim", "opendkim-tools"],
+        )
+
+    def configure_impl(self):
+        self.need_restart = _configure_opendkim(self.mail_domain, "opendkim")
+
+    def activate_impl(self):
+        systemd.service(
+            name="Start and enable OpenDKIM",
+            service="opendkim.service",
+            running=True,
+            enabled=True,
+            daemon_reload=self.need_restart,
+            restarted=self.need_restart,
+        )
+        self.need_restart = False
 
 
 def _uninstall_mta_sts_daemon() -> None:
@@ -815,6 +843,8 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
             line="nameserver 9.9.9.9",
         )
 
+    opendkim_deployer = OpendkimDeployer(mail_domain=mail_domain)
+
     # Dovecot should be started before Postfix
     # because it creates authentication socket
     # required by Postfix.
@@ -824,6 +854,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     nginx_deployer = NginxDeployer(config=config)
 
     all_deployers = [
+        opendkim_deployer,
         dovecot_deployer,
         postfix_deployer,
         nginx_deployer,
@@ -841,13 +872,6 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
 
     server.group(name="Create vmail group", group="vmail", system=True)
     server.user(name="Create vmail user", user="vmail", group="vmail", system=True)
-    server.group(name="Create opendkim group", group="opendkim", system=True)
-    server.user(
-        name="Create opendkim user",
-        user="opendkim",
-        groups=["opendkim"],
-        system=True,
-    )
     server.user(name="Create echobot user", user="echobot", system=True)
     server.user(name="Create iroh user", user="iroh", system=True)
 
@@ -942,6 +966,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
         packages="acl",
     )
 
+    opendkim_deployer.install()
     postfix_deployer.install()
     dovecot_deployer.install()
     nginx_deployer.install()
@@ -971,16 +996,8 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     _uninstall_mta_sts_daemon()
 
     _remove_rspamd()
-    opendkim_need_restart = _configure_opendkim(mail_domain, "opendkim")
-
-    systemd.service(
-        name="Start and enable OpenDKIM",
-        service="opendkim.service",
-        running=True,
-        enabled=True,
-        daemon_reload=opendkim_need_restart,
-        restarted=opendkim_need_restart,
-    )
+    opendkim_deployer.configure()
+    opendkim_deployer.activate()
 
     dovecot_deployer.activate()
     postfix_deployer.activate()
