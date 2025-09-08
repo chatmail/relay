@@ -873,6 +873,29 @@ class IrohDeployer(Deployer):
         self.need_restart = False
 
 
+class JournaldDeployer(Deployer):
+    def configure_impl(self):
+        journald_conf = files.put(
+            name="Configure journald",
+            src=importlib.resources.files(__package__).joinpath("journald.conf"),
+            dest="/etc/systemd/journald.conf",
+            user="root",
+            group="root",
+            mode="644",
+        )
+        self.need_restart = journald_conf.changed
+
+    def activate_impl(self):
+        systemd.service(
+            name="Start and enable journald",
+            service="systemd-journald.service",
+            running=True,
+            enabled=True,
+            restarted=self.need_restart,
+        )
+        self.need_restart = False
+
+
 def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     """Deploy a chat-mail instance.
 
@@ -901,6 +924,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     postfix_deployer = PostfixDeployer(config=config, disable_mail=disable_mail)
 
     nginx_deployer = NginxDeployer(config=config)
+    journald_deployer = JournaldDeployer()
 
     all_deployers = [
         unbound_deployer,
@@ -909,6 +933,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
         dovecot_deployer,
         postfix_deployer,
         nginx_deployer,
+        journald_deployer,
     ]
 
     #
@@ -1005,6 +1030,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     postfix_deployer.install()
     dovecot_deployer.install()
     nginx_deployer.install()
+    journald_deployer.install()
 
     apt.packages(
         name="Install fcgiwrap",
@@ -1058,21 +1084,9 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
         commands=[f"echo {mail_domain} >/etc/mailname; chmod 644 /etc/mailname"],
     )
 
-    journald_conf = files.put(
-        name="Configure journald",
-        src=importlib.resources.files(__package__).joinpath("journald.conf"),
-        dest="/etc/systemd/journald.conf",
-        user="root",
-        group="root",
-        mode="644",
-    )
-    systemd.service(
-        name="Start and enable journald",
-        service="systemd-journald.service",
-        running=True,
-        enabled=True,
-        restarted=journald_conf.changed,
-    )
+    journald_deployer.configure()
+    journald_deployer.activate()
+
     files.directory(
         name="Ensure old logs on disk are deleted",
         path="/var/log/journal/",
