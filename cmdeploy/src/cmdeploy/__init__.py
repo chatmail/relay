@@ -294,6 +294,41 @@ class OpendkimDeployer(Deployer):
         self.need_restart = False
 
 
+class UnboundDeployer(Deployer):
+    @staticmethod
+    def install_impl():
+        # Run local DNS resolver `unbound`.
+        # `resolvconf` takes care of setting up /etc/resolv.conf
+        # to use 127.0.0.1 as the resolver.
+        apt.packages(
+            name="Install unbound",
+            packages=["unbound", "unbound-anchor", "dnsutils"],
+        )
+
+    def configure_impl(self):
+        server.shell(
+            name="Generate root keys for validating DNSSEC",
+            commands=[
+                "unbound-anchor -a /var/lib/unbound/root.key || true",
+            ],
+        )
+
+    def activate_impl(self):
+        server.shell(
+            name="Generate root keys for validating DNSSEC",
+            commands=[
+                "systemctl reset-failed unbound.service",
+            ],
+        )
+
+        systemd.service(
+            name="Start and enable unbound",
+            service="unbound.service",
+            running=True,
+            enabled=True,
+        )
+
+
 def _uninstall_mta_sts_daemon() -> None:
     # Remove configuration.
     files.file("/etc/mta-sts-daemon.yml", present=False)
@@ -843,6 +878,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
             line="nameserver 9.9.9.9",
         )
 
+    unbound_deployer = UnboundDeployer()
     opendkim_deployer = OpendkimDeployer(mail_domain=mail_domain)
 
     # Dovecot should be started before Postfix
@@ -854,6 +890,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     nginx_deployer = NginxDeployer(config=config)
 
     all_deployers = [
+        unbound_deployer,
         opendkim_deployer,
         dovecot_deployer,
         postfix_deployer,
@@ -903,10 +940,6 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
 
     deploy_turn_server(config)
 
-    # Run local DNS resolver `unbound`.
-    # `resolvconf` takes care of setting up /etc/resolv.conf
-    # to use 127.0.0.1 as the resolver.
-
     port_services = [
         (["master", "smtpd"], 25),
         ("unbound", 53),
@@ -933,23 +966,9 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
                 )
                 exit(1)
 
-    apt.packages(
-        name="Install unbound",
-        packages=["unbound", "unbound-anchor", "dnsutils"],
-    )
-    server.shell(
-        name="Generate root keys for validating DNSSEC",
-        commands=[
-            "unbound-anchor -a /var/lib/unbound/root.key || true",
-            "systemctl reset-failed unbound.service",
-        ],
-    )
-    systemd.service(
-        name="Start and enable unbound",
-        service="unbound.service",
-        running=True,
-        enabled=True,
-    )
+    unbound_deployer.install()
+    unbound_deployer.configure()
+    unbound_deployer.activate()
 
     deploy_iroh_relay(config)
 
