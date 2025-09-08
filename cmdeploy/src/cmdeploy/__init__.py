@@ -19,7 +19,7 @@ from pyinfra.facts.server import Sysctl
 from pyinfra.facts.systemd import SystemdEnabled
 from pyinfra.operations import apt, files, pip, server, systemd
 
-from .acmetool import deploy_acmetool
+from .acmetool import AcmetoolDeployer
 from .deployer import Deployer
 from .www import build_webpages, find_merge_conflict, get_paths
 
@@ -913,8 +913,14 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
             line="nameserver 9.9.9.9",
         )
 
+    tls_domains = [mail_domain, f"mta-sts.{mail_domain}", f"www.{mail_domain}"]
+
     unbound_deployer = UnboundDeployer()
     iroh_deployer = IrohDeployer(enable_iroh_relay=config.enable_iroh_relay)
+
+    # Deploy acmetool to have TLS certificates.
+    acmetool_deployer = AcmetoolDeployer(email=config.acme_email, domains=tls_domains)
+
     opendkim_deployer = OpendkimDeployer(mail_domain=mail_domain)
 
     # Dovecot should be started before Postfix
@@ -929,6 +935,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     all_deployers = [
         unbound_deployer,
         iroh_deployer,
+        acmetool_deployer,
         opendkim_deployer,
         dovecot_deployer,
         postfix_deployer,
@@ -1013,12 +1020,9 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     iroh_deployer.configure()
     iroh_deployer.activate()
 
-    # Deploy acmetool to have TLS certificates.
-    tls_domains = [mail_domain, f"mta-sts.{mail_domain}", f"www.{mail_domain}"]
-    deploy_acmetool(
-        email=config.acme_email,
-        domains=tls_domains,
-    )
+    acmetool_deployer.install()
+    acmetool_deployer.configure()
+    acmetool_deployer.activate()
 
     apt.packages(
         # required for setfacl for echobot
