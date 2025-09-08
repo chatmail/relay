@@ -950,6 +950,64 @@ class ChatmailVenvDeployer(Deployer):
         _activate_remote_venv_with_chatmaild()
 
 
+class ChatmailDeployer(Deployer):
+    def __init__(self, *, mail_domain, **kwargs):
+        super().__init__(**kwargs)
+        self.mail_domain = mail_domain
+
+    @staticmethod
+    def required_users():
+        return [
+            ("vmail", "vmail", None),
+            ("echobot", None, None),
+            ("iroh", None, None),
+        ]
+
+    @staticmethod
+    def install_impl():
+        # Add our OBS repository for dovecot_no_delay
+        files.put(
+            name="Add Deltachat OBS GPG key to apt keyring",
+            src=importlib.resources.files(__package__).joinpath(
+                "obs-home-deltachat.gpg"
+            ),
+            dest="/etc/apt/keyrings/obs-home-deltachat.gpg",
+            user="root",
+            group="root",
+            mode="644",
+        )
+
+        files.line(
+            name="Add DeltaChat OBS home repository to sources.list",
+            path="/etc/apt/sources.list",
+            line="deb [signed-by=/etc/apt/keyrings/obs-home-deltachat.gpg] https://download.opensuse.org/repositories/home:/deltachat/Debian_12/ ./",
+            escape_regex_characters=True,
+            present=False,
+        )
+
+        apt.update(name="apt update", cache_time=24 * 3600)
+        apt.upgrade(name="upgrade apt packages", auto_remove=True)
+
+        apt.packages(
+            name="Install rsync",
+            packages=["rsync"],
+        )
+        apt.packages(
+            name="Ensure cron is installed",
+            packages=["cron"],
+        )
+
+    def configure_impl(self):
+        # This file is used by auth proxy.
+        # https://wiki.debian.org/EtcMailName
+        server.shell(
+            name="Setup /etc/mailname",
+            commands=[
+                f"echo {self.mail_domain} >/etc/mailname; chmod 644 /etc/mailname"
+            ],
+        )
+
+
 def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     """Deploy a chat-mail instance.
 
@@ -969,6 +1027,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
 
     tls_domains = [mail_domain, f"mta-sts.{mail_domain}", f"www.{mail_domain}"]
 
+    chatmail_deployer = ChatmailDeployer(mail_domain=mail_domain)
     unbound_deployer = UnboundDeployer()
     iroh_deployer = IrohDeployer(enable_iroh_relay=config.enable_iroh_relay)
 
@@ -991,6 +1050,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     mtail_deployer = MtailDeployer(mtail_address=config.mtail_address)
 
     all_deployers = [
+        chatmail_deployer,
         unbound_deployer,
         iroh_deployer,
         acmetool_deployer,
@@ -1015,36 +1075,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     for deployer in all_deployers:
         deployer.create_users()
 
-    server.group(name="Create vmail group", group="vmail", system=True)
-    server.user(name="Create vmail user", user="vmail", group="vmail", system=True)
-    server.user(name="Create echobot user", user="echobot", system=True)
-    server.user(name="Create iroh user", user="iroh", system=True)
-
-    # Add our OBS repository for dovecot_no_delay
-    files.put(
-        name="Add Deltachat OBS GPG key to apt keyring",
-        src=importlib.resources.files(__package__).joinpath("obs-home-deltachat.gpg"),
-        dest="/etc/apt/keyrings/obs-home-deltachat.gpg",
-        user="root",
-        group="root",
-        mode="644",
-    )
-
-    files.line(
-        name="Add DeltaChat OBS home repository to sources.list",
-        path="/etc/apt/sources.list",
-        line="deb [signed-by=/etc/apt/keyrings/obs-home-deltachat.gpg] https://download.opensuse.org/repositories/home:/deltachat/Debian_12/ ./",
-        escape_regex_characters=True,
-        present=False,
-    )
-
-    apt.update(name="apt update", cache_time=24 * 3600)
-    apt.upgrade(name="upgrade apt packages", auto_remove=True)
-
-    apt.packages(
-        name="Install rsync",
-        packages=["rsync"],
-    )
+    chatmail_deployer.install()
 
     deploy_turn_server(config)
 
@@ -1150,12 +1181,8 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
         restarted=postfix_deployer.was_restarted and dovecot_deployer.was_restarted,
     )
 
-    # This file is used by auth proxy.
-    # https://wiki.debian.org/EtcMailName
-    server.shell(
-        name="Setup /etc/mailname",
-        commands=[f"echo {mail_domain} >/etc/mailname; chmod 644 /etc/mailname"],
-    )
+    chatmail_deployer.configure()
+    chatmail_deployer.activate()
 
     journald_deployer.configure()
     journald_deployer.activate()
@@ -1166,10 +1193,6 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
         present=False,
     )
 
-    apt.packages(
-        name="Ensure cron is installed",
-        packages=["cron"],
-    )
     try:
         git_hash = subprocess.check_output(["git", "rev-parse", "HEAD"]).decode()
     except Exception:
