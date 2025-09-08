@@ -802,63 +802,75 @@ def deploy_mtail(config):
     )
 
 
-def deploy_iroh_relay(config) -> None:
-    (url, sha256sum) = {
-        "x86_64": (
-            "https://github.com/n0-computer/iroh/releases/download/v0.35.0/iroh-relay-v0.35.0-x86_64-unknown-linux-musl.tar.gz",
-            "45c81199dbd70f8c4c30fef7f3b9727ca6e3cea8f2831333eeaf8aa71bf0fac1",
-        ),
-        "aarch64": (
-            "https://github.com/n0-computer/iroh/releases/download/v0.35.0/iroh-relay-v0.35.0-aarch64-unknown-linux-musl.tar.gz",
-            "f8ef27631fac213b3ef668d02acd5b3e215292746a3fc71d90c63115446008b1",
-        ),
-    }[host.get_fact(facts.server.Arch)]
+class IrohDeployer(Deployer):
+    def __init__(self, *, enable_iroh_relay, **kwargs):
+        super().__init__(**kwargs)
+        self.enable_iroh_relay = enable_iroh_relay
 
-    apt.packages(
-        name="Install curl",
-        packages=["curl"],
-    )
+    @staticmethod
+    def install_impl():
+        (url, sha256sum) = {
+            "x86_64": (
+                "https://github.com/n0-computer/iroh/releases/download/v0.35.0/iroh-relay-v0.35.0-x86_64-unknown-linux-musl.tar.gz",
+                "45c81199dbd70f8c4c30fef7f3b9727ca6e3cea8f2831333eeaf8aa71bf0fac1",
+            ),
+            "aarch64": (
+                "https://github.com/n0-computer/iroh/releases/download/v0.35.0/iroh-relay-v0.35.0-aarch64-unknown-linux-musl.tar.gz",
+                "f8ef27631fac213b3ef668d02acd5b3e215292746a3fc71d90c63115446008b1",
+            ),
+        }[host.get_fact(facts.server.Arch)]
 
-    need_restart = False
-
-    existing_sha256sum = host.get_fact(Sha256File, "/usr/local/bin/iroh-relay")
-    if existing_sha256sum != sha256sum:
-        server.shell(
-            name="Download iroh-relay",
-            commands=[
-                f"(curl -L {url} | gunzip | tar -x -f - ./iroh-relay -O >/usr/local/bin/iroh-relay.new && (echo '{sha256sum} /usr/local/bin/iroh-relay.new' | sha256sum -c) && mv /usr/local/bin/iroh-relay.new /usr/local/bin/iroh-relay)",
-                "chmod 755 /usr/local/bin/iroh-relay",
-            ],
+        apt.packages(
+            name="Install curl",
+            packages=["curl"],
         )
-        need_restart = True
 
-    systemd_unit = files.put(
-        name="Upload iroh-relay systemd unit",
-        src=importlib.resources.files(__package__).joinpath("iroh-relay.service"),
-        dest="/etc/systemd/system/iroh-relay.service",
-        user="root",
-        group="root",
-        mode="644",
-    )
-    need_restart |= systemd_unit.changed
+        existing_sha256sum = host.get_fact(Sha256File, "/usr/local/bin/iroh-relay")
+        if existing_sha256sum != sha256sum:
+            server.shell(
+                name="Download iroh-relay",
+                commands=[
+                    f"(curl -L {url} | gunzip | tar -x -f - ./iroh-relay -O >/usr/local/bin/iroh-relay.new && (echo '{sha256sum} /usr/local/bin/iroh-relay.new' | sha256sum -c) && mv /usr/local/bin/iroh-relay.new /usr/local/bin/iroh-relay)",
+                    "chmod 755 /usr/local/bin/iroh-relay",
+                ],
+            )
 
-    iroh_config = files.put(
-        name="Upload iroh-relay config",
-        src=importlib.resources.files(__package__).joinpath("iroh-relay.toml"),
-        dest="/etc/iroh-relay.toml",
-        user="root",
-        group="root",
-        mode="644",
-    )
-    need_restart |= iroh_config.changed
+            #
+            # This will set need_restart when called from an object's
+            # install() method.
+            #
+            return True
 
-    systemd.service(
-        name="Start and enable iroh-relay",
-        service="iroh-relay.service",
-        running=True,
-        enabled=config.enable_iroh_relay,
-        restarted=need_restart,
-    )
+    def configure_impl(self):
+        systemd_unit = files.put(
+            name="Upload iroh-relay systemd unit",
+            src=importlib.resources.files(__package__).joinpath("iroh-relay.service"),
+            dest="/etc/systemd/system/iroh-relay.service",
+            user="root",
+            group="root",
+            mode="644",
+        )
+        self.need_restart |= systemd_unit.changed
+
+        iroh_config = files.put(
+            name="Upload iroh-relay config",
+            src=importlib.resources.files(__package__).joinpath("iroh-relay.toml"),
+            dest="/etc/iroh-relay.toml",
+            user="root",
+            group="root",
+            mode="644",
+        )
+        self.need_restart |= iroh_config.changed
+
+    def activate_impl(self):
+        systemd.service(
+            name="Start and enable iroh-relay",
+            service="iroh-relay.service",
+            running=True,
+            enabled=self.enable_iroh_relay,
+            restarted=self.need_restart,
+        )
+        self.need_restart = False
 
 
 def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
@@ -879,6 +891,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
         )
 
     unbound_deployer = UnboundDeployer()
+    iroh_deployer = IrohDeployer(enable_iroh_relay=config.enable_iroh_relay)
     opendkim_deployer = OpendkimDeployer(mail_domain=mail_domain)
 
     # Dovecot should be started before Postfix
@@ -891,6 +904,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
 
     all_deployers = [
         unbound_deployer,
+        iroh_deployer,
         opendkim_deployer,
         dovecot_deployer,
         postfix_deployer,
@@ -970,7 +984,9 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     unbound_deployer.configure()
     unbound_deployer.activate()
 
-    deploy_iroh_relay(config)
+    iroh_deployer.install()
+    iroh_deployer.configure()
+    iroh_deployer.activate()
 
     # Deploy acmetool to have TLS certificates.
     tls_domains = [mail_domain, f"mta-sts.{mail_domain}", f"www.{mail_domain}"]
