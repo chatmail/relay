@@ -20,6 +20,7 @@ from pyinfra.facts.systemd import SystemdEnabled
 from pyinfra.operations import apt, files, pip, server, systemd
 
 from .acmetool import deploy_acmetool
+from .deployer import Deployer
 from .www import build_webpages, find_merge_conflict, get_paths
 
 
@@ -689,6 +690,19 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
             path="/etc/resolv.conf",
             line="nameserver 9.9.9.9",
         )
+
+    all_deployers = [
+    ]
+
+    #
+    # Create all groups before users, because some users reference groups
+    # from other classes.
+    #
+    for deployer in all_deployers:
+        deployer.create_groups()
+
+    for deployer in all_deployers:
+        deployer.create_users()
 
     server.group(name="Create vmail group", group="vmail", system=True)
     server.user(name="Create vmail user", user="vmail", group="vmail", system=True)
