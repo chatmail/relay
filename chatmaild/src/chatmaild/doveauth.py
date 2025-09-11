@@ -28,13 +28,17 @@ def is_allowed_to_create(config: Config, user, cleartext_password) -> bool:
             f"blocked account creation because {NOCREATE_FILE!r} exists."
         )
         return False
-    if cleartext_password.startswith(config.invite_token):
-        password_length = len(cleartext_password) - len(config.invite_token)
-    else:
-        logging.warning(
-            f"blocked account creation because password didn't contain invite token(s)."
-        )
-        return False
+    password_length = len(cleartext_password)
+    if config.invite_token:
+        for inv_token in config.invite_token.split():
+            if cleartext_password.startswith(inv_token):
+                password_length = len(cleartext_password) - len(inv_token)
+                break
+        else:
+            logging.warning(
+                f"blocked account creation because password didn't contain invite token(s)."
+            )
+            return False
 
     if password_length < config.password_min_length:
         logging.warning(
