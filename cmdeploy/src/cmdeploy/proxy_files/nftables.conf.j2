@@ -1,0 +1,67 @@
+#!/usr/sbin/nft -f
+
+flush ruleset
+
+define wan = eth0
+
+# which ports to proxy
+define ports = { smtp, http, https, imap, imaps, submission, submissions }
+
+# the host we want to proxy to
+define ipv4_address = {{ ipv4_address }}
+define ipv6_address = [{{ ipv6_address }}]
+
+table ip nat {
+        chain prerouting {
+                type nat hook prerouting priority dstnat; policy accept;
+                iif $wan tcp dport $ports dnat to $ipv4_address
+        }
+
+        chain postrouting {
+                type nat hook postrouting priority 0;
+
+                oifname $wan masquerade
+        }
+}
+
+table ip6 nat {
+        chain prerouting {
+                type nat hook prerouting priority dstnat; policy accept;
+                iif $wan tcp dport $ports dnat to $ipv6_address
+        }
+
+        chain postrouting {
+                type nat hook postrouting priority 0;
+
+                oifname $wan masquerade
+        }
+}
+
+table inet filter {
+        chain input {
+                type filter hook input priority filter; policy drop;
+
+                # Accept ICMP.
+                # It is especially important to accept ICMPv6 ND messages,
+                # otherwise IPv6 connectivity breaks.
+                icmp type { echo-request } accept
+                icmpv6 type { echo-request, nd-neighbor-solicit, nd-router-advert, nd-neighbor-advert } accept
+
+                # Allow incoming SSH connections.
+                tcp dport { 22, 2222 } accept
+                # Allow incoming shadowsocks connections.
+                tcp dport { 8388 } accept
+
+                ct state established accept
+        }
+        chain forward {
+                type filter hook forward priority filter; policy drop;
+
+                ct state established accept
+                ip daddr $ipv4_address counter accept
+                ip6 daddr $ipv6_address counter accept
+        }
+        chain output {
+                type filter hook output priority filter;
+        }
+}
