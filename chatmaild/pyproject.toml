@@ -28,6 +28,7 @@ filtermail = "chatmaild.filtermail:main"
 echobot = "chatmaild.echo:main"
 chatmail-metrics = "chatmaild.metrics:main"
 expire = "chatmaild.expire:main"
+fsreport = "chatmaild.fsreport:main"
 lastlogin = "chatmaild.lastlogin:main"
 turnserver = "chatmaild.turnserver:main"
 
