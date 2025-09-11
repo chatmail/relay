@@ -677,9 +677,10 @@ class NginxDeployer(Deployer):
         self.need_restart = False
 
 
-def _remove_rspamd() -> None:
-    """Remove rspamd"""
-    apt.packages(name="Remove rspamd", packages="rspamd", present=False)
+class RspamdDeployer(Deployer):
+    @staticmethod
+    def install_impl():
+        apt.packages(name="Remove rspamd", packages="rspamd", present=False)
 
 
 def check_config(config):
@@ -943,6 +944,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     postfix_deployer = PostfixDeployer(config=config, disable_mail=disable_mail)
 
     nginx_deployer = NginxDeployer(config=config)
+    rspamd_deployer = RspamdDeployer()
     journald_deployer = JournaldDeployer()
     mtail_deployer = MtailDeployer(mtail_address=config.mtail_address)
 
@@ -955,6 +957,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
         dovecot_deployer,
         postfix_deployer,
         nginx_deployer,
+        rspamd_deployer,
         journald_deployer,
         mtail_deployer,
     ]
@@ -1078,13 +1081,15 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     mtasts_deployer.configure()
     mtasts_deployer.activate()
 
-    _remove_rspamd()
+    rspamd_deployer.install()
+    rspamd_deployer.configure()
     opendkim_deployer.configure()
     opendkim_deployer.activate()
 
     dovecot_deployer.activate()
     postfix_deployer.activate()
     nginx_deployer.activate()
+    rspamd_deployer.activate()
 
     systemd.service(
         name="Start and enable fcgiwrap",
