@@ -11,4 +11,6 @@
 2 0 * * * vmail find {{ config.mailboxes_dir }} -path '*/tmp/*' -mtime +{{ config.delete_mails_after }} -type f -delete
 2 0 * * * vmail find {{ config.mailboxes_dir }} -path '*/.*/tmp/*' -mtime +{{ config.delete_mails_after }} -type f -delete
 3 0 * * * vmail find {{ config.mailboxes_dir }} -name 'maildirsize' -type f -delete
-4 0 * * * vmail /usr/local/lib/chatmaild/venv/bin/delete_inactive_users /usr/local/lib/chatmaild/chatmail.ini 
+
+# ported
+4 0 * * * vmail /usr/local/lib/chatmaild/venv/bin/expire /usr/local/lib/chatmaild/chatmail.ini {config.mailboxes_dir}
