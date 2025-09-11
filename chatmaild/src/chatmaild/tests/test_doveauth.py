@@ -68,9 +68,10 @@ def test_dont_overwrite_password_on_wrong_login(dictproxy):
     ["nocreate_file", "account", "invite_token", "password"],
     [
         (False, True, "asdf", "asdfasdmaimfelsgwerw"),
-        (False, True, "asdf", "z9873240187420913798"),
+        (False, False, "asdf", "z9873240187420913798"),
         (False, True, "", "dsaiujfw9fjiwf9w"),
-        (True, True, "asdf", "asdfmosadkdkfwdofkw"),
+        (False, False, "asdf", "z987324018742asdf0913798"),
+        (True, False, "asdf", "asdfmosadkdkfwdofkw"),
         (True, False, "asdf", "z9873240187420913798"),
         (True, False, "", "dsaiujfw9fjiwf9w"),
     ],
