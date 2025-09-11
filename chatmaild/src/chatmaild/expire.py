@@ -1,25 +1,16 @@
-import sys
 import os
 import shutil
-import logging
+import sys
 import time
-from stat import S_ISREG
-from pathlib import Path
-from datetime import datetime
 from collections import namedtuple
+from datetime import datetime
+from stat import S_ISREG
+
+from chatmaild.config import read_config
 
 # delete already seen big mails after 7 days, in the INBOX
 # 2 0 * * * vmail find {{ config.mailboxes_dir }} -path '*/cur/*' -mtime +{{ config.delete_large_after }} -size +200k -type f -delete
 # # delete all mails after {{ config.delete_mails_after }} days, in the Inbox
-# 2 0 * * * vmail find {{ config.mailboxes_dir }} -path '*/cur/*' -mtime +{{ config.delete_mails_after }} -type f -delete
-## or in any IMAP subfolder
-# 2 0 * * * vmail find {{ config.mailboxes_dir }} -path '*/.*/cur/*' -mtime +{{ config.delete_mails_after }} -type f -delete
-## even if they are unseen
-# 2 0 * * * vmail find {{ config.mailboxes_dir }} -path '*/new/*' -mtime +{{ config.delete_mails_after }} -type f -delete
-# 2 0 * * * vmail find {{ config.mailboxes_dir }} -path '*/.*/new/*' -mtime +{{ config.delete_mails_after }} -type f -delete
-## or only temporary (but then they shouldn't be around after {{ config.delete_mails_after }} days anyway).
-# 2 0 * * * vmail find {{ config.mailboxes_dir }} -path '*/tmp/*' -mtime +{{ config.delete_mails_after }} -type f -delete
-# 2 0 * * * vmail find {{ config.mailboxes_dir }} -path '*/.*/tmp/*' -mtime +{{ config.delete_mails_after }} -type f -delete
 # 3 0 * * * vmail find {{ config.mailboxes_dir }} -name 'maildirsize' -type f -delete
 
 
@@ -46,16 +37,14 @@ def M(size):
     return f"{int(size/1000000):6.0f}M"
 
 
-now = datetime.utcnow().timestamp()
-
-
 class Stats:
-    def __init__(self, basedir):
+    def __init__(self, basedir, maxnum=None):
         self.basedir = str(basedir)
         self.mailboxes = []
+        self.maxnum = maxnum
 
-    def iter_mailboxes(self, maxnum=None):
-        for mailbox in os.listdir(self.basedir)[:maxnum]:
+    def iter_mailboxes(self):
+        for mailbox in os.listdir(self.basedir)[: self.maxnum]:
             if "@" in mailbox:
                 mailboxdir = joinpath(self.basedir, mailbox)
                 self.mailboxes.append(MailboxStat(mailboxdir))
@@ -99,6 +88,11 @@ class MailboxStat:
     def get_extra_files(self):
         return list(self.extrafiles)
 
+    def get_file_entry(self, name):
+        for entry in self.extrafiles:
+            if name == entry.relapth:
+                return entry
+
 
 class XXXStats:
     def __init__(self):
@@ -123,6 +117,8 @@ class XXXStats:
                     self.sum_extra += size
 
     def dump_summary(self):
+        now = datetime.utcnow().timestamp()
+
         print(f"size of everything: {M(self.sum_extra + self.sum_all_messages)}")
         print(f"size all messages:  {M(self.sum_all_messages)}")
         percent = self.sum_extra / (self.sum_extra + self.sum_all_messages) * 100
@@ -174,21 +170,55 @@ class XXXStats:
         print(f"daily active:   {K(daily_active)} {p(daily_active)}")
 
 
-def run_expire(config, basedir):
-    stat = Stats(basedir)
-    stat.iter_mailboxes()
-    cutoff_date = time.time() - config.delete_inactive_users_after * 86400
+def run_expire(config, basedir, dry=False, maxnum=None):
+    now = time.time()
 
-    num = 0
+    stat = Stats(basedir, maxnum=maxnum)
+    stat.iter_mailboxes()
+    cutoff_date_without_login = now - int(config.delete_inactive_users_after) * 86400
+    cutoff_date_mails = now - int(config.delete_mails_after) * 86400
+    cutoff_date_large_mails = now - int(config.delete_large_after) * 86400
+
+    def rmtree(path):
+        if dry:
+            print("would remove mailbox", path)
+        else:
+            shutil.rmtree(path, ignore_errors=True)
+
+    def unlink(mailboxdir, message):
+        if dry:
+            relpath = os.path.basename(mailboxdir) + message.relpath
+            print(f"would remove {D(message.mtime)} {K(message.size)} {relpath}")
+        else:
+            os.unlink(path)
+
     for mbox in stat.mailboxes:
-        if mbox.last_login < cutoff_date:
-            logging.info("removing outdated mailbox %s", mbox.mailboxdir)
-            shutil.rmtree(mbox.mailboxdir, ignore_errors=True)
-            num += 1
-    print(f"expired {num} mailboxes")
+        changed = False
+        if mbox.last_login and mbox.last_login < cutoff_date_without_login:
+            rmtree(mbox.mailboxdir)
+            continue
+        for message in mbox.messages:
+            path = joinpath(mbox.mailboxdir, message.relpath)
+            if message.mtime < cutoff_date_mails:
+                unlink(mbox.mailboxdir, message)
+            elif message.size > 200000 and message.mtime < cutoff_date_large_mails:
+                unlink(mbox.mailboxdir, message)
+            else:
+                continue
+            changed = True
+        if changed and not dry:
+            p = joinpath(mbox.mailboxdir, "maildirsize")
+            try:
+                os.unlink(p)
+            except FileNotFoundError:
+                pass
+
+
+def main():
+    cfgpath, basedir, maxnum = sys.argv[1:]
+    config = read_config(cfgpath)
+    run_expire(config, basedir, dry=True, maxnum=int(maxnum))
 
 
 if __name__ == "__main__":
-    cfgpath, basedir = sys.argv[1:]
-    config = read_config(cfgpath)
-    run_expire(config, basedir)
+    main()
