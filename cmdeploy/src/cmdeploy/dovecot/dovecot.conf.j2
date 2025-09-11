@@ -68,7 +68,7 @@ userdb {
 ##
 
 # Mailboxes are stored in the "mail" directory of the vmail user home.
-mail_location = maildir:{{ config.mailboxes_dir }}/%u
+mail_location = maildir:{{ config.mailboxes_dir }}/%u:INDEX=MEMORY
 
 namespace inbox {
   inbox = yes
