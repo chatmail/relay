@@ -1,6 +1,6 @@
 import time
 
-from chatmaild.delete_inactive_users import delete_inactive_users
+from chatmaild.expire import run_expire
 from chatmaild.doveauth import AuthDictProxy
 
 
@@ -45,7 +45,7 @@ def test_delete_inactive_users(example_config):
     for addr in to_remove:
         assert example_config.get_user(addr).maildir.exists()
 
-    delete_inactive_users(example_config)
+    run_expire(example_config, example_config.mailboxes_dir)
 
     for p in example_config.mailboxes_dir.iterdir():
         assert not p.name.startswith("old")

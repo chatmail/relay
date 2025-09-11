@@ -27,7 +27,7 @@ chatmail-metadata = "chatmaild.metadata:main"
 filtermail = "chatmaild.filtermail:main"
 echobot = "chatmaild.echo:main"
 chatmail-metrics = "chatmaild.metrics:main"
-delete_inactive_users = "chatmaild.delete_inactive_users:main"
+expire = "chatmaild.expire:main"
 lastlogin = "chatmaild.lastlogin:main"
 turnserver = "chatmaild.turnserver:main"
 
