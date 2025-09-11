@@ -90,7 +90,7 @@ def run_cmd(args, out):
         retcode = out.check_call(cmd, env=env)
         if retcode == 0:
             print("\nYou can try out the relay by talking to this echo bot: ")
-            sshexec = args.get_sshexec()
+            sshexec = SSHExec(args.config.mail_domain, verbose=args.verbose)
             print(
                 sshexec(
                     call=remote.rshell.shell,
