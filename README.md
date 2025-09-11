@@ -456,94 +456,15 @@ to send messages outside.
 
 To setup a reverse proxy
 (or rather Destination NAT, DNAT)
-for your chatmail relay,
-put the following configuration in `/etc/nftables.conf`:
-```
-#!/usr/sbin/nft -f
-
-flush ruleset
-
-define wan = eth0
-
-# Which ports to proxy.
-#
-# Note that SSH is not proxied
-# so it is possible to log into the proxy server 
-# and not the original one.
-define ports = { smtp, http, https, imap, imaps, submission, submissions }
-
-# The host we want to proxy to.
-define ipv4_address = AAA.BBB.CCC.DDD
-define ipv6_address = [XXX::1]
-
-table ip nat {
-        chain prerouting {
-                type nat hook prerouting priority dstnat; policy accept;
-                iif $wan tcp dport $ports dnat to $ipv4_address
-        }
-
-        chain postrouting {
-                type nat hook postrouting priority 0;
-
-                oifname $wan masquerade
-        }
-}
-
-table ip6 nat {
-        chain prerouting {
-                type nat hook prerouting priority dstnat; policy accept;
-                iif $wan tcp dport $ports dnat to $ipv6_address
-        }
-
-        chain postrouting {
-                type nat hook postrouting priority 0;
-
-                oifname $wan masquerade
-        }
-}
-
-table inet filter {
-        chain input {
-                type filter hook input priority filter; policy drop;
-
-                # Accept ICMP.
-                # It is especially important to accept ICMPv6 ND messages,
-                # otherwise IPv6 connectivity breaks.
-                icmp type { echo-request } accept
-                icmpv6 type { echo-request, nd-neighbor-solicit, nd-router-advert, nd-neighbor-advert } accept
-
-                # Allow incoming SSH connections.
-                tcp dport { ssh } accept
-
-                ct state established accept
-        }
-        chain forward {
-                type filter hook forward priority filter; policy drop;
-
-                ct state established accept
-                ip daddr $ipv4_address counter accept
-                ip6 daddr $ipv6_address counter accept
-        }
-        chain output {
-                type filter hook output priority filter;
-        }
-}
-```
-
-Run `systemctl enable nftables.service`
-to ensure configuration is reloaded when the proxy relay reboots.
-
-Uncomment in `/etc/sysctl.conf` the following two lines:
+for your chatmail relay, run:
 
 ```
-net.ipv4.ip_forward=1
-net.ipv6.conf.all.forwarding=1
+scripts/cmdeploy proxy <proxy_ip_address> --relay-ipv4 <relay_ipv4_address> --relay-ipv6 <relay_ipv6_address>
 ```
-
-Then reboot the relay or do `sysctl -p` and `nft -f /etc/nftables.conf`.
 
 Once proxy relay is set up,
-you can add its IP address to the DNS.
+you can add its IP address to the DNS,
+or distribute it as you wish.
 
 ## Neighbors and Acquaintances
 
