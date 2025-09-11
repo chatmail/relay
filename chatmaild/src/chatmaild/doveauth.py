@@ -24,9 +24,7 @@ def encrypt_password(password: str):
 def is_allowed_to_create(config: Config, user, cleartext_password) -> bool:
     """Return True if user and password are admissable."""
     if os.path.exists(NOCREATE_FILE):
-        logging.warning(
-            f"blocked account creation because {NOCREATE_FILE!r} exists."
-        )
+        logging.warning(f"blocked account creation because {NOCREATE_FILE!r} exists.")
         return False
     password_length = len(cleartext_password)
     if config.invite_token:
@@ -36,7 +34,7 @@ def is_allowed_to_create(config: Config, user, cleartext_password) -> bool:
                 break
         else:
             logging.warning(
-                f"blocked account creation because password didn't contain invite token(s)."
+                "blocked account creation because password didn't contain invite token(s)."
             )
             return False
 
