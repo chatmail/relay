@@ -284,8 +284,22 @@ Fresh chatmail addresses have a mailbox directory that contains:
   will typically be empty unless the user of that address hasn't been online 
   for a while. 
 
+## Restrict address creation
 
-## Emergency Commands to disable automatic address creation
+### Only allow new addresses with an invite token
+
+To restrict address creation for anyone who doesn't have the invite link/QR code:
+
+1. Use the `invite_token` option to add
+   one or more tokens of your choice to `chatmail.ini`:
+   `invite_token = s3cr3t privil3g3`
+2. Run `scripts/cmdeploy run`
+3. Distribute a `dcaccount` invite link/QR code
+   (like the one on your web page)
+   with one of your invite tokens added at the end,
+   for example: `dcaccount:https://example.org/new?s3cr3t`
+
+### Emergency Command to disable automatic address creation
 
 If you need to stop address creation,
 e.g. because some script is wildly creating addresses, 
