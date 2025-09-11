@@ -329,21 +329,21 @@ class UnboundDeployer(Deployer):
         )
 
 
-def _uninstall_mta_sts_daemon() -> None:
-    # Remove configuration.
-    files.file("/etc/mta-sts-daemon.yml", present=False)
+class MtastsDeployer(Deployer):
+    def configure_impl(self):
+        # Remove configuration.
+        files.file("/etc/mta-sts-daemon.yml", present=False)
+        files.directory("/usr/local/lib/postfix-mta-sts-resolver", present=False)
+        files.file("/etc/systemd/system/mta-sts-daemon.service", present=False)
 
-    files.directory("/usr/local/lib/postfix-mta-sts-resolver", present=False)
-
-    files.file("/etc/systemd/system/mta-sts-daemon.service", present=False)
-
-    systemd.service(
-        name="Stop MTA-STS daemon",
-        service="mta-sts-daemon.service",
-        daemon_reload=True,
-        running=False,
-        enabled=False,
-    )
+    def activate_impl(self):
+        systemd.service(
+            name="Stop MTA-STS daemon",
+            service="mta-sts-daemon.service",
+            daemon_reload=True,
+            running=False,
+            enabled=False,
+        )
 
 
 def _configure_postfix(config: Config, debug: bool = False) -> bool:
@@ -933,6 +933,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     # Deploy acmetool to have TLS certificates.
     acmetool_deployer = AcmetoolDeployer(email=config.acme_email, domains=tls_domains)
 
+    mtasts_deployer = MtastsDeployer()
     opendkim_deployer = OpendkimDeployer(mail_domain=mail_domain)
 
     # Dovecot should be started before Postfix
@@ -949,6 +950,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
         unbound_deployer,
         iroh_deployer,
         acmetool_deployer,
+        mtasts_deployer,
         opendkim_deployer,
         dovecot_deployer,
         postfix_deployer,
@@ -1044,6 +1046,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
         packages="acl",
     )
 
+    mtasts_deployer.install()
     opendkim_deployer.install()
     postfix_deployer.install()
     dovecot_deployer.install()
@@ -1072,7 +1075,8 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     dovecot_deployer.configure()
     postfix_deployer.configure()
     nginx_deployer.configure()
-    _uninstall_mta_sts_daemon()
+    mtasts_deployer.configure()
+    mtasts_deployer.activate()
 
     _remove_rspamd()
     opendkim_deployer.configure()
