@@ -1,4 +1,14 @@
-from chatmaild.expire import MailboxStat
+import random
+
+from chatmaild.expire import FileEntry, MailboxStat
+
+
+def test_filentry_ordering():
+    l = [FileEntry(f"x{i}", size=i + 10, mtime=1000 - i) for i in range(10)]
+    sorted = list(l)
+    random.shuffle(l)
+    l.sort(key=lambda x: x.size)
+    assert l == sorted
 
 
 def test_stats_mailbox(tmp_path):
@@ -22,18 +32,15 @@ def test_stats_mailbox(tmp_path):
     assert mbox.last_login == password.stat().st_mtime
     assert len(mbox.messages) == 2
 
-    seen = mbox.get_messages("cur")
-    assert len(seen) == 1
-    assert seen[0].size == 3
+    msgs = list(mbox.messages)
+    assert len(msgs) == 2
+    assert msgs[0].size == 3  # cur
 
-    new = mbox.get_messages("new")
-    assert len(new) == 1
-    assert new[0].size == 6
+    assert msgs[1].size == 6  # new
 
     extra = mailboxdir.joinpath("large")
     extra.write_text("x" * 1000)
     mailboxdir.joinpath("index-something").write_text("123")
     mbox = MailboxStat(tmp_path)
-    extrafiles = mbox.get_extra_files()
-    assert len(extrafiles) == 3
-    assert extrafiles[0].size == 1000
+    assert len(mbox.extrafiles) == 3
+    assert mbox.extrafiles[0].size == 1000
