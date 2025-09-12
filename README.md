@@ -293,6 +293,7 @@ To restrict address creation for anyone who doesn't have the invite link/QR code
 1. Use the `invite_token` option to add
    one or more tokens of your choice to `chatmail.ini`:
    `invite_token = s3cr3t privil3g3`
+   - (recommendation: choose 9 or more letters, or it will be easily bruteforced)
 2. Run `scripts/cmdeploy run`
 3. Distribute a `dcaccount` invite link/QR code
    (like the one on your web page)
