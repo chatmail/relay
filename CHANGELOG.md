@@ -2,6 +2,10 @@
 
 ## untagged
 
+- Enable invite-only chatmail relays with invite tokens
+  that can override disabled account creation
+  ([#600](https://github.com/chatmail/relay/pull/600))
+
 - dovecot: keep mailbox index only in memory to avoid unnecessary disc usage 
   ([#632](https://github.com/chatmail/relay/pull/632))
 

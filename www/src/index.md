@@ -11,6 +11,7 @@ for Delta Chat users.  For details how it avoids storing personal information
 please see our [privacy policy](privacy.html). 
 {% endif %}
 
+{% if not config.invite_token %}
 <a class="cta-button" href="DCACCOUNT:https://{{ config.mail_domain }}/new">Get a {{config.mail_domain}} chat profile</a>
 
 If you are viewing this page on a different device
@@ -23,6 +24,10 @@ you can also **scan this QR code** with Delta Chat:
 🐣 **Choose** your Avatar and Name
 
 💬 **Start** chatting with any Delta Chat contacts using [QR invite codes](https://delta.chat/en/help#howtoe2ee)
+{% else %}
+**To join this instance, you need an invite link or QR code -
+ask the admin for an invite.**
+{% endif %}
 
 {% if config.mail_domain != "nine.testrun.org" %}
 <div class="experimental">Note: this is only a temporary development chatmail service</div>
