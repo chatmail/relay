@@ -696,7 +696,9 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
         running_service = host.get_fact(Port, port=port)
         if running_service:
             if running_service not in service:
-                Out().red(f"Deploy failed: port {port} is occupied by: {running_service}")
+                Out().red(
+                    f"Deploy failed: port {port} is occupied by: {running_service}"
+                )
                 exit(1)
 
     apt.packages(
