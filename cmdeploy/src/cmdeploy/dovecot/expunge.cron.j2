@@ -1,2 +1,2 @@
-# expire mailboxes and old or too large messages 
-2 0 * * * vmail /usr/local/lib/chatmaild/venv/bin/expire /usr/local/lib/chatmaild/chatmail.ini {config.mailboxes_dir}
+# expire mailboxes, old and large messages 
+2 0 * * * vmail /usr/local/lib/chatmaild/venv/bin/expire /usr/local/lib/chatmaild/chatmail.ini {config.mailboxes_dir} --remove
