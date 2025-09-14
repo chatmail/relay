@@ -2,7 +2,6 @@ import os
 import sys
 from datetime import datetime
 
-from chatmaild.config import read_config
 from chatmaild.expire import FileEntry, Stats, joinpath
 
 DAYSECONDS = 24 * 60 * 60
@@ -18,6 +17,8 @@ def D(timestamp, now=datetime.utcnow().timestamp()):
 def K(size):
     if size < 1000:
         return f"{size:5.0f}"
+    elif size < 10000:
+        return f"{size/1000:3.2f}K"
     return f"{int(size/1000):5.0f}K"
 
 
@@ -43,26 +44,24 @@ class Report:
         self.stats = stats
         self.now = now
 
-        for mailbox in stats.mailboxes:
-            last_login = mailbox.last_login
-            if last_login:
-                if os.path.basename(mailbox.mailboxdir)[:3] == "ci-":
-                    self.ci_logins.append(last_login)
-                else:
-                    self.user_logins.append(last_login)
-            for entry in mailbox.messages:
-                new = FileEntry(
-                    relpath=joinpath(
-                        os.path.basename(mailbox.mailboxdir), entry.relpath
-                    ),
-                    mtime=entry.mtime,
-                    size=entry.size,
-                )
-                self.messages.append(new)
-                self.sum_all_messages += entry.size
+    def process_mailbox_stat(self, mailbox):
+        last_login = mailbox.last_login
+        if last_login:
+            if os.path.basename(mailbox.mailboxdir)[:3] == "ci-":
+                self.ci_logins.append(last_login)
+            else:
+                self.user_logins.append(last_login)
+        for entry in mailbox.messages:
+            new = FileEntry(
+                relpath=joinpath(os.path.basename(mailbox.mailboxdir), entry.relpath),
+                mtime=entry.mtime,
+                size=entry.size,
+            )
+            self.messages.append(new)
+            self.sum_all_messages += entry.size
 
-            for entry in mailbox.extrafiles:
-                self.sum_extra += entry.size
+        for entry in mailbox.extrafiles:
+            self.sum_extra += entry.size
 
     def dump_summary(self):
         reports = []
@@ -131,19 +130,14 @@ class Report:
             print(f"last {days:3} days: {K(active)} {p(active)}")
 
 
-def run_report(config, basedir, maxnum=None, now=None):
-    stats = Stats(basedir, maxnum=maxnum)
-    stats.iter_mailboxes()
-    rep = Report(stats, now=now)
-    rep.dump_summary()
-
-
 def main():
-    cfgpath, basedir, maxnum = sys.argv[1:]
-    config = read_config(cfgpath)
+    basedir, maxnum = sys.argv[1:]
     now = datetime.utcnow().timestamp()
     now = datetime(2025, 9, 9).timestamp()
-    run_report(config, basedir, maxnum=int(maxnum), now=now)
+    stats = Stats(basedir, maxnum=int(maxnum))
+    rep = Report(stats, now=now)
+    stats.iter_mailboxes(rep.process_mailbox_stat)
+    rep.dump_summary()
 
 
 if __name__ == "__main__":
