@@ -1,5 +1,5 @@
 import os
-import sys
+from argparse import ArgumentParser
 from datetime import datetime
 
 from chatmaild.expire import Stats
@@ -122,11 +122,34 @@ class Report:
             print(f"last {days:3} days: {K(active)} {p(active)}")
 
 
-def main():
-    basedir, maxnum = sys.argv[1:]
+def main(args=None):
+    """Report about filesystem storage usage of all mailboxes and messages"""
+    parser = ArgumentParser(description=main.__doc__)
+    # parser.add_argument(
+    #    "chatmail_ini", action="store", help="path pointing to chatmail.ini file"
+    # )
+    parser.add_argument(
+        "mailboxes_dir", action="store", help="path to directory of mailboxes"
+    )
+    parser.add_argument(
+        "--days", action="store", help="assume date to be days older than now"
+    )
+
+    parser.add_argument(
+        "--maxnum",
+        default=None,
+        action="store",
+        help="maximum number of mailbxoes to iterate on",
+    )
+
+    args = parser.parse_args([str(x) for x in args] if args else args)
+
     now = datetime.utcnow().timestamp()
-    now = datetime(2025, 9, 9).timestamp()
-    stats = Stats(basedir, maxnum=int(maxnum))
+    if args.days:
+        now = now - 86400 * int(args.days)
+
+    maxnum = int(args.maxnum) if args.maxnum else None
+    stats = Stats(args.mailboxes_dir, maxnum=maxnum)
     rep = Report(stats, now=now)
     stats.iter_mailboxes(rep.process_mailbox_stat)
     rep.dump_summary()
