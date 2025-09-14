@@ -160,10 +160,12 @@ def main(args):
         "chatmail_ini", action="store", help="path pointing to chatmail.ini file"
     )
     parser.add_argument(
-        "mailboxes_dir",
-        action="store",
-        help="path pointing to directory containing all mailbox directories",
+        "mailboxes_dir", action="store", help="path to directory of mailboxes"
     )
+    parser.add_argument(
+        "--days", action="store", help="assume date to be days older than now"
+    )
+
     parser.add_argument(
         "--maxnum",
         default=None,
@@ -181,6 +183,9 @@ def main(args):
 
     config = read_config(args.chatmail_ini)
     now = datetime.utcnow().timestamp()
+    if args.days:
+        now = now - 86400 * int(args.days)
+
     maxnum = int(args.maxnum) if args.maxnum else None
     stat = Stats(args.mailboxes_dir, maxnum=maxnum)
     exp = Expiry(config, stat, dry=not args.remove, now=now)
