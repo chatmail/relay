@@ -132,7 +132,7 @@ def main(args=None):
         "mailboxes_dir", action="store", help="path to directory of mailboxes"
     )
     parser.add_argument(
-        "--days", action="store", help="assume date to be days older than now"
+        "--days", default=0, action="store", help="assume date to be days older than now"
     )
 
     parser.add_argument(
