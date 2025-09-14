@@ -1,5 +1,7 @@
+import os
 import random
 from datetime import datetime
+from fnmatch import fnmatch
 from pathlib import Path
 
 import pytest
@@ -8,37 +10,46 @@ from chatmaild.expire import FileEntry, MailboxStat
 from chatmaild.expire import main as expiry_main
 from chatmaild.fsreport import Report, Stats
 
-# XXX maildirsize (used by dovecot quota) needs to be removed after removing files
+# XXX basedirsize (used by dovecot quota) needs to be removed after removing files
 
 
 @pytest.fixture
-def mailboxdir1(tmp_path):
-    mailboxdir1 = tmp_path.joinpath("mailbox1@example.org")
-    mailboxdir1.mkdir()
-    password = mailboxdir1.joinpath("password")
+def basedir1(tmp_path):
+    basedir1 = tmp_path.joinpath("mailbox1@example.org")
+    basedir1.mkdir()
+    password = basedir1.joinpath("password")
     password.write_text("xxx")
+    basedir1.joinpath("maildirsize").write_text("xxx")
 
-    garbagedir = mailboxdir1.joinpath("garbagedir")
+    garbagedir = basedir1.joinpath("garbagedir")
     garbagedir.mkdir()
 
-    cur = mailboxdir1.joinpath("cur")
-    new = mailboxdir1.joinpath("new")
-    cur.mkdir()
-    msg_cur = cur.joinpath("msg1")
-    msg_cur.write_text("xxx")
-    new.mkdir()
-    msg_new = new.joinpath("msg2")
-    msg_new.write_text("xxx123")
-    return mailboxdir1
+    create_new_messages(basedir1, ["cur/msg1"], size=500)
+    create_new_messages(basedir1, ["new/msg2"], size=600)
+    return basedir1
+
+
+def create_new_messages(basedir, relpaths, size=1000, days=0):
+    now = datetime.utcnow().timestamp()
+
+    for relpath in relpaths:
+        msg_path = Path(basedir).joinpath(relpath)
+        msg_path.parent.mkdir(parents=True, exist_ok=True)
+        msg_path.write_text("x" * size)
+        # accessed now, modified N days ago
+        os.utime(msg_path, (now, now - days * 86400))
 
 
 @pytest.fixture
-def mbox1(mailboxdir1):
-    return MailboxStat(mailboxdir1)
+def mbox1(basedir1):
+    return MailboxStat(basedir1)
 
 
-def test_filentry_ordering():
-    l = [FileEntry(f"x{i}", size=i + 10, mtime=1000 - i) for i in range(10)]
+def test_filentry_ordering(tmp_path):
+    l = [
+        FileEntry(str(tmp_path), f"x{i}", size=i + 10, mtime=1000 - i)
+        for i in range(10)
+    ]
     sorted = list(l)
     random.shuffle(l)
     l.sort(key=lambda x: x.size)
@@ -46,37 +57,65 @@ def test_filentry_ordering():
 
 
 def test_stats_mailbox(mbox1):
-    password = Path(mbox1.mailboxdir).joinpath("password")
+    password = Path(mbox1.basedir).joinpath("password")
     assert mbox1.last_login == password.stat().st_mtime
     assert len(mbox1.messages) == 2
 
     msgs = list(mbox1.messages)
     assert len(msgs) == 2
-    assert msgs[0].size == 3  # cur
-    assert msgs[1].size == 6  # new
+    assert msgs[0].size == 500  # cur
+    assert msgs[1].size == 600  # new
 
-    extra = Path(mbox1.mailboxdir).joinpath("large-extra")
-    extra.write_text("x" * 1000)
-    Path(mbox1.mailboxdir).joinpath("index-something").write_text("123")
-    mbox2 = MailboxStat(mbox1.mailboxdir)
-    assert len(mbox2.extrafiles) == 3
+    create_new_messages(mbox1.basedir, ["large-extra"], size=1000)
+    create_new_messages(mbox1.basedir, ["index-something"], size=3)
+    mbox2 = MailboxStat(mbox1.basedir)
+    assert len(mbox2.extrafiles) == 4
     assert mbox2.extrafiles[0].size == 1000
 
     # cope well with mailbox dirs that have no password (for whatever reason)
-    Path(mbox1.mailboxdir).joinpath("password").unlink()
-    mbox3 = MailboxStat(mbox1.mailboxdir)
+    Path(mbox1.basedir).joinpath("password").unlink()
+    mbox3 = MailboxStat(mbox1.basedir)
     assert mbox3.last_login is None
 
 
 def test_report(mbox1):
     now = datetime.utcnow().timestamp()
-    mailboxes_dir = Path(mbox1.mailboxdir).parent
+    mailboxes_dir = Path(mbox1.basedir).parent
     stats = Stats(str(mailboxes_dir), maxnum=None)
     rep = Report(stats, now=now)
     stats.iter_mailboxes(rep.process_mailbox_stat)
     rep.dump_summary()
 
 
-def test_expiry(example_config, mbox1):
-    args = example_config._inipath, mbox1.mailboxdir, 10000
+def test_expiry_cli_basic(example_config, mbox1):
+    args = example_config._inipath, Path(mbox1.basedir).parent
     expiry_main(args)
+
+
+def test_expiry_cli_old_files(capsys, example_config, mbox1):
+    args = example_config._inipath, Path(mbox1.basedir).parent
+
+    relpaths_old = ["cur/msg_old1", "cur/msg_old1"]
+    cutoff_days = int(example_config.delete_mails_after) + 1
+    create_new_messages(mbox1.basedir, relpaths_old, size=1000, days=cutoff_days)
+
+    relpaths_large = ["cur/msg_old_large1", "new/msg_old_large2"]
+    cutoff_days = int(example_config.delete_large_after) + 1
+    create_new_messages(
+        mbox1.basedir, relpaths_large, size=1000 * 300, days=cutoff_days
+    )
+
+    create_new_messages(mbox1.basedir, ["cur/shouldstay"], size=1000 * 300, days=1)
+
+    expiry_main(args)
+    out, err = capsys.readouterr()
+
+    allpaths = relpaths_old + relpaths_large + ["maildirsize"]
+    for path in allpaths:
+        for line in err.split("\n"):
+            if fnmatch(line, f"removing*{path}"):
+                break
+        else:
+            pytest.fail(f"failed to remove {path}\n{err}")
+
+    assert "shouldstay" not in err
