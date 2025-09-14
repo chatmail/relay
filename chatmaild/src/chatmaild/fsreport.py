@@ -2,7 +2,7 @@ import os
 import sys
 from datetime import datetime
 
-from chatmaild.expire import FileEntry, Stats, joinpath
+from chatmaild.expire import Stats
 
 DAYSECONDS = 24 * 60 * 60
 MONTHSECONDS = DAYSECONDS * 30
@@ -47,21 +47,13 @@ class Report:
     def process_mailbox_stat(self, mailbox):
         last_login = mailbox.last_login
         if last_login:
-            if os.path.basename(mailbox.mailboxdir)[:3] == "ci-":
+            if os.path.basename(mailbox.basedir)[:3] == "ci-":
                 self.ci_logins.append(last_login)
             else:
                 self.user_logins.append(last_login)
-        for entry in mailbox.messages:
-            new = FileEntry(
-                relpath=joinpath(os.path.basename(mailbox.mailboxdir), entry.relpath),
-                mtime=entry.mtime,
-                size=entry.size,
-            )
-            self.messages.append(new)
-            self.sum_all_messages += entry.size
-
-        for entry in mailbox.extrafiles:
-            self.sum_extra += entry.size
+        self.messages.extend(mailbox.messages)
+        self.sum_all_messages += sum(msg.size for msg in mailbox.messages)
+        self.sum_extra += sum(entry.size for entry in mailbox.extrafiles)
 
     def dump_summary(self):
         reports = []
