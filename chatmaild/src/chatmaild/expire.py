@@ -8,34 +8,13 @@ import shutil
 import sys
 import time
 from argparse import ArgumentParser
+from collections import namedtuple
 from datetime import datetime
 from stat import S_ISREG
 
 from chatmaild.config import read_config
 
-
-class FileEntry:
-    def __init__(self, relpath, mtime, size):
-        self.relpath = relpath
-        self.mtime = mtime
-        self.size = size
-
-    def __hash__(self):
-        return hash(self.relpath)
-
-    def __repr__(self):
-        return f"<FileEntry size={self.size} '{self.relpath}' >"
-
-    def __eq__(self, other):
-        return (
-            self.relpath == other.relpath
-            and self.size == other.size
-            and self.mtime == other.mtime
-        )
-
-
-def joinpath(name, extra):
-    return name + "/" + extra
+FileEntry = namedtuple("FileEntry", ("relpath", "mtime", "size"))
 
 
 class Stats:
@@ -46,7 +25,7 @@ class Stats:
     def iter_mailboxes(self, callback=None):
         for name in os.listdir(self.basedir)[: self.maxnum]:
             if "@" in name:
-                basedir = joinpath(self.basedir, name)
+                basedir = self.basedir + "/" + name
                 mailbox = MailboxStat(basedir)
                 if callback is not None:
                     callback(mailbox)
@@ -56,7 +35,7 @@ class MailboxStat:
     last_login = None
 
     def __init__(self, basedir):
-        self.basedir = basedir = str(basedir)
+        self.basedir = str(basedir)
         # all detected messages in cur/new/tmp folders
         self.messages = []
 
@@ -67,19 +46,16 @@ class MailboxStat:
         self.totalsize = 0
 
         # scan all relevant files (without recursion)
-        for name in os.listdir(basedir):
-            fpath = joinpath(basedir, name)
+        os.chdir(self.basedir)
+        for name in os.listdir("."):
             if name in ("cur", "new", "tmp"):
-                for msg_name in os.listdir(fpath):
-                    msg_path = joinpath(fpath, msg_name)
-                    st = os.stat(msg_path)
-                    relpath = joinpath(name, msg_name)
-                    self.messages.append(
-                        FileEntry(relpath, mtime=st.st_mtime, size=st.st_size)
-                    )
+                for msg_name in os.listdir(name):
+                    relpath = name + "/" + msg_name
+                    st = os.stat(relpath)
+                    self.messages.append(FileEntry(relpath, st.st_mtime, st.st_size))
                     self.totalsize += st.st_size
             else:
-                st = os.stat(fpath)
+                st = os.stat(name)
                 if S_ISREG(st.st_mode):
                     self.extrafiles.append(FileEntry(name, st.st_mtime, st.st_size))
                     if name == "password":
