@@ -97,22 +97,19 @@ class Expiry:
         self.stats = stats
         self.dry = dry
         self.now = now
-        self.del_files = []
-        self.del_mailboxes = []
 
-    def perform_removes(self):
-        for mboxdir in self.del_mailboxes:
-            print_info(f"removing {mboxdir}")
-            if not self.dry:
-                shutil.rmtree(mboxdir)
-        for path in self.del_files:
-            print_info(f"removing {path}")
-            if not self.dry:
-                try:
-                    os.unlink(path)
-                except FileNotFoundError:
-                    print_info(f"delete failed, file vanished? {path}")
-                    pass  # it's gone already, fine
+    def remove_mailbox(self, mboxdir):
+        print_info(f"removing {mboxdir}")
+        if not self.dry:
+            shutil.rmtree(mboxdir)
+
+    def remove_file(self, path):
+        print_info(f"removing {path}")
+        if not self.dry:
+            try:
+                os.unlink(path)
+            except FileNotFoundError:
+                print_info(f"file not found/vanished {path}")
 
     def process_mailbox_stat(self, mbox):
         cutoff_without_login = (
@@ -123,19 +120,20 @@ class Expiry:
 
         changed = False
         if mbox.last_login and mbox.last_login < cutoff_without_login:
-            self.del_mailboxes.append(mbox.basedir)
+            self.remove_mailbox(mbox.basedir)
             return
 
+        os.chdir(mbox.basedir)
         for message in mbox.messages:
             if message.mtime < cutoff_mails:
-                self.del_files.append(joinpath(mbox.basedir, message.relpath))
+                self.remove_file(message.relpath)
             elif message.size > 200000 and message.mtime < cutoff_large_mails:
-                self.del_files.append(joinpath(mbox.basedir, message.relpath))
+                self.remove_file(message.relpath)
             else:
                 continue
             changed = True
         if changed:
-            self.del_files.append(joinpath(mbox.basedir, "maildirsize"))
+            self.remove_file("maildirsize")
 
 
 def main(args):
@@ -175,7 +173,6 @@ def main(args):
     stats = Stats(args.mailboxes_dir, maxnum=maxnum)
     exp = Expiry(config, stats, dry=not args.remove, now=now)
     stats.iter_mailboxes(exp.process_mailbox_stat)
-    exp.perform_removes()
 
 
 if __name__ == "__main__":
