@@ -120,7 +120,7 @@ class Expiry:
         return (
             f"Removed {self.del_mboxes} out of {self.all_mboxes} mailboxes "
             f"and {self.del_files} out of {self.all_files} files "
-            f"in {time.time()-self.start:2.2f} seconds"
+            f"in {time.time() - self.start:2.2f} seconds"
         )
 
 

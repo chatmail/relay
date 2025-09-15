@@ -18,12 +18,12 @@ def K(size):
     if size < 1000:
         return f"{size:5.0f}"
     elif size < 10000:
-        return f"{size/1000:3.2f}K"
-    return f"{int(size/1000):5.0f}K"
+        return f"{size / 1000:3.2f}K"
+    return f"{int(size / 1000):5.0f}K"
 
 
 def M(size):
-    return f"{int(size/1000000):5.0f}M"
+    return f"{int(size / 1000000):5.0f}M"
 
 
 def H(size):
@@ -31,7 +31,7 @@ def H(size):
         return K(size)
     if size < 1000 * 1000 * 1000:
         return M(size)
-    return f"{size/1000000000:2.2f}G"
+    return f"{size / 1000000000:2.2f}G"
 
 
 class Report:
@@ -52,6 +52,7 @@ class Report:
                 self.ci_logins.append(last_login)
             else:
                 self.user_logins.append(last_login)
+
         self.messages.extend(mailbox.messages)
         self.mailboxes.append(mailbox)
         self.size_messages += sum(msg.size for msg in mailbox.messages)
@@ -110,7 +111,7 @@ class Report:
         ci_logins = len(self.ci_logins)
 
         def p(num):
-            return f"({num/num_logins * 100:2.2f}%)"
+            return f"({num / num_logins * 100:2.2f}%)"
 
         print()
         print(f"## Login stats, from date reference {datetime.fromtimestamp(self.now)}")
