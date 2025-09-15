@@ -50,6 +50,13 @@
 - Add `--skip-dns-check` argument to `cmdeploy run` command, which disables DNS record checking before installation.
   ([#661](https://github.com/chatmail/relay/pull/661))
 
+- Rework expiry of message files and mailboxes in Python 
+  to only do a single iteration over sometimes millions of messages
+  instead of doing "find" commands that iterate 9 times over the messages. 
+  Provide an "fsreport" CLI for more fine grained analysis of message files. 
+  ([#637](https://github.com/chatmail/relay/pull/632))
+
+
 ## 1.7.0 2025-09-11
 
 - Make www upload path configurable

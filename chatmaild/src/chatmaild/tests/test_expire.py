@@ -8,7 +8,7 @@ import pytest
 
 from chatmaild.expire import FileEntry, MailboxStat
 from chatmaild.expire import main as expiry_main
-from chatmaild.fsreport import Report, iter_mailboxes
+from chatmaild.fsreport import main as report_main
 
 # XXX basedirsize (used by dovecot quota) needs to be removed after removing files
 
@@ -76,12 +76,14 @@ def test_stats_mailbox(mbox1):
 
 
 def test_report(mbox1):
-    now = datetime.utcnow().timestamp()
-    mailboxes_dir = Path(mbox1.basedir).parent
-    rep = Report(now=now)
-    for mailbox in iter_mailboxes(str(mailboxes_dir), maxnum=None):
-        rep.process_mailbox_stat(mailbox)
-    rep.dump_summary()
+    args = (str(Path(mbox1.basedir).parent),)
+    report_main(args)
+    args = list(args) + "--days 1".split()
+    report_main(args)
+    args = list(args) + "--min-login-age 1".split()
+    report_main(args)
+    args = list(args) + "--mdir cur".split()
+    report_main(args)
 
 
 def test_expiry_cli_basic(example_config, mbox1):
