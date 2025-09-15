@@ -102,7 +102,7 @@ def test_expiry_cli_old_files(capsys, example_config, mbox1):
 
     create_new_messages(mbox1.basedir, ["cur/shouldstay"], size=1000 * 300, days=1)
 
-    args = example_config._inipath, Path(mbox1.basedir).parent, "--remove"
+    args = example_config._inipath, Path(mbox1.basedir).parent, "--remove", "-v"
     expiry_main(args)
     out, err = capsys.readouterr()
 
