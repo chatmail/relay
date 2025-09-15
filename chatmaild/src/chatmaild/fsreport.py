@@ -36,10 +36,11 @@ def H(size):
 
 class Report:
     def __init__(self, now):
-        self.sum_extra = 0
-        self.sum_all_messages = 0
-        self.messages = []
+        self.size_extra = 0
+        self.size_messages = 0
+
         self.mailboxes = []
+        self.messages = []
         self.user_logins = []
         self.ci_logins = []
         self.now = now
@@ -53,8 +54,8 @@ class Report:
                 self.user_logins.append(last_login)
         self.messages.extend(mailbox.messages)
         self.mailboxes.append(mailbox)
-        self.sum_all_messages += sum(msg.size for msg in mailbox.messages)
-        self.sum_extra += sum(entry.size for entry in mailbox.extrafiles)
+        self.size_messages += sum(msg.size for msg in mailbox.messages)
+        self.size_extra += sum(entry.size for entry in mailbox.extrafiles)
 
     def dump_summary(self):
         reports = []
@@ -95,13 +96,13 @@ class Report:
 
         print()
         print("## Overall mailbox storage use analysis")
-        print(f"Mailbox data: {M(self.sum_extra + self.sum_all_messages)}")
-        print(f"Messages    : {M(self.sum_all_messages)}")
-        percent = self.sum_extra / (self.sum_extra + self.sum_all_messages) * 100
-        print(f"Extra files : {M(self.sum_extra)} ({percent:.2f}%)")
+        print(f"Mailbox data: {M(self.size_extra + self.size_messages)}")
+        print(f"Messages    : {M(self.size_messages)}")
+        percent = self.size_extra / (self.size_extra + self.size_messages) * 100
+        print(f"Extra files : {M(self.size_extra)} ({percent:.2f}%)")
 
         for title, size in reports:
-            percent = size / self.sum_all_messages * 100
+            percent = size / self.size_messages * 100
             print(f"{title:38} {M(size)} ({percent:.2f}%)")
 
         all_logins = len(self.user_logins) + len(self.ci_logins)
