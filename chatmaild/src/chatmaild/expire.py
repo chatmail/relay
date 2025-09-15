@@ -25,9 +25,6 @@ class FileEntry:
     def __repr__(self):
         return f"<FileEntry size={self.size} '{self.relpath}' >"
 
-    def get_path(self, basedir):
-        return joinpath(basedir, self.relpath)
-
     def __eq__(self, other):
         return (
             self.relpath == other.relpath
@@ -118,7 +115,6 @@ class Expiry:
                     pass  # it's gone already, fine
 
     def process_mailbox_stat(self, mbox):
-        print_info(f"processing expiry for {mbox.basedir}")
         cutoff_without_login = (
             self.now - int(self.config.delete_inactive_users_after) * 86400
         )
