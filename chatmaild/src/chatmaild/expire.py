@@ -6,6 +6,7 @@ Expire old messages and addresses.
 import os
 import shutil
 import sys
+import time
 from argparse import ArgumentParser
 from datetime import datetime
 from stat import S_ISREG
@@ -92,24 +93,34 @@ def print_info(msg):
 
 
 class Expiry:
-    def __init__(self, config, stats, dry, now):
+    def __init__(self, config, stats, dry, now, verbose):
         self.config = config
         self.stats = stats
         self.dry = dry
         self.now = now
+        self.verbose = verbose
+        self.del_mboxes = 0
+        self.all_mboxes = 0
+        self.del_files = 0
+        self.all_files = 0
+        self.start = time.time()
 
     def remove_mailbox(self, mboxdir):
-        print_info(f"removing {mboxdir}")
+        if self.verbose:
+            print_info(f"removing {mboxdir}")
         if not self.dry:
             shutil.rmtree(mboxdir)
+        self.del_mboxes += 1
 
     def remove_file(self, path):
-        print_info(f"removing {path}")
+        if self.verbose:
+            print_info(f"removing {path}")
         if not self.dry:
             try:
                 os.unlink(path)
             except FileNotFoundError:
                 print_info(f"file not found/vanished {path}")
+        self.del_files += 1
 
     def process_mailbox_stat(self, mbox):
         cutoff_without_login = (
@@ -118,12 +129,15 @@ class Expiry:
         cutoff_mails = self.now - int(self.config.delete_mails_after) * 86400
         cutoff_large_mails = self.now - int(self.config.delete_large_after) * 86400
 
+        self.all_mboxes += 1
         changed = False
         if mbox.last_login and mbox.last_login < cutoff_without_login:
             self.remove_mailbox(mbox.basedir)
             return
 
+        # all to-be-removed files are relative to the mailbox basedir
         os.chdir(mbox.basedir)
+        self.all_files += len(mbox.messages)
         for message in mbox.messages:
             if message.mtime < cutoff_mails:
                 self.remove_file(message.relpath)
@@ -134,6 +148,13 @@ class Expiry:
             changed = True
         if changed:
             self.remove_file("maildirsize")
+
+    def get_summary(self):
+        return (
+            f"Removed {self.del_mboxes} out of {self.all_mboxes} mailboxes "
+            f"and {self.del_files} out of {self.all_files} files "
+            f"in {time.time()-self.start:2.2f} seconds"
+        )
 
 
 def main(args):
@@ -155,6 +176,12 @@ def main(args):
         action="store",
         help="maximum number of mailbxoes to iterate on",
     )
+    parser.add_argument(
+        "-v",
+        dest="verbose",
+        action="store_true",
+        help="print out removed files and mailboxes",
+    )
 
     parser.add_argument(
         "--remove",
@@ -170,9 +197,10 @@ def main(args):
         now = now - 86400 * int(args.days)
 
     maxnum = int(args.maxnum) if args.maxnum else None
-    stats = Stats(args.mailboxes_dir, maxnum=maxnum)
-    exp = Expiry(config, stats, dry=not args.remove, now=now)
+    stats = Stats(os.path.abspath(args.mailboxes_dir), maxnum=maxnum)
+    exp = Expiry(config, stats, dry=not args.remove, now=now, verbose=args.verbose)
     stats.iter_mailboxes(exp.process_mailbox_stat)
+    print(exp.get_summary())
 
 
 if __name__ == "__main__":
