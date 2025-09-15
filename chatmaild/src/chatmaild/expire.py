@@ -17,18 +17,10 @@ from chatmaild.config import read_config
 FileEntry = namedtuple("FileEntry", ("relpath", "mtime", "size"))
 
 
-class Stats:
-    def __init__(self, basedir, maxnum=None):
-        self.basedir = str(basedir)
-        self.maxnum = maxnum
-
-    def iter_mailboxes(self, callback=None):
-        for name in os.listdir(self.basedir)[: self.maxnum]:
-            if "@" in name:
-                basedir = self.basedir + "/" + name
-                mailbox = MailboxStat(basedir)
-                if callback is not None:
-                    callback(mailbox)
+def iter_mailboxes(basedir, maxnum):
+    for name in os.listdir(basedir)[:maxnum]:
+        if "@" in name:
+            yield MailboxStat(basedir + "/" + name)
 
 
 class MailboxStat:
@@ -69,9 +61,8 @@ def print_info(msg):
 
 
 class Expiry:
-    def __init__(self, config, stats, dry, now, verbose):
+    def __init__(self, config, dry, now, verbose):
         self.config = config
-        self.stats = stats
         self.dry = dry
         self.now = now
         self.verbose = verbose
@@ -173,9 +164,9 @@ def main(args):
         now = now - 86400 * int(args.days)
 
     maxnum = int(args.maxnum) if args.maxnum else None
-    stats = Stats(os.path.abspath(args.mailboxes_dir), maxnum=maxnum)
-    exp = Expiry(config, stats, dry=not args.remove, now=now, verbose=args.verbose)
-    stats.iter_mailboxes(exp.process_mailbox_stat)
+    exp = Expiry(config, dry=not args.remove, now=now, verbose=args.verbose)
+    for mailbox in iter_mailboxes(os.path.abspath(args.mailboxes_dir), maxnum=maxnum):
+        exp.process_mailbox_stat(mailbox)
     print(exp.get_summary())
 
 

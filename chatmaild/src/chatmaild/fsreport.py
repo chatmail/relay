@@ -2,7 +2,7 @@ import os
 from argparse import ArgumentParser
 from datetime import datetime
 
-from chatmaild.expire import Stats
+from chatmaild.expire import iter_mailboxes
 
 DAYSECONDS = 24 * 60 * 60
 MONTHSECONDS = DAYSECONDS * 30
@@ -35,14 +35,13 @@ def H(size):
 
 
 class Report:
-    def __init__(self, stats, now):
+    def __init__(self, now):
         self.sum_extra = 0
         self.sum_all_messages = 0
         self.messages = []
         self.mailboxes = []
         self.user_logins = []
         self.ci_logins = []
-        self.stats = stats
         self.now = now
 
     def process_mailbox_stat(self, mailbox):
@@ -154,9 +153,9 @@ def main(args=None):
         now = now - 86400 * int(args.days)
 
     maxnum = int(args.maxnum) if args.maxnum else None
-    stats = Stats(args.mailboxes_dir, maxnum=maxnum)
-    rep = Report(stats, now=now)
-    stats.iter_mailboxes(rep.process_mailbox_stat)
+    rep = Report(now=now)
+    for mbox in iter_mailboxes(os.path.abspath(args.mailboxes_dir), maxnum=maxnum):
+        rep.process_mailbox_stat(mbox)
     rep.dump_summary()
 
 
