@@ -760,7 +760,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
         if build_dir:
             www_path = build_webpages(src_dir, build_dir, config)
         # if it is not a hugo page, upload it as is
-        files.rsync(f"{www_path}/", "/var/www/html", flags=["-avz"])
+        files.rsync(f"{www_path}/", "/var/www/html", flags=["-avz", "--chown=www-data"])
 
     _install_remote_venv_with_chatmaild(config)
     debug = False
