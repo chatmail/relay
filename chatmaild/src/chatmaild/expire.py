@@ -4,6 +4,7 @@ Expire old messages and addresses.
 """
 
 import os
+import shutil
 import sys
 from argparse import ArgumentParser
 from datetime import datetime
@@ -13,27 +14,19 @@ from chatmaild.config import read_config
 
 
 class FileEntry:
-    def __init__(self, basedir, relpath, mtime, size):
-        self.basedir = basedir
+    def __init__(self, relpath, mtime, size):
         self.relpath = relpath
         self.mtime = mtime
         self.size = size
 
+    def __hash__(self):
+        return hash(self.relpath)
+
     def __repr__(self):
         return f"<FileEntry size={self.size} '{self.relpath}' >"
 
-    def __str__(self):
-        return self.get_path()
-
-    def get_path(self):
-        return joinpath(self.basedir, self.relpath)
-
-    def fmt_size(self):
-        return f"{int(self.size/1000):5.0f}K"
-
-    def fmt_since(self, now):
-        diff_seconds = int(now) - int(self.mtime)
-        return f"{int(diff_seconds / 86400):2.0f}d"
+    def get_path(self, basedir):
+        return joinpath(basedir, self.relpath)
 
     def __eq__(self, other):
         return (
@@ -50,7 +43,6 @@ def joinpath(name, extra):
 class Stats:
     def __init__(self, basedir, maxnum=None):
         self.basedir = str(basedir)
-        self.mailboxes = []
         self.maxnum = maxnum
 
     def iter_mailboxes(self, callback=None):
@@ -58,7 +50,6 @@ class Stats:
             if "@" in name:
                 basedir = joinpath(self.basedir, name)
                 mailbox = MailboxStat(basedir)
-                self.mailboxes.append(mailbox)
                 if callback is not None:
                     callback(mailbox)
 
@@ -86,17 +77,13 @@ class MailboxStat:
                     st = os.stat(msg_path)
                     relpath = joinpath(name, msg_name)
                     self.messages.append(
-                        FileEntry(
-                            self.basedir, relpath, mtime=st.st_mtime, size=st.st_size
-                        )
+                        FileEntry(relpath, mtime=st.st_mtime, size=st.st_size)
                     )
                     self.totalsize += st.st_size
             else:
                 st = os.stat(fpath)
                 if S_ISREG(st.st_mode):
-                    self.extrafiles.append(
-                        FileEntry(self.basedir, name, st.st_mtime, st.st_size)
-                    )
+                    self.extrafiles.append(FileEntry(name, st.st_mtime, st.st_size))
                     if name == "password":
                         self.last_login = st.st_mtime
                 self.totalsize += st.st_size
@@ -108,8 +95,9 @@ def print_info(msg):
 
 
 class Expiry:
-    def __init__(self, config, stat, dry, now):
+    def __init__(self, config, stats, dry, now):
         self.config = config
+        self.stats = stats
         self.dry = dry
         self.now = now
         self.del_files = []
@@ -119,13 +107,14 @@ class Expiry:
         for mboxdir in self.del_mailboxes:
             print_info(f"removing {mboxdir}")
             if not self.dry:
-                self.rmtree(mboxdir)
+                shutil.rmtree(mboxdir)
         for path in self.del_files:
             print_info(f"removing {path}")
             if not self.dry:
                 try:
                     os.unlink(path)
                 except FileNotFoundError:
+                    print_info(f"delete failed, file vanished? {path}")
                     pass  # it's gone already, fine
 
     def process_mailbox_stat(self, mbox):
@@ -143,9 +132,9 @@ class Expiry:
 
         for message in mbox.messages:
             if message.mtime < cutoff_mails:
-                self.del_files.append(message.get_path())
+                self.del_files.append(joinpath(mbox.basedir, message.relpath))
             elif message.size > 200000 and message.mtime < cutoff_large_mails:
-                self.del_files.append(message.get_path())
+                self.del_files.append(joinpath(mbox.basedir, message.relpath))
             else:
                 continue
             changed = True
@@ -187,9 +176,9 @@ def main(args):
         now = now - 86400 * int(args.days)
 
     maxnum = int(args.maxnum) if args.maxnum else None
-    stat = Stats(args.mailboxes_dir, maxnum=maxnum)
-    exp = Expiry(config, stat, dry=not args.remove, now=now)
-    stat.iter_mailboxes(exp.process_mailbox_stat)
+    stats = Stats(args.mailboxes_dir, maxnum=maxnum)
+    exp = Expiry(config, stats, dry=not args.remove, now=now)
+    stats.iter_mailboxes(exp.process_mailbox_stat)
     exp.perform_removes()
 
 

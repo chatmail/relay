@@ -46,10 +46,7 @@ def mbox1(basedir1):
 
 
 def test_filentry_ordering(tmp_path):
-    l = [
-        FileEntry(str(tmp_path), f"x{i}", size=i + 10, mtime=1000 - i)
-        for i in range(10)
-    ]
+    l = [FileEntry(f"x{i}", size=i + 10, mtime=1000 - i) for i in range(10)]
     sorted = list(l)
     random.shuffle(l)
     l.sort(key=lambda x: x.size)
@@ -93,8 +90,6 @@ def test_expiry_cli_basic(example_config, mbox1):
 
 
 def test_expiry_cli_old_files(capsys, example_config, mbox1):
-    args = example_config._inipath, Path(mbox1.basedir).parent
-
     relpaths_old = ["cur/msg_old1", "cur/msg_old1"]
     cutoff_days = int(example_config.delete_mails_after) + 1
     create_new_messages(mbox1.basedir, relpaths_old, size=1000, days=cutoff_days)
@@ -107,6 +102,7 @@ def test_expiry_cli_old_files(capsys, example_config, mbox1):
 
     create_new_messages(mbox1.basedir, ["cur/shouldstay"], size=1000 * 300, days=1)
 
+    args = example_config._inipath, Path(mbox1.basedir).parent, "--remove"
     expiry_main(args)
     out, err = capsys.readouterr()
 

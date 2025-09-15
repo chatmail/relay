@@ -39,6 +39,7 @@ class Report:
         self.sum_extra = 0
         self.sum_all_messages = 0
         self.messages = []
+        self.mailboxes = []
         self.user_logins = []
         self.ci_logins = []
         self.stats = stats
@@ -52,6 +53,7 @@ class Report:
             else:
                 self.user_logins.append(last_login)
         self.messages.extend(mailbox.messages)
+        self.mailboxes.append(mailbox)
         self.sum_all_messages += sum(msg.size for msg in mailbox.messages)
         self.sum_extra += sum(entry.size for entry in mailbox.extrafiles)
 
@@ -83,7 +85,7 @@ class Report:
         # list all 160K files of people who haven't logged in for a while
         messages = []
         cutoff_date_login = self.now - 30 * DAYSECONDS
-        for mstat in self.stats.mailboxes:
+        for mstat in self.mailboxes:
             if mstat.last_login and mstat.last_login < cutoff_date_login:
                 for msg in mstat.messages:
                     if msg.size > 160000:
@@ -132,7 +134,10 @@ def main(args=None):
         "mailboxes_dir", action="store", help="path to directory of mailboxes"
     )
     parser.add_argument(
-        "--days", default=0, action="store", help="assume date to be days older than now"
+        "--days",
+        default=0,
+        action="store",
+        help="assume date to be days older than now",
     )
 
     parser.add_argument(
