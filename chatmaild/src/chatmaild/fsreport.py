@@ -1,3 +1,20 @@
+"""
+command line tool to analyze mailbox message storage
+
+example invocation:
+
+    python -m chatmaild.fsreport /home/vmail/mail/nine.testrun.org
+
+to show storage summaries for all "cur" folders
+
+    python -m chatmaild.fsreport /home/vmail/mail/nine.testrun.org --mdir cur
+
+to show storage summaries only for first 1000 mailboxes
+
+    python -m chatmaild.fsreport /home/vmail/mail/nine.testrun.org --maxnum 1000
+
+"""
+
 import os
 from argparse import ArgumentParser
 from datetime import datetime
@@ -16,7 +33,7 @@ def D(timestamp, now=datetime.utcnow().timestamp()):
 
 def K(size):
     if size < 1000:
-        return f"{size:5.0f}"
+        return f"{size:6.0f}"
     elif size < 10000:
         return f"{size / 1000:3.2f}K"
     return f"{int(size / 1000):5.0f}K"
@@ -35,93 +52,71 @@ def H(size):
 
 
 class Report:
-    def __init__(self, now):
+    def __init__(self, now, min_login_age, mdir):
         self.size_extra = 0
         self.size_messages = 0
-
-        self.mailboxes = []
-        self.messages = []
-        self.user_logins = []
-        self.ci_logins = []
         self.now = now
+        self.min_login_age = min_login_age
+        self.mdir = mdir
+
+        self.num_ci_logins = self.num_all_logins = 0
+        self.login_buckets = dict((x, 0) for x in (1, 10, 30, 40, 80, 100, 150))
+        self.message_buckets = dict((x, 0) for x in (0, 160000, 500000, 2000000))
 
     def process_mailbox_stat(self, mailbox):
+        # categorize login times
         last_login = mailbox.last_login
         if last_login:
+            self.num_all_logins += 1
             if os.path.basename(mailbox.basedir)[:3] == "ci-":
-                self.ci_logins.append(last_login)
+                self.num_ci_logins += 1
             else:
-                self.user_logins.append(last_login)
+                for days in self.login_buckets:
+                    if last_login >= self.now - days * DAYSECONDS:
+                        self.login_buckets[days] += 1
 
-        self.messages.extend(mailbox.messages)
-        self.mailboxes.append(mailbox)
-        self.size_messages += sum(msg.size for msg in mailbox.messages)
+        cutoff_login_date = self.now - self.min_login_age * DAYSECONDS
+        if last_login and last_login <= cutoff_login_date:
+            # categorize message sizes
+            for size in self.message_buckets:
+                for msg in mailbox.messages:
+                    if msg.size >= size:
+                        if self.mdir and not msg.relpath.startswith(self.mdir):
+                            continue
+                        self.message_buckets[size] += msg.size
+
+        self.size_messages += sum(entry.size for entry in mailbox.messages)
         self.size_extra += sum(entry.size for entry in mailbox.extrafiles)
 
     def dump_summary(self):
-        reports = []
-
-        def print_messages(title, messages, num, rep=True):
-            print()
-            allsize = sum(x.size for x in messages)
-            if rep:
-                reports.append((title, allsize))
-
-            print(f"## {title} [total: {H(allsize)}]")
-            for entry in messages[:num]:
-                print(f"{K(entry.size)} {D(entry.mtime)} {entry.relpath}")
-
-        for kind in ("cur", "new"):
-            biggest = list(self.messages)
-            biggest.sort(key=lambda x: (-x.size, x.mtime))
-            print_messages(f"Biggest {kind} messages", biggest, 10, rep=False)
-
-        oldest = self.messages
-        mode = "cur"
-        for maxsize in (160000, 500000, 2000000, 10000000):
-            oldest = [x for x in oldest if x.size > maxsize and mode in x.relpath]
-            oldest.sort(key=lambda x: x.mtime)
-            print_messages(f"{mode} folders oldest > {K(maxsize)} messages", oldest, 10)
-
-        # list all 160K files of people who haven't logged in for a while
-        messages = []
-        cutoff_date_login = self.now - 30 * DAYSECONDS
-        for mstat in self.mailboxes:
-            if mstat.last_login and mstat.last_login < cutoff_date_login:
-                for msg in mstat.messages:
-                    if msg.size > 160000:
-                        messages.append(msg)
-
-        messages.sort(key=lambda x: x.size)
-        print_messages(">30-day last_login new >160K", messages, 10)
-
+        all_messages = self.size_messages
         print()
-        print("## Overall mailbox storage use analysis")
-        print(f"Mailbox data: {M(self.size_extra + self.size_messages)}")
-        print(f"Messages    : {M(self.size_messages)}")
-        percent = self.size_extra / (self.size_extra + self.size_messages) * 100
+        print("## Mailbox storage use analysis")
+        print(f"Mailbox data total size: {M(self.size_extra + all_messages)}")
+        print(f"Messages total size    : {M(all_messages)}")
+        percent = self.size_extra / (self.size_extra + all_messages) * 100
         print(f"Extra files : {M(self.size_extra)} ({percent:.2f}%)")
 
-        for title, size in reports:
-            percent = size / self.size_messages * 100
-            print(f"{title:38} {M(size)} ({percent:.2f}%)")
+        print()
+        if self.min_login_age:
+            print(f"### Message storage for {self.min_login_age} days old logins")
 
-        all_logins = len(self.user_logins) + len(self.ci_logins)
-        num_logins = len(self.user_logins)
-        ci_logins = len(self.ci_logins)
+        pref = f"[{self.mdir}] " if self.mdir else ""
+        for minsize, sumsize in self.message_buckets.items():
+            percent = sumsize / all_messages * 100
+            print(f"{pref}larger than {K(minsize)}: {M(sumsize)} ({percent:.2f}%)")
+
+        user_logins = self.num_all_logins - self.num_ci_logins
 
         def p(num):
-            return f"({num / num_logins * 100:2.2f}%)"
+            return f"({num / user_logins * 100:2.2f}%)"
 
         print()
         print(f"## Login stats, from date reference {datetime.fromtimestamp(self.now)}")
-        print(f"all:     {K(all_logins)}")
-        print(f"non-ci:  {K(num_logins)}")
-        print(f"ci:      {K(ci_logins)}")
-        for days in (1, 10, 30, 40, 80, 100, 150):
-            active = len(
-                [x for x in self.user_logins if x >= self.now - days * DAYSECONDS]
-            )
+        print(f"all:     {K(self.num_all_logins)}")
+        print(f"non-ci:  {K(user_logins)}")
+        print(f"ci:      {K(self.num_ci_logins)}")
+        for days, active in self.login_buckets.items():
             print(f"last {days:3} days: {K(active)} {p(active)}")
 
 
@@ -140,6 +135,18 @@ def main(args=None):
         action="store",
         help="assume date to be days older than now",
     )
+    parser.add_argument(
+        "--min-login-age",
+        default=0,
+        dest="min_login_age",
+        action="store",
+        help="only sum up message size if last login is at least min-login-age days old",
+    )
+    parser.add_argument(
+        "--mdir",
+        action="store",
+        help="only consider 'cur' or 'new' or 'tmp' messages for summary",
+    )
 
     parser.add_argument(
         "--maxnum",
@@ -155,7 +162,7 @@ def main(args=None):
         now = now - 86400 * int(args.days)
 
     maxnum = int(args.maxnum) if args.maxnum else None
-    rep = Report(now=now)
+    rep = Report(now=now, min_login_age=int(args.min_login_age), mdir=args.mdir)
     for mbox in iter_mailboxes(os.path.abspath(args.mailboxes_dir), maxnum=maxnum):
         rep.process_mailbox_stat(mbox)
     rep.dump_summary()

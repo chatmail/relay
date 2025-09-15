@@ -38,6 +38,7 @@ class MailboxStat:
         self.totalsize = 0
 
         # scan all relevant files (without recursion)
+        old_cwd = os.getcwd()
         os.chdir(self.basedir)
         for name in os.listdir("."):
             if name in ("cur", "new", "tmp"):
@@ -54,6 +55,7 @@ class MailboxStat:
                         self.last_login = st.st_mtime
                 self.totalsize += st.st_size
         self.extrafiles.sort(key=lambda x: -x.size)
+        os.chdir(old_cwd)
 
 
 def print_info(msg):

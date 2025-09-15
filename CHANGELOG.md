@@ -2,6 +2,12 @@
 
 ## untagged
 
+- Rework expiry of message files and mailboxes in Python 
+  to only do a single iteration over sometimes millions of messages
+  instead of doing "find" commands that iterate 9 times over the messages. 
+  Provide an "fsreport" CLI for more fine grained analysis of message files. 
+  ([#637](https://github.com/chatmail/relay/pull/632))
+
 - dovecot: keep mailbox index only in memory to avoid unnecessary disc usage 
   ([#632](https://github.com/chatmail/relay/pull/632))
 
