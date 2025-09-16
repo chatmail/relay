@@ -34,9 +34,6 @@ class MailboxStat:
         # all detected files in mailbox top dir
         self.extrafiles = []
 
-        # total size of all detected files
-        self.totalsize = 0
-
         # scan all relevant files (without recursion)
         old_cwd = os.getcwd()
         os.chdir(self.basedir)
@@ -46,14 +43,12 @@ class MailboxStat:
                     relpath = name + "/" + msg_name
                     st = os.stat(relpath)
                     self.messages.append(FileEntry(relpath, st.st_mtime, st.st_size))
-                    self.totalsize += st.st_size
             else:
                 st = os.stat(name)
                 if S_ISREG(st.st_mode):
                     self.extrafiles.append(FileEntry(name, st.st_mtime, st.st_size))
                     if name == "password":
                         self.last_login = st.st_mtime
-                self.totalsize += st.st_size
         self.extrafiles.sort(key=lambda x: -x.size)
         os.chdir(old_cwd)
 

@@ -10,8 +10,6 @@ from chatmaild.expire import FileEntry, MailboxStat
 from chatmaild.expire import main as expiry_main
 from chatmaild.fsreport import main as report_main
 
-# XXX basedirsize (used by dovecot quota) needs to be removed after removing files
-
 
 @pytest.fixture
 def basedir1(tmp_path):
