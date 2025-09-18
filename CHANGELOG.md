@@ -5,9 +5,6 @@
 - Allow ports 143 and 993 to be used by `dovecot` process
   ([#639](https://github.com/chatmail/relay/pull/639))
 
-- dovecot: keep mailbox index only in memory to avoid unnecessary disc usage 
-  ([#632](https://github.com/chatmail/relay/pull/632))
-
 ## 1.7.0 2025-09-11
 
 - Make www upload path configurable
