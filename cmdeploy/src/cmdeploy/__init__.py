@@ -810,6 +810,12 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
         restarted=nginx_need_restart,
     )
 
+    systemd.service(
+        name="Restart echobot if postfix or dovecot were just started",
+        service="echobot.service",
+        restarted=postfix_need_restart || dovecot_need_restart,
+    )
+
     # This file is used by auth proxy.
     # https://wiki.debian.org/EtcMailName
     server.shell(
