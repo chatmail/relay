@@ -2,6 +2,9 @@
 
 ## untagged
 
+- Increase maxproc for reinjecting ports from 10 to 100
+  ([#646](https://github.com/chatmail/relay/pull/646))
+
 - Allow ports 143 and 993 to be used by `dovecot` process
   ([#639](https://github.com/chatmail/relay/pull/639))
 
