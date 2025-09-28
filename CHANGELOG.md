@@ -2,6 +2,9 @@
 
 ## untagged
 
+- Use max username length in newemail.py, not min
+  ([#648](https://github.com/chatmail/relay/pull/648))
+
 - Increase maxproc for reinjecting ports from 10 to 100
   ([#646](https://github.com/chatmail/relay/pull/646))
 
