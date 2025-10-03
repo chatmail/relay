@@ -572,7 +572,7 @@ def deploy_iroh_relay(config) -> None:
     server.shell(
         name="Download iroh-relay",
         commands=[
-            f"(echo '{sha256sum} /usr/local/bin/iroh-relay' | sha256sum -c) || (curl -L {url} | gunzip | tar -x -f - ./iroh-relay -O >/usr/local/bin/iroh-relay.new && mv /usr/local/bin/iroh-relay.new /usr/local/bin/iroh-relay)",
+            f"(echo '{sha256sum} /usr/local/bin/iroh-relay' | sha256sum -c) || (curl -L {url} | gunzip | tar -x -f - ./iroh-relay -O >/usr/local/bin/iroh-relay.new && (echo '{sha256sum} /usr/local/bin/iroh-relay.new' | sha256sum -c) && mv /usr/local/bin/iroh-relay.new /usr/local/bin/iroh-relay)",
             "chmod 755 /usr/local/bin/iroh-relay",
         ],
     )
