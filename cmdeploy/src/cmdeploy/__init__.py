@@ -13,7 +13,7 @@ from pathlib import Path
 from chatmaild.config import Config, read_config
 from pyinfra import facts, host, logger
 from pyinfra.api import FactBase
-from pyinfra.facts.files import File
+from pyinfra.facts.files import File, Sha256File
 from pyinfra.facts.server import Sysctl
 from pyinfra.facts.systemd import SystemdEnabled
 from pyinfra.operations import apt, files, pip, server, systemd
@@ -569,15 +569,18 @@ def deploy_iroh_relay(config) -> None:
         packages=["curl"],
     )
 
-    server.shell(
-        name="Download iroh-relay",
-        commands=[
-            f"(echo '{sha256sum} /usr/local/bin/iroh-relay' | sha256sum -c) || (curl -L {url} | gunzip | tar -x -f - ./iroh-relay -O >/usr/local/bin/iroh-relay.new && (echo '{sha256sum} /usr/local/bin/iroh-relay.new' | sha256sum -c) && mv /usr/local/bin/iroh-relay.new /usr/local/bin/iroh-relay)",
-            "chmod 755 /usr/local/bin/iroh-relay",
-        ],
-    )
-
     need_restart = False
+
+    existing_sha256sum = host.get_fact(Sha256File, "/usr/local/bin/iroh-relay")
+    if existing_sha256sum != sha256sum:
+        server.shell(
+            name="Download iroh-relay",
+            commands=[
+                f"(curl -L {url} | gunzip | tar -x -f - ./iroh-relay -O >/usr/local/bin/iroh-relay.new && (echo '{sha256sum} /usr/local/bin/iroh-relay.new' | sha256sum -c) && mv /usr/local/bin/iroh-relay.new /usr/local/bin/iroh-relay)",
+                "chmod 755 /usr/local/bin/iroh-relay",
+            ],
+        )
+        need_restart = True
 
     systemd_unit = files.put(
         name="Upload iroh-relay systemd unit",
