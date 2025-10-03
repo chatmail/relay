@@ -2,6 +2,9 @@
 
 ## untagged
 
+- Update iroh-relay to 0.35.0
+  ([#650](https://github.com/chatmail/relay/pull/650))
+
 - Use max username length in newemail.py, not min
   ([#648](https://github.com/chatmail/relay/pull/648))
 

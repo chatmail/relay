@@ -13,7 +13,7 @@ from pathlib import Path
 from chatmaild.config import Config, read_config
 from pyinfra import facts, host, logger
 from pyinfra.api import FactBase
-from pyinfra.facts.files import File
+from pyinfra.facts.files import File, Sha256File
 from pyinfra.facts.server import Sysctl
 from pyinfra.facts.systemd import SystemdEnabled
 from pyinfra.operations import apt, files, pip, server, systemd
@@ -555,12 +555,12 @@ def deploy_mtail(config):
 def deploy_iroh_relay(config) -> None:
     (url, sha256sum) = {
         "x86_64": (
-            "https://github.com/n0-computer/iroh/releases/download/v0.28.1/iroh-relay-v0.28.1-x86_64-unknown-linux-musl.tar.gz",
-            "2ffacf7c0622c26b67a5895ee8e07388769599f60e5f52a3bd40a3258db89b2c",
+            "https://github.com/n0-computer/iroh/releases/download/v0.35.0/iroh-relay-v0.35.0-x86_64-unknown-linux-musl.tar.gz",
+            "45c81199dbd70f8c4c30fef7f3b9727ca6e3cea8f2831333eeaf8aa71bf0fac1",
         ),
         "aarch64": (
-            "https://github.com/n0-computer/iroh/releases/download/v0.28.1/iroh-relay-v0.28.1-aarch64-unknown-linux-musl.tar.gz",
-            "b915037bcc1ff1110cc9fcb5de4a17c00ff576fd2f568cd339b3b2d54c420dc4",
+            "https://github.com/n0-computer/iroh/releases/download/v0.35.0/iroh-relay-v0.35.0-aarch64-unknown-linux-musl.tar.gz",
+            "f8ef27631fac213b3ef668d02acd5b3e215292746a3fc71d90c63115446008b1",
         ),
     }[host.get_fact(facts.server.Arch)]
 
@@ -569,15 +569,18 @@ def deploy_iroh_relay(config) -> None:
         packages=["curl"],
     )
 
-    server.shell(
-        name="Download iroh-relay",
-        commands=[
-            f"(echo '{sha256sum} /usr/local/bin/iroh-relay' | sha256sum -c) || (curl -L {url} | gunzip | tar -x -f - ./iroh-relay -O >/usr/local/bin/iroh-relay.new && mv /usr/local/bin/iroh-relay.new /usr/local/bin/iroh-relay)",
-            "chmod 755 /usr/local/bin/iroh-relay",
-        ],
-    )
-
     need_restart = False
+
+    existing_sha256sum = host.get_fact(Sha256File, "/usr/local/bin/iroh-relay")
+    if existing_sha256sum != sha256sum:
+        server.shell(
+            name="Download iroh-relay",
+            commands=[
+                f"(curl -L {url} | gunzip | tar -x -f - ./iroh-relay -O >/usr/local/bin/iroh-relay.new && (echo '{sha256sum} /usr/local/bin/iroh-relay.new' | sha256sum -c) && mv /usr/local/bin/iroh-relay.new /usr/local/bin/iroh-relay)",
+                "chmod 755 /usr/local/bin/iroh-relay",
+            ],
+        )
+        need_restart = True
 
     systemd_unit = files.put(
         name="Upload iroh-relay systemd unit",
