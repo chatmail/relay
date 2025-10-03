@@ -128,6 +128,7 @@ def _install_remote_venv_with_chatmaild(config) -> None:
         "echobot",
         "chatmail-metadata",
         "lastlogin",
+        "turnserver",
     ):
         execpath = fn if fn != "filtermail-incoming" else "filtermail"
         params = dict(
@@ -497,6 +498,49 @@ def check_config(config):
     return config
 
 
+def deploy_turn_server(config):
+    (url, sha256sum) = {
+        "x86_64": (
+            "https://github.com/chatmail/chatmail-turn/releases/download/v0.1/chatmail-turn-x86_64-linux",
+            "e74ec7ffac3f597c83ddf6fe07c47c470733f049455a8f8475573cb88299b881",
+        ),
+        "aarch64": (
+            "https://github.com/chatmail/chatmail-turn/releases/download/v0.1/chatmail-turn-aarch64-linux",
+            "e9cfa3efa369e7159f7e1228f6d5a536c436e04aa62f7fd64299ed98628da225",
+        ),
+    }[host.get_fact(facts.server.Arch)]
+
+    server.shell(
+        name="Download chatmail-turn",
+        commands=[
+            f"(echo '{sha256sum} /usr/local/bin/chatmail-turn' | sha256sum -c) || (curl -L {url} >/usr/local/bin/chatmail-turn.new && mv /usr/local/bin/chatmail-turn.new /usr/local/bin/chatmail-turn)",
+            "chmod 755 /usr/local/bin/chatmail-turn",
+        ],
+    )
+
+    source_path = importlib.resources.files(__package__).joinpath(
+        "service", "turnserver.service.f"
+    )
+    content = source_path.read_text().format(mail_domain=config.mail_domain).encode()
+
+    files.put(
+        name="Upload turnserver.service",
+        src=io.BytesIO(content),
+        dest="/etc/systemd/system/turnserver.service",
+        user="root",
+        group="root",
+        mode="644"
+    )
+    systemd.service(
+        name="Setup turnserver service",
+        service="turnserver.service",
+        running=True,
+        enabled=True,
+        restarted=True,
+        daemon_reload=True,
+    )
+
+
 def deploy_mtail(config):
     # Uninstall mtail package, we are going to install a static binary.
     apt.packages(name="Uninstall mtail", packages=["mtail"], present=False)
@@ -672,6 +716,8 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
         name="Install rsync",
         packages=["rsync"],
     )
+
+    deploy_turn_server(config)
 
     # Run local DNS resolver `unbound`.
     # `resolvconf` takes care of setting up /etc/resolv.conf
