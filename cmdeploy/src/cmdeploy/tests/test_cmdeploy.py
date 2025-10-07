@@ -25,10 +25,16 @@ class TestCmdline:
 
     def test_init_not_overwrite(self, capsys):
         assert main(["init", "chat.example.org"]) == 0
-        capsys.readouterr()
+        out, err = capsys.readouterr()
+        assert "created config file" in out.lower()
+
         assert main(["init", "chat.example.org"]) == 1
         out, err = capsys.readouterr()
         assert "path exists" in out.lower()
+
+        assert main(["init", "chat.example.org", "--force"]) == 0
+        out, err = capsys.readouterr()
+        assert "deleting config file" in out.lower()
 
 
 def test_www_folder(example_config, tmp_path):
