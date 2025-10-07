@@ -814,6 +814,13 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     )
 
     systemd.service(
+        name="Start and enable fcgiwrap",
+        service="fcgiwrap.service",
+        running=True,
+        enabled=True,
+    )
+
+    systemd.service(
         name="Restart echobot if postfix and dovecot were just started",
         service="echobot.service",
         restarted=postfix_need_restart and dovecot_need_restart,
