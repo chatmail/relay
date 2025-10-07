@@ -102,9 +102,9 @@ def check_armored_payload(payload: str, outgoing: bool):
         return False
     payload = payload.removesuffix(suffix)
 
-    # Remove Protonmail version comment.
-    proton_version_comment = "Version:"
-    if payload.startswith(proton_version_comment):
+    # Disallow comments in outgoing messages
+    version_comment = "Version: "
+    if payload.startswith(version_comment):
         version_line = payload.splitlines()[0]
         payload = payload.removeprefix(version_line)
         print("Removed:" + version_line)
