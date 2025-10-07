@@ -14,6 +14,10 @@
 - Increase maxproc for reinjecting ports from 10 to 100
   ([#646](https://github.com/chatmail/relay/pull/646))
 
+- Add markdown tabs blocks for rendering multilingual pages.
+  Add russian language support to `index.md`, `privacy.md`, and `info.md`.
+  ([#658](https://github.com/chatmail/relay/pull/658))
+
 - Allow ports 143 and 993 to be used by `dovecot` process
   ([#639](https://github.com/chatmail/relay/pull/639))
 
