@@ -8,6 +8,9 @@
 - Update iroh-relay to 0.35.0
   ([#650](https://github.com/chatmail/relay/pull/650))
 
+- filtermail: accept mails from Protonmail
+  ([#616](https://github.com/chatmail/relay/pull/655))
+
 - Ignore all RCPT TO: parameters
   ([#651](https://github.com/chatmail/relay/pull/651))
 
