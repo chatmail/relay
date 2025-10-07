@@ -83,7 +83,13 @@ def check_openpgp_payload(payload: bytes):
     return False
 
 
-def check_armored_payload(payload: str):
+def check_armored_payload(payload: str, outgoing: bool):
+    """Check the armored PGP message for invalid content.
+
+    :param payload: the armored PGP message
+    :param outgoing: whether the message is outgoing or incoming
+    :return: whether the message is a valid PGP message
+    """
     prefix = "-----BEGIN PGP MESSAGE-----\r\n"
     if not payload.startswith(prefix):
         return False
@@ -102,6 +108,8 @@ def check_armored_payload(payload: str):
         version_line = payload.splitlines()[0]
         payload = payload.removeprefix(version_line)
         print("Removed:" + version_line)
+        if outgoing:
+            return False
 
     while payload.startswith("\r\n"):
         payload = payload.removeprefix("\r\n")
@@ -141,7 +149,7 @@ def is_securejoin(message):
     return True
 
 
-def check_encrypted(message):
+def check_encrypted(message, outgoing=True):
     """Check that the message is an OpenPGP-encrypted message.
 
     MIME structure of the message must correspond to <https://www.rfc-editor.org/rfc/rfc3156>.
@@ -168,7 +176,7 @@ def check_encrypted(message):
             if part.get_content_type() != "application/octet-stream":
                 return False
 
-            if not check_armored_payload(part.get_payload()):
+            if not check_armored_payload(part.get_payload(), outgoing=outgoing):
                 return False
         else:
             return False
@@ -251,7 +259,7 @@ class OutgoingBeforeQueueHandler:
         logging.info(f"Processing DATA message from {envelope.mail_from}")
 
         message = BytesParser(policy=policy.default).parsebytes(envelope.content)
-        mail_encrypted = check_encrypted(message)
+        mail_encrypted = check_encrypted(message, outgoing=True)
 
         _, from_addr = parseaddr(message.get("from").strip())
 
@@ -311,7 +319,7 @@ class IncomingBeforeQueueHandler:
         logging.info(f"Processing DATA message from {envelope.mail_from}")
 
         message = BytesParser(policy=policy.default).parsebytes(envelope.content)
-        mail_encrypted = check_encrypted(message)
+        mail_encrypted = check_encrypted(message, outgoing=False)
 
         if mail_encrypted or is_securejoin(message):
             print("Incoming: Filtering encrypted mail.", file=sys.stderr)

@@ -280,7 +280,8 @@ UN4fiB0KR9JyG2ayUdNJVkXZSZLnHyRgiaadlpUo16LVvw==\r
 """
 
     commented_payload = prefix + comment + payload
-    assert check_armored_payload(commented_payload) == True
+    assert check_armored_payload(commented_payload, outgoing=False) == True
+    assert check_armored_payload(commented_payload, outgoing=True) == False
 
     payload = prefix + payload
     assert check_armored_payload(payload) == True
