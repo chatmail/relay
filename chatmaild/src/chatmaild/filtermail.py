@@ -96,6 +96,11 @@ def check_armored_payload(payload: str):
         return False
     payload = payload.removesuffix(suffix)
 
+    # Remove Protonmail version comment.
+    proton_version_comment = "Version: ProtonMail"
+    if payload.startswith(proton_version_comment):
+        payload = payload.removeprefix(proton_version_comment)
+
     # Remove CRC24.
     payload = payload.rpartition("=")[0]
 
