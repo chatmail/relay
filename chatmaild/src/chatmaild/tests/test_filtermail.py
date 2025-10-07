@@ -242,6 +242,7 @@ def test_cleartext_passthrough_senders(gencreds, handler, maildata):
 
 def test_check_armored_payload():
     prefix = "-----BEGIN PGP MESSAGE-----\r\n"
+    comment = "Version: ProtonMail\r\n"
     payload = """\r
 wU4DSqFx0d1yqAoSAQdAYkX/ZN/Az4B0k7X47zKyWrXxlDEdS3WOy0Yf2+GJTFgg\r
 Zk5ql0mLG8Ze+ZifCS0XMO4otlemSyJ0K1ZPdFMGzUDBTgNqzkFabxXoXRIBB0AM\r
@@ -278,9 +279,10 @@ UN4fiB0KR9JyG2ayUdNJVkXZSZLnHyRgiaadlpUo16LVvw==\r
 \r
 """
 
-    assert check_armored_payload(prefix + "Version: Protonmail\r\n" + payload) == True
-    payload = prefix + payload
+    commented_payload = prefix + comment + payload
+    assert check_armored_payload(commented_payload) == True
 
+    payload = prefix + payload
     assert check_armored_payload(payload) == True
 
     payload = payload.removesuffix("\r\n")

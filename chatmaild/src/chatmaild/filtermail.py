@@ -84,7 +84,7 @@ def check_openpgp_payload(payload: bytes):
 
 
 def check_armored_payload(payload: str):
-    prefix = "-----BEGIN PGP MESSAGE-----\r\n\r\n"
+    prefix = "-----BEGIN PGP MESSAGE-----\r\n"
     if not payload.startswith(prefix):
         return False
     payload = payload.removeprefix(prefix)
@@ -97,9 +97,14 @@ def check_armored_payload(payload: str):
     payload = payload.removesuffix(suffix)
 
     # Remove Protonmail version comment.
-    proton_version_comment = "Version: ProtonMail"
+    proton_version_comment = "Version:"
     if payload.startswith(proton_version_comment):
-        payload = payload.removeprefix(proton_version_comment)
+        version_line = payload.splitlines()[0]
+        payload = payload.removeprefix(version_line)
+        print("Removed:" + version_line)
+
+    while payload.startswith("\r\n"):
+        payload = payload.removeprefix("\r\n")
 
     # Remove CRC24.
     payload = payload.rpartition("=")[0]
