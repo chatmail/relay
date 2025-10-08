@@ -64,13 +64,12 @@ def remove_legacy_artifacts():
         )
 
 
-def _install_remote_venv_with_chatmaild(config) -> None:
+def _install_remote_venv_with_chatmaild() -> None:
     remove_legacy_artifacts()
     dist_file = _build_chatmaild(dist_dir=Path("chatmaild/dist"))
     remote_base_dir = "/usr/local/lib/chatmaild"
     remote_dist_file = f"{remote_base_dir}/dist/{dist_file.name}"
     remote_venv_dir = f"{remote_base_dir}/venv"
-    remote_chatmail_inipath = f"{remote_base_dir}/chatmail.ini"
     root_owned = dict(user="root", group="root", mode="644")
 
     apt.packages(
@@ -83,13 +82,6 @@ def _install_remote_venv_with_chatmaild(config) -> None:
         src=dist_file.open("rb"),
         dest=remote_dist_file,
         create_remote_dir=True,
-        **root_owned,
-    )
-
-    files.put(
-        name=f"Upload {remote_chatmail_inipath}",
-        src=config._getbytefile(),
-        dest=remote_chatmail_inipath,
         **root_owned,
     )
 
@@ -109,6 +101,20 @@ def _install_remote_venv_with_chatmaild(config) -> None:
         commands=[
             f"{remote_venv_dir}/bin/pip install --force-reinstall {remote_dist_file}"
         ],
+    )
+
+
+def _configure_remote_venv_with_chatmaild(config) -> None:
+    remote_base_dir = "/usr/local/lib/chatmaild"
+    remote_venv_dir = f"{remote_base_dir}/venv"
+    remote_chatmail_inipath = f"{remote_base_dir}/chatmail.ini"
+    root_owned = dict(user="root", group="root", mode="644")
+
+    files.put(
+        name=f"Upload {remote_chatmail_inipath}",
+        src=config._getbytefile(),
+        dest=remote_chatmail_inipath,
+        **root_owned,
     )
 
     files.template(
@@ -156,6 +162,25 @@ def _install_remote_venv_with_chatmaild(config) -> None:
             dest=f"/etc/systemd/system/{basename}",
             **root_owned,
         )
+
+
+def _activate_remote_venv_with_chatmaild() -> None:
+    # activate systemd units
+    for fn in (
+        "doveauth",
+        "filtermail",
+        "filtermail-incoming",
+        "echobot",
+        "chatmail-metadata",
+        "lastlogin",
+        "turnserver",
+        "chatmail-expire",
+        "chatmail-expire.timer",
+        "chatmail-fsreport",
+        "chatmail-fsreport.timer",
+    ):
+        basename = fn if "." in fn else f"{fn}.service"
+
         if fn == "chatmail-expire" or fn == "chatmail-fsreport":
             # don't auto-start but let the corresponding timer trigger execution
             enabled = False
@@ -1074,7 +1099,9 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
         # if it is not a hugo page, upload it as is
         files.rsync(f"{www_path}/", "/var/www/html", flags=["-avz", "--chown=www-data"])
 
-    _install_remote_venv_with_chatmaild(config)
+    _install_remote_venv_with_chatmaild()
+    _configure_remote_venv_with_chatmaild(config)
+    _activate_remote_venv_with_chatmaild()
     dovecot_deployer.configure()
     postfix_deployer.configure()
     nginx_deployer.configure()
