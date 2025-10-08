@@ -7,9 +7,13 @@ from . import remote
 
 
 def get_initial_remote_data(sshexec, mail_domain):
-    return sshexec.logged(
-        call=remote.rdns.perform_initial_checks, kwargs=dict(mail_domain=mail_domain)
-    )
+    if sshexec == "localhost":
+        result = remote.rdns.perform_initial_checks(mail_domain)
+    else:
+        result = sshexec.logged(
+            call=remote.rdns.perform_initial_checks, kwargs=dict(mail_domain=mail_domain)
+        )
+    return result
 
 
 def check_initial_remote_data(remote_data, *, print=print):
@@ -44,10 +48,14 @@ def check_full_zone(sshexec, remote_data, out, zonefile) -> int:
     """Check existing DNS records, optionally write them to zone file
     and return (exitcode, remote_data) tuple."""
 
-    required_diff, recommended_diff = sshexec.logged(
-        remote.rdns.check_zonefile,
-        kwargs=dict(zonefile=zonefile, mail_domain=remote_data["mail_domain"]),
-    )
+    if sshexec == "localhost":
+        required_diff, recommended_diff = remote.rdns.check_zonefile(
+            zonefile=zonefile, verbose=False
+        )
+    else:
+        required_diff, recommended_diff = sshexec.logged(
+            remote.rdns.check_zonefile, kwargs=dict(zonefile=zonefile, verbose=False),
+        )
 
     returncode = 0
     if required_diff:
