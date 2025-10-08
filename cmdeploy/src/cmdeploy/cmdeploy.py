@@ -61,7 +61,7 @@ def run_cmd_options(parser):
     parser.add_argument(
         "--ssh-host",
         dest="ssh_host",
-        help="Deploy to 'localhost' or to a specific SSH host",
+        help="Deploy to 'localhost', via 'docker', or to a specific SSH host",
     )
 
 
@@ -83,7 +83,7 @@ def run_cmd(args, out):
     pyinf = "pyinfra --dry" if args.dry_run else "pyinfra"
 
     cmd = f"{pyinf} --ssh-user root {ssh_host} {deploy_path} -y"
-    if ssh_host == "localhost":
+    if ssh_host in ["localhost", "docker"]:
         cmd = f"{pyinf} @local {deploy_path} -y"
 
     if version.parse(pyinfra.__version__) < version.parse("3"):
@@ -125,7 +125,7 @@ def dns_cmd_options(parser):
     parser.add_argument(
         "--ssh-host",
         dest="ssh_host",
-        help="Run the DNS queries on 'localhost' or on a specific SSH host",
+        help="Run the DNS queries on 'localhost', via 'docker', or on a specific SSH host",
     )
 
 
@@ -344,6 +344,8 @@ def get_parser():
 def get_sshexec(ssh_host: str, verbose=True):
     if ssh_host in ["localhost", "@local"]:
         return "localhost"
+    elif ssh_host == "docker":
+        return "docker"
     if verbose:
         print(f"[ssh] login to {ssh_host}")
     return SSHExec(ssh_host, verbose=verbose)
