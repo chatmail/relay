@@ -934,6 +934,22 @@ class JournaldDeployer(Deployer):
         self.need_restart = False
 
 
+class ChatmailVenvDeployer(Deployer):
+    def __init__(self, *, config, **kwargs):
+        super().__init__(**kwargs)
+        self.config = config
+
+    @staticmethod
+    def install_impl():
+        _install_remote_venv_with_chatmaild()
+
+    def configure_impl(self):
+        _configure_remote_venv_with_chatmaild(self.config)
+
+    def activate_impl(self):
+        _activate_remote_venv_with_chatmaild()
+
+
 def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     """Deploy a chat-mail instance.
 
@@ -959,6 +975,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     # Deploy acmetool to have TLS certificates.
     acmetool_deployer = AcmetoolDeployer(email=config.acme_email, domains=tls_domains)
 
+    chatmail_venv_deployer = ChatmailVenvDeployer(config=config)
     mtasts_deployer = MtastsDeployer()
     opendkim_deployer = OpendkimDeployer(mail_domain=mail_domain)
 
@@ -977,6 +994,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
         unbound_deployer,
         iroh_deployer,
         acmetool_deployer,
+        chatmail_venv_deployer,
         mtasts_deployer,
         opendkim_deployer,
         dovecot_deployer,
@@ -1099,9 +1117,10 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
         # if it is not a hugo page, upload it as is
         files.rsync(f"{www_path}/", "/var/www/html", flags=["-avz", "--chown=www-data"])
 
-    _install_remote_venv_with_chatmaild()
-    _configure_remote_venv_with_chatmaild(config)
-    _activate_remote_venv_with_chatmaild()
+    chatmail_venv_deployer.install()
+    chatmail_venv_deployer.configure()
+    chatmail_venv_deployer.activate()
+
     dovecot_deployer.configure()
     postfix_deployer.configure()
     nginx_deployer.configure()
