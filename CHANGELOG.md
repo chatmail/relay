@@ -25,6 +25,7 @@
 
 - Add configuration parameters
   ([#614](https://github.com/chatmail/relay/pull/614)):
+  - `use_foreign_cert_manager` - Use a third-party certificate manager instead of acmetool (default: `False`)
   - `change_kernel_settings` - Whether to change kernel parameters during installation (default: `True`)
   - `fs_inotify_max_user_instances_and_watchers` - Value for kernel parameters `fs.inotify.max_user_instances` and `fs.inotify.max_user_watches` (default: `65535`)
 

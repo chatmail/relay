@@ -29,10 +29,22 @@ Please substitute it with your own domain.
    ```
 
 ## Installation
+При установке через docker есть несколько вариантов:
+- использовать встроенный в chatmail контейнер nginx и acmetool для хостинга чата и управления сертификатами.
+- использовать сторонние инструменты для менеджмента сертификатов
 
-1. Скопировать файл `./docker/docker-compose-default.yaml` в `docker-compose.yaml`. Это нужно потому что `docker-compose.yaml` находится в `.gitignore` и не будет создавать конфликты при обновлении гит репозитория.
+В качестве примера для стороннего менеджера сертификатов будет использоваться traefik, но вы можете использовать то что удобнее вам.
+
+1. Скопировать файл `./docker/docker-compose-default.yaml` или `./docker/docker-compose-traefik.yaml` и переименовать в `docker-compose.yaml`. Это нужно потому что `docker-compose.yaml` находится в `.gitignore` и не будет создавать конфликты при обновлении гит репозитория.
 ```shell
 cp ./docker/docker-compose-default.yaml docker-compose.yaml
+## or
+# cp ./docker/docker-compose-traefik.yaml docker-compose.yaml
+```
+
+2. Скопировать `./docker/example.env` и переименовать в `.env`. Здесь хранятся переменные, которые используятся в `docker-compose.yaml`.
+```shell
+cp ./docker/example.env .env
 ```
 
 3. Настроить переменные окружения в `.env` файле. Эти переменные используются в `docker-compose.yaml` файле, чтобы передавать повторяющиеся значения.

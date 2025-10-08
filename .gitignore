@@ -170,3 +170,4 @@ chatmail.zone
 /custom/
 docker-compose.yaml
 .env
+/traefik/data/

@@ -60,6 +60,9 @@ postfix_reinject_port_incoming = 10026
 # if set to "True" IPv6 is disabled
 disable_ipv6 = False
 
+# if you set "True", acmetool will not be installed and you will have to manage certificates yourself.
+use_foreign_cert_manager = False
+
 #
 # Kernel settings
 #
