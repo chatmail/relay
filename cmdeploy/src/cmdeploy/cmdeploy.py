@@ -208,6 +208,61 @@ def test_cmd(args, out):
     return ret
 
 
+def proxy_cmd_options(parser: argparse.ArgumentParser):
+    parser.add_argument(
+        "ip_address",
+        help="specify a server to deploy to; can also be an inventory.py file",
+    )
+    parser.add_argument(
+        "--relay-ipv4",
+        dest="relay_ipv4",
+        help="The ipv4 address of the relay you want to forward traffic to",
+    )
+    parser.add_argument(
+        "--relay-ipv6",
+        dest="relay_ipv6",
+        help="The ipv6 address of the relay you want to forward traffic to",
+    )
+    parser.add_argument(
+        "--dry-run",
+        dest="dry_run",
+        action="store_true",
+        help="don't actually modify the server",
+    )
+
+
+def proxy_cmd(args, out):
+    """Deploy reverse proxy on a second server."""
+    env = os.environ.copy()
+    env["RELAY_IPV4"] = args.relay_ipv4
+    env["RELAY_IPV6"] = args.relay_ipv6
+    deploy_path = importlib.resources.files(__package__).joinpath("proxy-deploy.py").resolve()
+    pyinf = "pyinfra --dry" if args.dry_run else "pyinfra"
+
+    sshexec = args.get_sshexec()
+    # :todo make sure relay is deployed to args.relay_ipv4 and args.relay_ipv6
+
+    # abort if IP address == the chatmail relay itself: if port 22 is open AND /etc/chatmail-version exists
+    if sshexec.logged(call=remote.rshell.get_port_service, args=[22]):
+        if sshexec.logged(call=remote.rshell.chatmail_version):
+            out.red("Can not deploy proxy on the chatmail relay itself, use another server")
+            return 1
+        cmd = f"{pyinf} --ssh-user root {args.ip_address} {deploy_path} -y"
+        out.check_call(cmd, env=env)  # during first try, only set SSH port to 2222
+
+    cmd = f"{pyinf} --ssh-port 2222 --ssh-user root {args.ip_address} {deploy_path} -y"
+    try:
+        retcode = out.check_call(cmd, env=env)
+        if retcode == 0:
+            out.green("Reverse proxy deployed - you can distribute the IP address now.")
+        else:
+            out.red("Deploying reverse proxy failed")
+    except subprocess.CalledProcessError:
+        out.red("Deploying reverse proxy failed")
+        retcode = 1
+    return retcode
+
+
 def fmt_cmd_options(parser):
     parser.add_argument(
         "--check",

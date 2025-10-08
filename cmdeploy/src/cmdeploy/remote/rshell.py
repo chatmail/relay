@@ -21,6 +21,20 @@ def shell(command, fail_ok=False, print=print):
         return ""
 
 
+def get_port_service(port: int) -> str:
+    return shell(
+        "ss -lptn 'src :%d' | awk 'NR>1 {print $6,$7}' | sed 's/users:((\"//;s/\".*//'"
+        % (port,)
+    )
+
+
+def chatmail_version():
+    version = shell("cat /etc/chatmail-version")
+    if "cat: /etc/chatmail-version:" in version:
+        version = None
+    return version
+
+
 def get_systemd_running():
     lines = shell("systemctl --type=service --state=running").split("\n")
     return [line for line in lines if line.startswith("  ")]
