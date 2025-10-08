@@ -60,6 +60,9 @@ postfix_reinject_port_incoming = 10026
 # if set to "True" IPv6 is disabled
 disable_ipv6 = False
 
+# Your email adress, which will be used in acmetool to manage Let's Encrypt SSL certificates
+acme_email = 
+
 # Defaults to https://iroh.{{mail_domain}} and running `iroh-relay` on the chatmail
 # service.
 # If you set it to anything else, the service will be disabled

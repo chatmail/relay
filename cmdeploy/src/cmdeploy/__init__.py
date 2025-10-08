@@ -727,6 +727,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     # Deploy acmetool to have TLS certificates.
     tls_domains = [mail_domain, f"mta-sts.{mail_domain}", f"www.{mail_domain}"]
     deploy_acmetool(
+        email=config.acme_email,
         domains=tls_domains,
     )
 

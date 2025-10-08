@@ -44,6 +44,7 @@ class Config:
         )
         self.mtail_address = params.get("mtail_address")
         self.disable_ipv6 = params.get("disable_ipv6", "false").lower() == "true"
+        self.acme_email = params.get("acme_email", "")
         self.imap_rawlog = params.get("imap_rawlog", "false").lower() == "true"
         if "iroh_relay" not in params:
             self.iroh_relay = "https://" + params["mail_domain"]
