@@ -63,6 +63,12 @@ def run_cmd_options(parser):
         dest="ssh_host",
         help="specify an SSH host to deploy to; uses mail_domain from chatmail.ini by default",
     )
+    parser.add_argument(
+        "--skip-dns-check",
+        dest="dns_check_disabled",
+        action="store_true",
+        help="disable checks nslookup for dns",
+    )
 
 
 def run_cmd(args, out):
@@ -70,9 +76,10 @@ def run_cmd(args, out):
 
     sshexec = args.get_sshexec()
     require_iroh = args.config.enable_iroh_relay
-    remote_data = dns.get_initial_remote_data(sshexec, args.config.mail_domain)
-    if not dns.check_initial_remote_data(remote_data, print=out.red):
-        return 1
+    if not args.dns_check_disabled:
+        remote_data = dns.get_initial_remote_data(sshexec, args.config.mail_domain)
+        if not dns.check_initial_remote_data(remote_data, print=out.red):
+            return 1
 
     env = os.environ.copy()
     env["CHATMAIL_INI"] = args.inipath

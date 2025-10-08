@@ -17,6 +17,9 @@
 - Allow ports 143 and 993 to be used by `dovecot` process
   ([#639](https://github.com/chatmail/relay/pull/639))
 
+- Add `--skip-dns-check` argument to `cmdeploy run` command, which disables DNS record checking before installation.
+  ([#661](https://github.com/chatmail/relay/pull/661))
+
 ## 1.7.0 2025-09-11
 
 - Make www upload path configurable
