@@ -101,7 +101,10 @@ Please substitute it with your own domain.
    (it can take some time until they are public).
 
 ### Docker installation
-Installation using docker compose is presented [here](./docs/DOCKER_INSTALLATION_EN.md)
+
+We have experimental support for [docker compose](./docs/DOCKER_INSTALLATION_EN.md),
+but it is not covered by automated tests yet,
+so don't expect everything to work.
 
 ### Other helpful commands
 
