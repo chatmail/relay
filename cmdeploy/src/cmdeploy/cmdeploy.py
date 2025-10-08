@@ -101,6 +101,9 @@ def run_cmd(args, out):
                     kwargs=dict(command="cat /var/lib/echobot/invite-link.txt"),
                 )
             )
+            server_deployed_message = f"Chatmail server started: https://{args.config.mail_domain}/"
+            delimiter_line = "=" * len(server_deployed_message)
+            out.green(f"{delimiter_line}\n{server_deployed_message}\n{delimiter_line}")
             out.green("Deploy completed, call `cmdeploy dns` next.")
         elif not remote_data["acme_account_url"]:
             out.red("Deploy completed but letsencrypt not configured")
@@ -125,7 +128,7 @@ def dns_cmd_options(parser):
     parser.add_argument(
         "--ssh-host",
         dest="ssh_host",
-        help="Run the DNS queries on 'localhost', via 'docker', or on a specific SSH host",
+        help="Run the DNS queries on 'localhost', in the chatmail 'docker' container, or on a specific SSH host",
     )
 
 
