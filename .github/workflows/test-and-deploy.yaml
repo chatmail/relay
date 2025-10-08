@@ -75,7 +75,7 @@ jobs:
 
       - run: cmdeploy init staging2.testrun.org
 
-      - run: cmdeploy run --verbose
+      - run: cmdeploy run --verbose --skip-dns-check
 
       - name: set DNS entries
         run: |
