@@ -726,10 +726,11 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     deploy_iroh_relay(config)
 
     # Deploy acmetool to have TLS certificates.
-    tls_domains = [mail_domain, f"mta-sts.{mail_domain}", f"www.{mail_domain}"]
-    deploy_acmetool(
-        domains=tls_domains,
-    )
+    if not config.use_foreign_cert_manager:
+        tls_domains = [mail_domain, f"mta-sts.{mail_domain}", f"www.{mail_domain}"]
+        deploy_acmetool(
+            domains=tls_domains,
+        )
 
     apt.packages(
         # required for setfacl for echobot

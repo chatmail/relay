@@ -32,11 +32,25 @@ Please substitute it with your own domain.
    ```
 
 ## Installation
+When installing via Docker, there are several options:
 
-1. Copy the file `./docker/docker-compose-default.yaml` to `docker-compose.yaml`. This is necessary because `docker-compose.yaml` is in `.gitignore` and won’t cause conflicts when updating the git repository.
+- Use the built-in nginx and acmetool in Chatmail container to host the chat and manage certificates.
+- Use third-party tools for certificate management.
+
+For the third-party certificate manager example, traefik will be used, but you can use whatever is more convenient for you.
+
+1. Copy the file `./docker/docker-compose-default.yaml` or `./docker/docker-compose-traefik.yaml` and rename it to `docker-compose.yaml`. This is necessary because `docker-compose.yaml` is in `.gitignore` and won’t cause conflicts when updating the git repository.
 
 ```shell
 cp ./docker/docker-compose-default.yaml docker-compose.yaml
+## or
+# cp ./docker/docker-compose-traefik.yaml docker-compose.yaml
+```
+
+2. Copy `./docker/example.env` and rename it to `.env`. This file stores variables used in `docker-compose.yaml`.
+
+```shell
+cp ./docker/example.env .env
 ```
 
 3. Configure environment variables in the `.env` file. These variables are used in the `docker-compose.yaml` file to pass repeated values.
