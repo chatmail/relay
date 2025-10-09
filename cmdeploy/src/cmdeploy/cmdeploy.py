@@ -25,9 +25,6 @@ from .sshexec import SSHExec
 # cmdeploy sub commands and options
 #
 
-def is_pytest():
-    return "PYTEST_CURRENT_TEST" in os.environ
-
 
 def init_cmd_options(parser):
     parser.add_argument(
@@ -49,14 +46,17 @@ def init_cmd(args, out):
     inipath = args.inipath
     if args.inipath.exists():
         if not args.recreate_ini:
-            out.green(f"[WARNING] Path exists, not modifying: {inipath}")
+            print(f"[WARNING] Path exists, not modifying: {inipath}")
             return 1
         else:
-            out.yellow(f"[WARNING] Force argument was provided, deleting config file: {inipath}")
+            print(
+                f"[WARNING] Force argument was provided, deleting config file: {inipath}"
+            )
             inipath.unlink()
 
     write_initial_config(inipath, mail_domain, overrides={})
     out.green(f"created config file for {mail_domain} in {inipath}")
+
 
 def run_cmd_options(parser):
     parser.add_argument(
@@ -276,20 +276,11 @@ class Out:
     def red(self, msg, file=sys.stderr):
         print(colored(msg, "red"), file=file)
 
-    def green(self, msg, file=sys.stdout):
+    def green(self, msg, file=sys.stderr):
         print(colored(msg, "green"), file=file)
 
-    def yellow(self, msg, file=sys.stdout):
-        print(colored(msg, "yellow"), file=file)
-
-    def __call__(self, msg, red=False, green=False, yellow=False, file=sys.stdout):
-        color = None
-        if red:
-            color = "red"
-        elif green:
-            color = "green"
-        elif yellow:
-            color = "yellow"
+    def __call__(self, msg, red=False, green=False, file=sys.stdout):
+        color = "red" if red else ("green" if green else None)
         print(colored(msg, color), file=file)
 
     def check_call(self, arg, env=None, quiet=False):
@@ -374,12 +365,6 @@ def main(args=None):
     args.get_sshexec = get_sshexec
 
     out = Out()
-    if is_pytest(): ## issue: https://github.com/chatmail/relay/issues/622
-        out.green = print
-        out.red = print
-        out.yellow = print
-        out.__call__ = print
-
     kwargs = {}
     if args.func.__name__ not in ("init_cmd", "fmt_cmd"):
         if not args.inipath.exists():

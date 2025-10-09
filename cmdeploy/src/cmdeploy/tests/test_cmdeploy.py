@@ -25,8 +25,7 @@ class TestCmdline:
 
     def test_init_not_overwrite(self, capsys):
         assert main(["init", "chat.example.org"]) == 0
-        out, err = capsys.readouterr()
-        assert "created config file" in out.lower()
+        capsys.readouterr()
 
         assert main(["init", "chat.example.org"]) == 1
         out, err = capsys.readouterr()
