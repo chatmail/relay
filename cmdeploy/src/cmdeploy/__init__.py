@@ -934,6 +934,33 @@ class JournaldDeployer(Deployer):
         self.need_restart = False
 
 
+class EchobotDeployer(Deployer):
+    #
+    # This deployer depends on the dovecot and postfix deployers because
+    # it needs to base its decision of whether to restart the service on
+    # whether those two services were restarted.
+    #
+    def __init__(self, *, dovecot_deployer, postfix_deployer, **kwargs):
+        super().__init__(**kwargs)
+        self.dovecot_deployer = dovecot_deployer
+        self.postfix_deployer = postfix_deployer
+
+    @staticmethod
+    def install_impl():
+        apt.packages(
+            # required for setfacl for echobot
+            name="Install acl",
+            packages="acl",
+        )
+
+    def activate_impl(self):
+        systemd.service(
+            name="Restart echobot if postfix and dovecot were just started",
+            service="echobot.service",
+            restarted=self.postfix_deployer.was_restarted and self.dovecot_deployer.was_restarted,
+        )
+
+
 class ChatmailVenvDeployer(Deployer):
     def __init__(self, *, config, **kwargs):
         super().__init__(**kwargs)
@@ -1064,6 +1091,9 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     nginx_deployer = NginxDeployer(config=config)
     rspamd_deployer = RspamdDeployer()
     fcgiwrap_deployer = FcgiwrapDeployer()
+    echobot_deployer = EchobotDeployer(
+        dovecot_deployer=dovecot_deployer, postfix_deployer=postfix_deployer
+    )
     journald_deployer = JournaldDeployer()
     mtail_deployer = MtailDeployer(mtail_address=config.mtail_address)
 
@@ -1080,6 +1110,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
         nginx_deployer,
         rspamd_deployer,
         fcgiwrap_deployer,
+        echobot_deployer,
         journald_deployer,
         mtail_deployer,
     ]
@@ -1136,12 +1167,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     acmetool_deployer.configure()
     acmetool_deployer.activate()
 
-    apt.packages(
-        # required for setfacl for echobot
-        name="Install acl",
-        packages="acl",
-    )
-
+    echobot_deployer.install()
     mtasts_deployer.install()
     opendkim_deployer.install()
     postfix_deployer.install()
@@ -1178,18 +1204,14 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     fcgiwrap_deployer.configure()
     opendkim_deployer.configure()
     opendkim_deployer.activate()
+    echobot_deployer.configure()
 
     dovecot_deployer.activate()
     postfix_deployer.activate()
     nginx_deployer.activate()
     rspamd_deployer.activate()
     fcgiwrap_deployer.activate()
-
-    systemd.service(
-        name="Restart echobot if postfix and dovecot were just started",
-        service="echobot.service",
-        restarted=postfix_deployer.was_restarted and dovecot_deployer.was_restarted,
-    )
+    echobot_deployer.activate()
 
     chatmail_deployer.configure()
     chatmail_deployer.activate()
