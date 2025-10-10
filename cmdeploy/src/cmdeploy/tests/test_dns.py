@@ -89,18 +89,14 @@ class TestZonefileChecks:
     def test_check_zonefile_all_ok(self, cm_data, mockdns_base):
         zonefile = cm_data.get("zftest.zone")
         parse_zonefile_into_dict(zonefile, mockdns_base)
-        required_diff, recommended_diff = remote.rdns.check_zonefile(
-            zonefile, "some.domain"
-        )
+        required_diff, recommended_diff = remote.rdns.check_zonefile(zonefile)
         assert not required_diff and not recommended_diff
 
     def test_check_zonefile_recommended_not_set(self, cm_data, mockdns_base):
         zonefile = cm_data.get("zftest.zone")
         zonefile_mocked = zonefile.split("; Recommended")[0]
         parse_zonefile_into_dict(zonefile_mocked, mockdns_base)
-        required_diff, recommended_diff = remote.rdns.check_zonefile(
-            zonefile, "some.domain"
-        )
+        required_diff, recommended_diff = remote.rdns.check_zonefile(zonefile)
         assert not required_diff
         assert len(recommended_diff) == 8
 

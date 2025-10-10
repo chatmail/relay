@@ -2,6 +2,9 @@
 
 ## untagged
 
+- cmdeploy: make --ssh-host work with localhost
+  ([#659](https://github.com/chatmail/relay/pull/659))
+
 - Update iroh-relay to 0.35.0
   ([#650](https://github.com/chatmail/relay/pull/650))
 

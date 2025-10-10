@@ -1,7 +1,14 @@
+import sys
+
 from subprocess import DEVNULL, CalledProcessError, check_output
 
 
-def shell(command, fail_ok=False):
+def log_progress(data):
+    sys.stderr.write(".")
+    sys.stderr.flush()
+
+
+def shell(command, fail_ok=False, print=print):
     print(f"$ {command}")
     args = dict(shell=True)
     if fail_ok:
