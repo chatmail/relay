@@ -702,6 +702,39 @@ class NginxDeployer(Deployer):
         self.need_restart = False
 
 
+class WebsiteDeployer(Deployer):
+    def __init__(self, *, config, **kwargs):
+        super().__init__(**kwargs)
+        self.config = config
+
+    @staticmethod
+    def install_impl():
+        files.directory(
+            name="Ensure /var/www exists",
+            path="/var/www",
+            user="root",
+            group="root",
+            mode="755",
+            present=True,
+        )
+
+    def configure_impl(self):
+        www_path, src_dir, build_dir = get_paths(self.config)
+        # if www_folder was set to a non-existing folder, skip upload
+        if not www_path.is_dir():
+            logger.warning("Building web pages is disabled in chatmail.ini, skipping")
+        elif (path := find_merge_conflict(src_dir)) is not None:
+            logger.warning(f"Merge conflict found in {path}, skipping website deployment. Fix merge conflict if you want to upload your web page.")
+        else:
+            # if www_folder is a hugo page, build it
+            if build_dir:
+                www_path = build_webpages(src_dir, build_dir, self.config)
+            # if it is not a hugo page, upload it as is
+            files.rsync(
+                f"{www_path}/", "/var/www/html", flags=["-avz", "--chown=www-data"]
+            )
+
+
 class RspamdDeployer(Deployer):
     @staticmethod
     def install_impl():
@@ -1078,6 +1111,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     # Deploy acmetool to have TLS certificates.
     acmetool_deployer = AcmetoolDeployer(email=config.acme_email, domains=tls_domains)
 
+    website_deployer = WebsiteDeployer(config=config)
     chatmail_venv_deployer = ChatmailVenvDeployer(config=config)
     mtasts_deployer = MtastsDeployer()
     opendkim_deployer = OpendkimDeployer(mail_domain=mail_domain)
@@ -1102,6 +1136,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
         unbound_deployer,
         iroh_deployer,
         acmetool_deployer,
+        website_deployer,
         chatmail_venv_deployer,
         mtasts_deployer,
         opendkim_deployer,
@@ -1176,18 +1211,8 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     journald_deployer.install()
     fcgiwrap_deployer.install()
 
-    www_path, src_dir, build_dir = get_paths(config)
-    # if www_folder was set to a non-existing folder, skip upload
-    if not www_path.is_dir():
-        logger.warning("Building web pages is disabled in chatmail.ini, skipping")
-    elif (path := find_merge_conflict(src_dir)) is not None:
-        logger.warning(f"Merge conflict found in {path}, skipping website deployment. Fix merge conflict if you want to upload your web page.")
-    else:
-        # if www_folder is a hugo page, build it
-        if build_dir:
-            www_path = build_webpages(src_dir, build_dir, config)
-        # if it is not a hugo page, upload it as is
-        files.rsync(f"{www_path}/", "/var/www/html", flags=["-avz", "--chown=www-data"])
+    website_deployer.install()
+    website_deployer.configure()
 
     chatmail_venv_deployer.install()
     chatmail_venv_deployer.configure()
@@ -1206,6 +1231,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     opendkim_deployer.activate()
     echobot_deployer.configure()
 
+    website_deployer.activate()
     dovecot_deployer.activate()
     postfix_deployer.activate()
     nginx_deployer.activate()
