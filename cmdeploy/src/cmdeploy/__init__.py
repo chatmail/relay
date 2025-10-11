@@ -756,54 +756,69 @@ def check_config(config):
     return config
 
 
-def deploy_turn_server(config):
-    (url, sha256sum) = {
-        "x86_64": (
-            "https://github.com/chatmail/chatmail-turn/releases/download/v0.3/chatmail-turn-x86_64-linux",
-            "841e527c15fdc2940b0469e206188ea8f0af48533be12ecb8098520f813d41e4",
-        ),
-        "aarch64": (
-            "https://github.com/chatmail/chatmail-turn/releases/download/v0.3/chatmail-turn-aarch64-linux",
-            "a5fc2d06d937b56a34e098d2cd72a82d3e89967518d159bf246dc69b65e81b42",
-        ),
-    }[host.get_fact(facts.server.Arch)]
+class TurnDeployer(Deployer):
+    def __init__(self, *, mail_domain, **kwargs):
+        super().__init__(**kwargs)
+        self.mail_domain = mail_domain
+        self.daemon_reload = False
 
-    need_restart = False
+    @staticmethod
+    def install_impl():
+        (url, sha256sum) = {
+            "x86_64": (
+                "https://github.com/chatmail/chatmail-turn/releases/download/v0.3/chatmail-turn-x86_64-linux",
+                "841e527c15fdc2940b0469e206188ea8f0af48533be12ecb8098520f813d41e4",
+            ),
+            "aarch64": (
+                "https://github.com/chatmail/chatmail-turn/releases/download/v0.3/chatmail-turn-aarch64-linux",
+                "a5fc2d06d937b56a34e098d2cd72a82d3e89967518d159bf246dc69b65e81b42",
+            ),
+        }[host.get_fact(facts.server.Arch)]
 
-    existing_sha256sum = host.get_fact(Sha256File, "/usr/local/bin/chatmail-turn")
-    if existing_sha256sum != sha256sum:
-        server.shell(
-            name="Download chatmail-turn",
-            commands=[
-                f"(curl -L {url} >/usr/local/bin/chatmail-turn.new && (echo '{sha256sum} /usr/local/bin/chatmail-turn.new' | sha256sum -c) && mv /usr/local/bin/chatmail-turn.new /usr/local/bin/chatmail-turn)",
-                "chmod 755 /usr/local/bin/chatmail-turn",
-            ],
+        existing_sha256sum = host.get_fact(Sha256File, "/usr/local/bin/chatmail-turn")
+        if existing_sha256sum != sha256sum:
+            server.shell(
+                name="Download chatmail-turn",
+                commands=[
+                    f"(curl -L {url} >/usr/local/bin/chatmail-turn.new && (echo '{sha256sum} /usr/local/bin/chatmail-turn.new' | sha256sum -c) && mv /usr/local/bin/chatmail-turn.new /usr/local/bin/chatmail-turn)",
+                    "chmod 755 /usr/local/bin/chatmail-turn",
+                ],
+            )
+
+            #
+            # This will set need_restart when called from an object's
+            # install() method.
+            #
+            return True
+
+    def configure_impl(self):
+        source_path = importlib.resources.files(__package__).joinpath(
+            "service", "turnserver.service.f"
         )
-        need_restart = True
+        content = source_path.read_text().format(mail_domain=self.mail_domain).encode()
 
-    source_path = importlib.resources.files(__package__).joinpath(
-        "service", "turnserver.service.f"
-    )
-    content = source_path.read_text().format(mail_domain=config.mail_domain).encode()
+        systemd_unit = files.put(
+            name="Upload turnserver.service",
+            src=io.BytesIO(content),
+            dest="/etc/systemd/system/turnserver.service",
+            user="root",
+            group="root",
+            mode="644",
+        )
+        self.daemon_reload = systemd_unit.changed
+        self.need_restart |= systemd_unit.changed
 
-    systemd_unit = files.put(
-        name="Upload turnserver.service",
-        src=io.BytesIO(content),
-        dest="/etc/systemd/system/turnserver.service",
-        user="root",
-        group="root",
-        mode="644",
-    )
-    need_restart |= systemd_unit.changed
-
-    systemd.service(
-        name="Setup turnserver service",
-        service="turnserver.service",
-        running=True,
-        enabled=True,
-        restarted=need_restart,
-        daemon_reload=systemd_unit.changed,
-    )
+    def activate_impl(self):
+        systemd.service(
+            name="Setup turnserver service",
+            service="turnserver.service",
+            running=True,
+            enabled=True,
+            restarted=self.need_restart,
+            daemon_reload=self.daemon_reload,
+        )
+        self.daemon_reload = False
+        self.need_restart = False
 
 
 class MtailDeployer(Deployer):
@@ -1105,6 +1120,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     tls_domains = [mail_domain, f"mta-sts.{mail_domain}", f"www.{mail_domain}"]
 
     chatmail_deployer = ChatmailDeployer(mail_domain=mail_domain)
+    turn_deployer = TurnDeployer(mail_domain=mail_domain)
     unbound_deployer = UnboundDeployer()
     iroh_deployer = IrohDeployer(enable_iroh_relay=config.enable_iroh_relay)
 
@@ -1133,6 +1149,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
 
     all_deployers = [
         chatmail_deployer,
+        turn_deployer,
         unbound_deployer,
         iroh_deployer,
         acmetool_deployer,
@@ -1162,7 +1179,9 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
 
     chatmail_deployer.install()
 
-    deploy_turn_server(config)
+    turn_deployer.install()
+    turn_deployer.configure()
+    turn_deployer.activate()
 
     port_services = [
         (["master", "smtpd"], 25),
