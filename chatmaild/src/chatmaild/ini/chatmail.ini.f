@@ -49,6 +49,12 @@ passthrough_recipients = xstore@testrun.org echo@{mail_domain}
 # Deployment Details
 #
 
+# A space-separated list of languages to be displayed on the site.
+# Now available languages: EN RU
+# You can also use the keyword "ALL"
+# NOTE: The order of languages affects their order on the page
+languages = EN
+
 # SMTP outgoing filtermail and reinjection 
 filtermail_smtp_port = 10080
 postfix_reinject_port = 10025
