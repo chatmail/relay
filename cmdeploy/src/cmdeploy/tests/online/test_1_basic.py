@@ -69,7 +69,7 @@ def test_timezone_env(remote):
     for line in remote.iter_output("env"):
         print(line)
         if line == "tz=:/etc/localtime":
-            return True
+            return
     pytest.fail("TZ is not set")
 
 
