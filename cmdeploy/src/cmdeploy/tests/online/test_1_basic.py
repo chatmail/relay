@@ -209,8 +209,14 @@ def test_expunged(remote, chatmail_config):
 
 
 def test_deployed_state(remote):
-    git_hash = subprocess.check_output(["git", "rev-parse", "HEAD"]).decode()
-    git_diff = subprocess.check_output(["git", "diff"]).decode()
+    try:
+        git_hash = subprocess.check_output(["git", "rev-parse", "HEAD"]).decode()
+    except Exception:
+        git_hash = "unknown\n"
+    try:
+        git_diff = subprocess.check_output(["git", "diff"]).decode()
+    except Exception:
+        git_diff = ""
     git_status = [git_hash.strip()]
     for line in git_diff.splitlines():
         git_status.append(line.strip().lower())
