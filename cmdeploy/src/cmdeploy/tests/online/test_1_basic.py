@@ -2,6 +2,7 @@ import datetime
 import smtplib
 import socket
 import subprocess
+import time
 
 import pytest
 
@@ -146,6 +147,16 @@ def test_reject_missing_dkim(cmsetup, maildata, from_addr):
             s.sendmail(from_addr=from_addr, to_addrs=recipient.addr, msg=msg)
 
 
+def try_n_times(n, f):
+    for _ in range(n - 1):
+        try:
+            return f()
+        except Exception:
+            time.sleep(1)
+
+    return f()
+
+
 def test_rewrite_subject(cmsetup, maildata):
     """Test that subject gets replaced with [...]."""
     user1, user2 = cmsetup.gen_users(2)
@@ -158,7 +169,8 @@ def test_rewrite_subject(cmsetup, maildata):
     ).as_string()
     user1.smtp.sendmail(from_addr=user1.addr, to_addrs=[user2.addr], msg=sent_msg)
 
-    messages = user2.imap.fetch_all_messages()
+    # The message may need some time to get delivered by postfix.
+    messages = try_n_times(5, user2.imap.fetch_all_messages)
     assert len(messages) == 1
     rcvd_msg = messages[0]
     assert "Subject: [...]" not in sent_msg
