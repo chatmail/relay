@@ -11,13 +11,15 @@ All functions of this module
 """
 
 import re
-
+from pprint import pprint
 from .rshell import CalledProcessError, shell, log_progress
 
 
 def perform_initial_checks(mail_domain, pre_command=""):
     """Collecting initial DNS settings."""
     assert mail_domain
+    pprint("rdns.perform_initial_checks: " + shell.__module__)
+
     if not shell("dig", fail_ok=True, print=log_progress):
         shell("apt-get update && apt-get install -y dnsutils", print=log_progress)
     A = query_dns("A", mail_domain)
