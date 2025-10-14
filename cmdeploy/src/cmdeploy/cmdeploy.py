@@ -19,7 +19,7 @@ from packaging import version
 from termcolor import colored
 
 from . import dns, remote
-from .sshexec import SSHExec
+from .sshexec import SSHExec, LocalExec
 
 #
 # cmdeploy sub commands and options
@@ -365,9 +365,9 @@ def get_parser():
 
 def get_sshexec(ssh_host: str, verbose=True):
     if ssh_host in ["localhost", "@local"]:
-        return "localhost"
+        return LocalExec(verbose, docker=False)
     elif ssh_host == "docker":
-        return "docker"
+        return LocalExec(verbose, docker=True)
     if verbose:
         print(f"[ssh] login to {ssh_host}")
     return SSHExec(ssh_host, verbose=verbose)
