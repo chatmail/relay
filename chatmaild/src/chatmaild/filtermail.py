@@ -107,7 +107,6 @@ def check_armored_payload(payload: str, outgoing: bool):
     if payload.startswith(version_comment):
         version_line = payload.splitlines()[0]
         payload = payload.removeprefix(version_line)
-        print("Removed:" + version_line)
         if outgoing:
             return False
 
