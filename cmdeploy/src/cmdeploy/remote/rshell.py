@@ -1,5 +1,5 @@
 import sys
-from pprint import pprint
+
 from subprocess import DEVNULL, CalledProcessError, check_output
 
 
@@ -9,7 +9,6 @@ def log_progress(data):
 
 
 def shell(command, fail_ok=False, print=print):
-    pprint("test_cmdeploy: " + shell.__module__)
     print(f"$ {command}")
     args = dict(shell=True)
     if fail_ok:
