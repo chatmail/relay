@@ -1117,6 +1117,32 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
             line="nameserver 9.9.9.9",
         )
 
+    port_services = [
+        (["master", "smtpd"], 25),
+        ("unbound", 53),
+        ("acmetool", 80),
+        (["imap-login", "dovecot"], 143),
+        ("nginx", 443),
+        (["master", "smtpd"], 465),
+        (["master", "smtpd"], 587),
+        (["imap-login", "dovecot"], 993),
+        ("iroh-relay", 3340),
+        ("nginx", 8443),
+        (["master", "smtpd"], config.postfix_reinject_port),
+        (["master", "smtpd"], config.postfix_reinject_port_incoming),
+        ("filtermail", config.filtermail_smtp_port),
+        ("filtermail", config.filtermail_smtp_port_incoming),
+    ]
+    for service, port in port_services:
+        print(f"Checking if port {port} is available for {service}...")
+        running_service = host.get_fact(Port, port=port)
+        if running_service:
+            if running_service not in service:
+                Out().red(
+                    f"Deploy failed: port {port} is occupied by: {running_service}"
+                )
+                exit(1)
+
     tls_domains = [mail_domain, f"mta-sts.{mail_domain}", f"www.{mail_domain}"]
 
     chatmail_deployer = ChatmailDeployer(mail_domain=mail_domain)
@@ -1178,91 +1204,58 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
         deployer.create_users()
 
     chatmail_deployer.install()
-
     turn_deployer.install()
-    turn_deployer.configure()
-    turn_deployer.activate()
-
-    port_services = [
-        (["master", "smtpd"], 25),
-        ("unbound", 53),
-        ("acmetool", 80),
-        (["imap-login", "dovecot"], 143),
-        ("nginx", 443),
-        (["master", "smtpd"], 465),
-        (["master", "smtpd"], 587),
-        (["imap-login", "dovecot"], 993),
-        ("iroh-relay", 3340),
-        ("nginx", 8443),
-        (["master", "smtpd"], config.postfix_reinject_port),
-        (["master", "smtpd"], config.postfix_reinject_port_incoming),
-        ("filtermail", config.filtermail_smtp_port),
-        ("filtermail", config.filtermail_smtp_port_incoming),
-    ]
-    for service, port in port_services:
-        print(f"Checking if port {port} is available for {service}...")
-        running_service = host.get_fact(Port, port=port)
-        if running_service:
-            if running_service not in service:
-                Out().red(
-                    f"Deploy failed: port {port} is occupied by: {running_service}"
-                )
-                exit(1)
-
     unbound_deployer.install()
-    unbound_deployer.configure()
-    unbound_deployer.activate()
-
     iroh_deployer.install()
-    iroh_deployer.configure()
-    iroh_deployer.activate()
-
     acmetool_deployer.install()
-    acmetool_deployer.configure()
-    acmetool_deployer.activate()
-
-    echobot_deployer.install()
+    website_deployer.install()
+    chatmail_venv_deployer.install()
     mtasts_deployer.install()
     opendkim_deployer.install()
-    postfix_deployer.install()
     dovecot_deployer.install()
+    postfix_deployer.install()
     nginx_deployer.install()
-    journald_deployer.install()
+    rspamd_deployer.install()
     fcgiwrap_deployer.install()
+    echobot_deployer.install()
+    journald_deployer.install()
+    mtail_deployer.install()
 
-    website_deployer.install()
+    chatmail_deployer.configure()
+    turn_deployer.configure()
+    unbound_deployer.configure()
+    iroh_deployer.configure()
+    acmetool_deployer.configure()
     website_deployer.configure()
-
-    chatmail_venv_deployer.install()
     chatmail_venv_deployer.configure()
-    chatmail_venv_deployer.activate()
-
+    mtasts_deployer.configure()
+    opendkim_deployer.configure()
     dovecot_deployer.configure()
     postfix_deployer.configure()
     nginx_deployer.configure()
-    mtasts_deployer.configure()
-    mtasts_deployer.activate()
-
-    rspamd_deployer.install()
     rspamd_deployer.configure()
     fcgiwrap_deployer.configure()
-    opendkim_deployer.configure()
-    opendkim_deployer.activate()
     echobot_deployer.configure()
+    journald_deployer.configure()
+    mtail_deployer.configure()
 
+    chatmail_deployer.activate()
+    turn_deployer.activate()
+    unbound_deployer.activate()
+    iroh_deployer.activate()
+    acmetool_deployer.activate()
     website_deployer.activate()
+    chatmail_venv_deployer.activate()
+    mtasts_deployer.activate()
+    opendkim_deployer.activate()
     dovecot_deployer.activate()
     postfix_deployer.activate()
     nginx_deployer.activate()
     rspamd_deployer.activate()
     fcgiwrap_deployer.activate()
     echobot_deployer.activate()
-
-    chatmail_deployer.configure()
-    chatmail_deployer.activate()
-
-    journald_deployer.configure()
     journald_deployer.activate()
+    mtail_deployer.activate()
 
     files.directory(
         name="Ensure old logs on disk are deleted",
@@ -1284,7 +1277,3 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
         dest="/etc/chatmail-version",
         mode="700",
     )
-
-    mtail_deployer.install()
-    mtail_deployer.configure()
-    mtail_deployer.activate()
