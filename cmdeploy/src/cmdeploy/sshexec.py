@@ -82,3 +82,19 @@ class SSHExec:
             res = self(call, kwargs, log_callback=remote.rshell.log_progress)
             print_stderr()
             return res
+
+
+class LocalExec:
+    def __init__(self, verbose=False, docker=False):
+        self.verbose = verbose
+        self.docker = docker
+
+    def logged(self, call, kwargs: dict):
+        where = "locally"
+        if self.docker:
+            if call == remote.rdns.perform_initial_checks:
+                kwargs['pre_command'] = "docker exec chatmail "
+                where = "in docker"
+        if self.verbose:
+            print(f"Running {where}: {call.__name__}(**{kwargs})")
+        return call(**kwargs)
