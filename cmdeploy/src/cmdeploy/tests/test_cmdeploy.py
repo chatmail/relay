@@ -5,6 +5,8 @@ import pytest
 
 from cmdeploy.cmdeploy import get_parser, main
 from cmdeploy.www import get_paths
+import cmdeploy.remote.rshell
+import cmdeploy.dns
 
 
 @pytest.fixture(autouse=True)
@@ -59,3 +61,27 @@ def test_www_folder(example_config, tmp_path):
     assert www_path == tmp_path
     assert src_dir == src_path
     assert build_dir == tmp_path.joinpath("build")
+
+
+def test_dns_when_ssh_docker(monkeypatch):
+    commands = []
+
+    def shell(command, fail_ok=None, print=None):
+        assert command == False
+        commands.append(command)
+
+    # mock shell function to add called commands to a global list
+    monkeypatch.setattr(
+        cmdeploy.remote.rshell, shell.__name__, shell
+    )  # still doesn't get called in get_initial_remote_data :(
+    print("test_cmdeploy: " + shell.__module__)
+    # run cmdeploy dns with --ssh-host
+    #   @docker
+    cmdeploy.dns.get_initial_remote_data("@docker", "chatmail.example.org")
+    for cmd in commands:
+        print(cmd)
+    #   localhost
+    #   @local
+    #   without --ssh-host
+    # check which commands were called
+    assert False
