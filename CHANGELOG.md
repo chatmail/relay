@@ -17,6 +17,9 @@
 - Ignore all RCPT TO: parameters
   ([#651](https://github.com/chatmail/relay/pull/651))
 
+- Increase opendkim DNS Timeout from 5 to 60 seconds
+  ([#672](https://github.com/chatmail/relay/pull/672))
+
 - Add config parameter for Let's Encrypt ACME email
   ([#663](https://github.com/chatmail/relay/pull/663))
 
