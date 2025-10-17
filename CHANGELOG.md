@@ -11,6 +11,9 @@
 - Update iroh-relay to 0.35.0
   ([#650](https://github.com/chatmail/relay/pull/650))
 
+- postfix: accept whole mail before passing it to filtermail
+  ([#673](https://github.com/chatmail/relay/pull/673))
+
 - filtermail: accept mails from Protonmail
   ([#616](https://github.com/chatmail/relay/pull/655))
 
