@@ -195,9 +195,8 @@ def test_exceed_rate_limit(cmsetup, gencreds, maildata, chatmail_config):
         except smtplib.SMTPException as e:
             if i < chatmail_config.max_user_send_per_minute:
                 pytest.fail(f"rate limit was exceeded too early with msg {i}")
-            outcome = e.recipients[user2.addr]
-            assert outcome[0] == 450
-            assert b"4.7.1: Too much mail from" in outcome[1]
+            assert e.smtp_code == 450
+            assert b"4.7.1: Too much mail from" in e.smtp_error
             return
     pytest.fail("Rate limit was not exceeded")
 
