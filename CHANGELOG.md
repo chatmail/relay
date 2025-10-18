@@ -2,6 +2,9 @@
 
 ## untagged
 
+- don't use the complicated logging module in filtermail to exclude a potential source of errors. 
+  ([#674](https://github.com/chatmail/relay/pull/674))
+
 - Setup TURN server
   ([#621](https://github.com/chatmail/relay/pull/621))
 
