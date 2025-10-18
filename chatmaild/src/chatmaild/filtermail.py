@@ -241,6 +241,10 @@ class OutgoingBeforeQueueHandler:
         return "250 OK"
 
     async def handle_DATA(self, server, session, envelope):
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, self.sync_handle_DATA, envelope)
+
+    def sync_handle_DATA(self, envelope):
         log_info("handle_DATA before-queue")
         error = self.check_DATA(envelope)
         if error:
@@ -294,6 +298,10 @@ class IncomingBeforeQueueHandler:
         self.config = config
 
     async def handle_DATA(self, server, session, envelope):
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, self.sync_handle_DATA, envelope)
+
+    def sync_handle_DATA(self, envelope):
         log_info("handle_DATA before-queue")
         error = self.check_DATA(envelope)
         if error:

@@ -2,6 +2,9 @@
 
 ## untagged
 
+- filtermail: run CPU-intensive handle_DATA in a thread pool executor
+  ([#676](https://github.com/chatmail/relay/pull/676))
+
 - don't use the complicated logging module in filtermail to exclude a potential source of errors. 
   ([#674](https://github.com/chatmail/relay/pull/674))
 
