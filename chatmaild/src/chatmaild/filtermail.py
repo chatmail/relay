@@ -242,7 +242,10 @@ class OutgoingBeforeQueueHandler:
 
     async def handle_DATA(self, server, session, envelope):
         log_info("handle_DATA before-queue")
-        error = self.check_DATA(envelope)
+
+        # Run CPU-intensive checks in a thread pool.
+        loop = asyncio.get_running_loop()
+        error = await loop.run_in_executor(None, self.check_DATA, envelope)
         if error:
             return error
         log_info("re-injecting the mail that passed checks")
@@ -295,7 +298,10 @@ class IncomingBeforeQueueHandler:
 
     async def handle_DATA(self, server, session, envelope):
         log_info("handle_DATA before-queue")
-        error = self.check_DATA(envelope)
+
+        # Run CPU-intensive checks in a thread pool.
+        loop = asyncio.get_running_loop()
+        error = await loop.run_in_executor(None, self.check_DATA, envelope)
         if error:
             return error
         log_info("re-injecting the mail that passed checks")
