@@ -9,7 +9,7 @@ import pytest
 def smtpserver():
     from pytest_localserver import smtp
 
-    server = smtp.Server("localhost")
+    server = smtp.Server("127.0.0.1")
     server.start()
     yield server
     server.stop()
