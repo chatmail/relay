@@ -13,6 +13,7 @@ dependencies = [
   "filelock",
   "requests",
   "crypt-r >= 3.13.1 ; python_version >= '3.11'",
+  "pytest-localserver",
 ]
 
 [tool.setuptools]
