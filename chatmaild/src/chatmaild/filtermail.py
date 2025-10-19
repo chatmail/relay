@@ -101,13 +101,12 @@ def check_armored_payload(payload: str, outgoing: bool):
         return False
     payload = payload.removesuffix(suffix)
 
-    # Disallow comments in outgoing messages
     version_comment = "Version: "
     if payload.startswith(version_comment):
-        version_line = payload.splitlines()[0]
-        payload = payload.removeprefix(version_line)
-        if outgoing:
+        if outgoing:  # Disallow comments in outgoing messages
             return False
+        # Remove comments from incoming messages
+        payload = payload.split("\r\n", maxsplit=1)[1]
 
     while payload.startswith("\r\n"):
         payload = payload.removeprefix("\r\n")
