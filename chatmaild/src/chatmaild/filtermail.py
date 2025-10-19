@@ -105,7 +105,7 @@ def check_armored_payload(payload: str, outgoing: bool):
     version_comment = "Version: "
     if payload.startswith(version_comment):
         splitindex = payload.find("\r\n")
-        payload = payload[splitindex:]
+        payload = payload[splitindex+4:]
         if outgoing:
             return False
 
