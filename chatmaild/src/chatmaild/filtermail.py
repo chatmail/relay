@@ -104,8 +104,8 @@ def check_armored_payload(payload: str, outgoing: bool):
     # Disallow comments in outgoing messages
     version_comment = "Version: "
     if payload.startswith(version_comment):
-        splitindex = payload.find("\r\n")
-        payload = payload[splitindex+4:]
+        splitindex = payload.find("\r\n") + 4
+        payload = payload[splitindex:]
         if outgoing:
             return False
 
