@@ -6,6 +6,16 @@ import pytest
 
 
 @pytest.fixture
+def smtpserver():
+    from pytest_localserver import smtp
+
+    server = smtp.Server("localhost")
+    server.start()
+    yield server
+    server.stop()
+
+
+@pytest.fixture
 def make_popen(request):
     def popen(cmdargs, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **kw):
         p = subprocess.Popen(
