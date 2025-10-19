@@ -36,19 +36,12 @@ def make_popen(request):
     return popen
 
 
-def find_free_port():
-    import socketserver
-
-    with socketserver.TCPServer(("localhost", 0), None) as s:
-        return s.server_address[1]
-
-
 @pytest.mark.parametrize("filtermail_mode", ["outgoing", "incoming"])
 def test_one_mail(
     make_config, make_popen, smtpserver, maildata, filtermail_mode, monkeypatch
 ):
     monkeypatch.setenv("PYTHONUNBUFFERED", "1")
-    smtp_inject_port = find_free_port()
+    smtp_inject_port = 20025
     if filtermail_mode == "outgoing":
         settings = dict(
             postfix_reinject_port=smtpserver.port,
