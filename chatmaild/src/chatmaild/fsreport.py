@@ -33,11 +33,9 @@ def D(timestamp, now=datetime.utcnow().timestamp()):
 
 
 def K(size):
-    if size < 1000:
-        return f"{size:6.0f}"
-    elif size < 10000:
+    if size < 10000:
         return f"{size / 1000:5.2f}K"
-    return f"{int(size / 1000):5.0f}K"
+    return f"{size / 1000:5.0f}K"
 
 
 def M(size):
