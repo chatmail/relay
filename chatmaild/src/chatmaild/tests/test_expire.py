@@ -85,7 +85,7 @@ def test_report(mbox1, example_config):
 
 
 def test_expiry_cli_basic(example_config, mbox1):
-    args = (example_config._inipath,)
+    args = (str(example_config._inipath),)
     expiry_main(args)
 
 
