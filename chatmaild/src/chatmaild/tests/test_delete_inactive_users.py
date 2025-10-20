@@ -49,7 +49,6 @@ def test_delete_inactive_users(example_config):
         args=[
             "--remove",
             str(example_config._inipath),
-            str(example_config.mailboxes_dir),
         ]
     )
 

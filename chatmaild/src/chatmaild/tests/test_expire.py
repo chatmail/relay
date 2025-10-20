@@ -11,9 +11,8 @@ from chatmaild.expire import main as expiry_main
 from chatmaild.fsreport import main as report_main
 
 
-@pytest.fixture
-def basedir1(tmp_path):
-    basedir1 = tmp_path.joinpath("mailbox1@example.org")
+def fill_mbox(basedir):
+    basedir1 = basedir.joinpath("mailbox1@example.org")
     basedir1.mkdir()
     password = basedir1.joinpath("password")
     password.write_text("xxx")
@@ -39,7 +38,8 @@ def create_new_messages(basedir, relpaths, size=1000, days=0):
 
 
 @pytest.fixture
-def mbox1(basedir1):
+def mbox1(example_config):
+    basedir1 = fill_mbox(example_config.mailboxes_dir)
     return MailboxStat(basedir1)
 
 
@@ -73,8 +73,8 @@ def test_stats_mailbox(mbox1):
     assert mbox3.last_login is None
 
 
-def test_report(mbox1):
-    args = (str(Path(mbox1.basedir).parent),)
+def test_report(mbox1, example_config):
+    args = (str(example_config._inipath),)
     report_main(args)
     args = list(args) + "--days 1".split()
     report_main(args)
@@ -85,7 +85,7 @@ def test_report(mbox1):
 
 
 def test_expiry_cli_basic(example_config, mbox1):
-    args = example_config._inipath, Path(mbox1.basedir).parent
+    args = (example_config._inipath,)
     expiry_main(args)
 
 
@@ -102,7 +102,7 @@ def test_expiry_cli_old_files(capsys, example_config, mbox1):
 
     create_new_messages(mbox1.basedir, ["cur/shouldstay"], size=1000 * 300, days=1)
 
-    args = example_config._inipath, Path(mbox1.basedir).parent, "--remove", "-v"
+    args = str(example_config._inipath), "--remove", "-v"
     expiry_main(args)
     out, err = capsys.readouterr()
 
