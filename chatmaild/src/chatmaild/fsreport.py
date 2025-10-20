@@ -143,7 +143,7 @@ def main(args=None):
         "--maxnum",
         default=None,
         action="store",
-        help="maximum number of mailbxoes to iterate on",
+        help="maximum number of mailboxes to iterate on",
     )
 
     args = parser.parse_args(args)
