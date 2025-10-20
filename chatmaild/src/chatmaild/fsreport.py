@@ -3,15 +3,15 @@ command line tool to analyze mailbox message storage
 
 example invocation:
 
-    python -m chatmaild.fsreport /home/vmail/mail/nine.testrun.org
+    python -m chatmaild.fsreport /home/vmail/mail/example.org
 
 to show storage summaries for all "cur" folders
 
-    python -m chatmaild.fsreport /home/vmail/mail/nine.testrun.org --mdir cur
+    python -m chatmaild.fsreport /home/vmail/mail/example.org --mdir cur
 
 to show storage summaries only for first 1000 mailboxes
 
-    python -m chatmaild.fsreport /home/vmail/mail/nine.testrun.org --maxnum 1000
+    python -m chatmaild.fsreport /home/vmail/mail/example.org --maxnum 1000
 
 """
 
@@ -60,8 +60,9 @@ class Report:
         self.mdir = mdir
 
         self.num_ci_logins = self.num_all_logins = 0
-        self.login_buckets = dict((x, 0) for x in (1, 10, 30, 40, 80, 100, 150))
-        self.message_buckets = dict((x, 0) for x in (0, 160000, 500000, 2000000))
+        self.login_buckets = {x: 0 for x in (1, 10, 30, 40, 80, 100, 150)}
+
+        self.message_buckets = {x: 0 for x in (0, 160000, 500000, 2000000)}
 
     def process_mailbox_stat(self, mailbox):
         # categorize login times
@@ -123,9 +124,6 @@ class Report:
 def main(args=None):
     """Report about filesystem storage usage of all mailboxes and messages"""
     parser = ArgumentParser(description=main.__doc__)
-    # parser.add_argument(
-    #    "chatmail_ini", action="store", help="path pointing to chatmail.ini file"
-    # )
     parser.add_argument(
         "mailboxes_dir", action="store", help="path to directory of mailboxes"
     )
@@ -155,7 +153,7 @@ def main(args=None):
         help="maximum number of mailbxoes to iterate on",
     )
 
-    args = parser.parse_args([str(x) for x in args] if args else args)
+    args = parser.parse_args(args)
 
     now = datetime.utcnow().timestamp()
     if args.days:
