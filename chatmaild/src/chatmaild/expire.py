@@ -116,7 +116,7 @@ class Expiry:
     def get_summary(self):
         return (
             f"Removed {self.del_mboxes} out of {self.all_mboxes} mailboxes "
-            f"and {self.del_files} out of {self.all_files} files "
+            f"and {self.del_files} out of {self.all_files} files in existing mailboxes "
             f"in {time.time() - self.start:2.2f} seconds"
         )
 
@@ -138,7 +138,7 @@ def main(args):
         "--maxnum",
         default=None,
         action="store",
-        help="maximum number of mailbxoes to iterate on",
+        help="maximum number of mailboxes to iterate on",
     )
     parser.add_argument(
         "-v",
