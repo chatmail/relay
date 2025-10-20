@@ -121,14 +121,11 @@ class Expiry:
         )
 
 
-def main(args):
+def main(args=None):
     """Expire mailboxes and messages according to chatmail config"""
     parser = ArgumentParser(description=main.__doc__)
     parser.add_argument(
         "chatmail_ini", action="store", help="path pointing to chatmail.ini file"
-    )
-    parser.add_argument(
-        "mailboxes_dir", action="store", help="path to directory of mailboxes"
     )
     parser.add_argument(
         "--days", action="store", help="assume date to be days older than now"
@@ -153,7 +150,7 @@ def main(args):
         action="store_true",
         help="actually remove all expired files and dirs",
     )
-    args = parser.parse_args([str(x) for x in args])
+    args = parser.parse_args(args)
 
     config = read_config(args.chatmail_ini)
     now = datetime.utcnow().timestamp()
@@ -162,7 +159,7 @@ def main(args):
 
     maxnum = int(args.maxnum) if args.maxnum else None
     exp = Expiry(config, dry=not args.remove, now=now, verbose=args.verbose)
-    for mailbox in iter_mailboxes(os.path.abspath(args.mailboxes_dir), maxnum=maxnum):
+    for mailbox in iter_mailboxes(str(config.mailboxes_dir), maxnum=maxnum):
         exp.process_mailbox_stat(mailbox)
     print(exp.get_summary())
 

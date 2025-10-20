@@ -3,15 +3,15 @@ command line tool to analyze mailbox message storage
 
 example invocation:
 
-    python -m chatmaild.fsreport /home/vmail/mail/example.org
+    python -m chatmaild.fsreport /path/to/chatmail.ini
 
 to show storage summaries for all "cur" folders
 
-    python -m chatmaild.fsreport /home/vmail/mail/example.org --mdir cur
+    python -m chatmaild.fsreport /path/to/chatmail.ini --mdir cur
 
 to show storage summaries only for first 1000 mailboxes
 
-    python -m chatmaild.fsreport /home/vmail/mail/example.org --maxnum 1000
+    python -m chatmaild.fsreport /path/to/chatmail.ini --maxnum 1000
 
 """
 
@@ -19,6 +19,7 @@ import os
 from argparse import ArgumentParser
 from datetime import datetime
 
+from chatmaild.config import read_config
 from chatmaild.expire import iter_mailboxes
 
 DAYSECONDS = 24 * 60 * 60
@@ -125,7 +126,7 @@ def main(args=None):
     """Report about filesystem storage usage of all mailboxes and messages"""
     parser = ArgumentParser(description=main.__doc__)
     parser.add_argument(
-        "mailboxes_dir", action="store", help="path to directory of mailboxes"
+        "chatmail_ini", action="store", help="path pointing to chatmail.ini file"
     )
     parser.add_argument(
         "--days",
@@ -155,13 +156,15 @@ def main(args=None):
 
     args = parser.parse_args(args)
 
+    config = read_config(args.chatmail_ini)
+
     now = datetime.utcnow().timestamp()
     if args.days:
         now = now - 86400 * int(args.days)
 
     maxnum = int(args.maxnum) if args.maxnum else None
     rep = Report(now=now, min_login_age=int(args.min_login_age), mdir=args.mdir)
-    for mbox in iter_mailboxes(os.path.abspath(args.mailboxes_dir), maxnum=maxnum):
+    for mbox in iter_mailboxes(str(config.mailboxes_dir), maxnum=maxnum):
         rep.process_mailbox_stat(mbox)
     rep.dump_summary()
 
