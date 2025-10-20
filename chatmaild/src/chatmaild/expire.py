@@ -124,8 +124,13 @@ class Expiry:
 def main(args=None):
     """Expire mailboxes and messages according to chatmail config"""
     parser = ArgumentParser(description=main.__doc__)
+    ini = "/usr/local/lib/chatmaild/chatmail.ini"
     parser.add_argument(
-        "chatmail_ini", action="store", help="path pointing to chatmail.ini file"
+        "chatmail_ini",
+        action="store",
+        nargs="?",
+        help=f"path pointing to chatmail.ini file, default: {ini}",
+        default=ini,
     )
     parser.add_argument(
         "--days", action="store", help="assume date to be days older than now"
