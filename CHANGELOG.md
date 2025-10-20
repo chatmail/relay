@@ -2,6 +2,9 @@
 
 ## untagged
 
+- Require TLS 1.2 for outgoing SMTP connections
+  ([#685](https://github.com/chatmail/relay/pull/685))
+
 - filtermail: run CPU-intensive handle_DATA in a thread pool executor
   ([#676](https://github.com/chatmail/relay/pull/676))
 
