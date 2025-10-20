@@ -26,27 +26,14 @@ DAYSECONDS = 24 * 60 * 60
 MONTHSECONDS = DAYSECONDS * 30
 
 
-def D(timestamp, now=datetime.utcnow().timestamp()):
-    diff_seconds = int(now) - int(timestamp)
-    # assert diff_seconds >= 0, (int(timestamp), int(now))
-    return f"{int(diff_seconds / DAYSECONDS):2.0f}d"
-
-
-def K(size):
+def HSize(size: int):
+    """Format a size integer as a Human-readable string Kilobyte, Megabyte or Gigabyte"""
     if size < 10000:
         return f"{size / 1000:5.2f}K"
-    return f"{size / 1000:5.0f}K"
-
-
-def M(size):
-    return f"{int(size / 1000000):5.0f}M"
-
-
-def H(size):
     if size < 1000 * 1000:
-        return K(size)
+        return f"{size / 1000:5.0f}K"
     if size < 1000 * 1000 * 1000:
-        return M(size)
+        return f"{int(size / 1000000):5.0f}M"
     return f"{size / 1000000000:5.2f}G"
 
 
@@ -92,10 +79,10 @@ class Report:
         all_messages = self.size_messages
         print()
         print("## Mailbox storage use analysis")
-        print(f"Mailbox data total size: {H(self.size_extra + all_messages)}")
-        print(f"Messages total size    : {H(all_messages)}")
+        print(f"Mailbox data total size: {HSize(self.size_extra + all_messages)}")
+        print(f"Messages total size    : {HSize(all_messages)}")
         percent = self.size_extra / (self.size_extra + all_messages) * 100
-        print(f"Extra files : {H(self.size_extra)} ({percent:.2f}%)")
+        print(f"Extra files : {HSize(self.size_extra)} ({percent:.2f}%)")
 
         print()
         if self.min_login_age:
@@ -104,7 +91,9 @@ class Report:
         pref = f"[{self.mdir}] " if self.mdir else ""
         for minsize, sumsize in self.message_buckets.items():
             percent = (sumsize / all_messages * 100) if all_messages else 0
-            print(f"{pref}larger than {H(minsize)}: {H(sumsize)} ({percent:.2f}%)")
+            print(
+                f"{pref}larger than {HSize(minsize)}: {HSize(sumsize)} ({percent:.2f}%)"
+            )
 
         user_logins = self.num_all_logins - self.num_ci_logins
 
@@ -113,11 +102,11 @@ class Report:
 
         print()
         print(f"## Login stats, from date reference {datetime.fromtimestamp(self.now)}")
-        print(f"all:     {H(self.num_all_logins)}")
-        print(f"non-ci:  {H(user_logins)}")
-        print(f"ci:      {H(self.num_ci_logins)}")
+        print(f"all:     {HSize(self.num_all_logins)}")
+        print(f"non-ci:  {HSize(user_logins)}")
+        print(f"ci:      {HSize(self.num_ci_logins)}")
         for days, active in self.login_buckets.items():
-            print(f"last {days:3} days: {H(active)} {p(active)}")
+            print(f"last {days:3} days: {HSize(active)} {p(active)}")
 
 
 def main(args=None):
