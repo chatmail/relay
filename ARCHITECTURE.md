@@ -19,7 +19,6 @@ graph LR;
     /var/lib/acme`")] --> nginx-internal;
     cron --- chatmail-metrics;
     cron --- acmetool;
-    cron --- expunge;
     chatmail-metrics --- website;
     acmetool --> certs[("`TLS certs
     /var/lib/acme`")];
@@ -35,7 +34,8 @@ graph LR;
     dovecot --- users;
     dovecot --- |metadata.socket|chatmail-metadata;
     doveauth --- users;
-    expunge --- users;
+    chatmail-expire-daily --- users;
+    chatmail-fsreport-daily --- users;
     chatmail-metadata --- iroh-relay;
     certs-nginx --> postfix;
     certs-nginx --> dovecot;
