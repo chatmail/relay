@@ -131,6 +131,8 @@ def _install_remote_venv_with_chatmaild(config) -> None:
         "turnserver",
         "chatmail-expire",
         "chatmail-expire.timer",
+        "chatmail-fsreport",
+        "chatmail-fsreport.timer",
     ):
         execpath = fn if fn != "filtermail-incoming" else "filtermail"
         params = dict(
