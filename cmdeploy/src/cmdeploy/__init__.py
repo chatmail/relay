@@ -129,6 +129,8 @@ def _install_remote_venv_with_chatmaild(config) -> None:
         "chatmail-metadata",
         "lastlogin",
         "turnserver",
+        "chatmail-expire",
+        "chatmail-expire.timer",
     ):
         execpath = fn if fn != "filtermail-incoming" else "filtermail"
         params = dict(
@@ -137,25 +139,27 @@ def _install_remote_venv_with_chatmaild(config) -> None:
             remote_venv_dir=remote_venv_dir,
             mail_domain=config.mail_domain,
         )
-        source_path = importlib.resources.files(__package__).joinpath(
-            "service", f"{fn}.service.f"
-        )
+
+        basename = fn if "." in fn else f"{fn}.service"
+
+        source_path = importlib.resources.files(__package__).joinpath("service", f"{basename}.f")
         content = source_path.read_text().format(**params).encode()
 
         files.put(
-            name=f"Upload {fn}.service",
+            name=f"Upload {basename}",
             src=io.BytesIO(content),
-            dest=f"/etc/systemd/system/{fn}.service",
+            dest=f"/etc/systemd/system/{basename}",
             **root_owned,
         )
         systemd.service(
-            name=f"Setup {fn} service",
-            service=f"{fn}.service",
+            name=f"Setup {basename}",
+            service=basename,
             running=True,
             enabled=True,
             restarted=True,
             daemon_reload=True,
         )
+
 
 
 def _configure_opendkim(domain: str, dkim_selector: str = "dkim") -> bool:
@@ -387,13 +391,11 @@ def _configure_dovecot(config: Config, debug: bool = False) -> bool:
     )
     need_restart |= lua_push_notification_script.changed
 
-    files.template(
-        src=importlib.resources.files(__package__).joinpath("dovecot/expunge.cron.j2"),
-        dest="/etc/cron.d/expunge",
-        user="root",
-        group="root",
-        mode="644",
-        config=config,
+    # remove historic expunge script
+    # which is now implemented through a systemd chatmail-expire service/timer
+    files.file(
+        path="/etc/cron.d/expunge",
+        present=False,
     )
 
     # as per https://doc.dovecot.org/configuration_manual/os/
