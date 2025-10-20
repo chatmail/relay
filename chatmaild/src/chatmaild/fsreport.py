@@ -36,7 +36,7 @@ def K(size):
     if size < 1000:
         return f"{size:6.0f}"
     elif size < 10000:
-        return f"{size / 1000:3.2f}K"
+        return f"{size / 1000:5.2f}K"
     return f"{int(size / 1000):5.0f}K"
 
 
@@ -49,7 +49,7 @@ def H(size):
         return K(size)
     if size < 1000 * 1000 * 1000:
         return M(size)
-    return f"{size / 1000000000:2.2f}G"
+    return f"{size / 1000000000:5.2f}G"
 
 
 class Report:
@@ -94,10 +94,10 @@ class Report:
         all_messages = self.size_messages
         print()
         print("## Mailbox storage use analysis")
-        print(f"Mailbox data total size: {M(self.size_extra + all_messages)}")
-        print(f"Messages total size    : {M(all_messages)}")
+        print(f"Mailbox data total size: {H(self.size_extra + all_messages)}")
+        print(f"Messages total size    : {H(all_messages)}")
         percent = self.size_extra / (self.size_extra + all_messages) * 100
-        print(f"Extra files : {M(self.size_extra)} ({percent:.2f}%)")
+        print(f"Extra files : {H(self.size_extra)} ({percent:.2f}%)")
 
         print()
         if self.min_login_age:
@@ -105,8 +105,8 @@ class Report:
 
         pref = f"[{self.mdir}] " if self.mdir else ""
         for minsize, sumsize in self.message_buckets.items():
-            percent = sumsize / all_messages * 100
-            print(f"{pref}larger than {K(minsize)}: {M(sumsize)} ({percent:.2f}%)")
+            percent = (sumsize / all_messages * 100) if all_messages else 0
+            print(f"{pref}larger than {H(minsize)}: {H(sumsize)} ({percent:.2f}%)")
 
         user_logins = self.num_all_logins - self.num_ci_logins
 
@@ -115,18 +115,23 @@ class Report:
 
         print()
         print(f"## Login stats, from date reference {datetime.fromtimestamp(self.now)}")
-        print(f"all:     {K(self.num_all_logins)}")
-        print(f"non-ci:  {K(user_logins)}")
-        print(f"ci:      {K(self.num_ci_logins)}")
+        print(f"all:     {H(self.num_all_logins)}")
+        print(f"non-ci:  {H(user_logins)}")
+        print(f"ci:      {H(self.num_ci_logins)}")
         for days, active in self.login_buckets.items():
-            print(f"last {days:3} days: {K(active)} {p(active)}")
+            print(f"last {days:3} days: {H(active)} {p(active)}")
 
 
 def main(args=None):
     """Report about filesystem storage usage of all mailboxes and messages"""
     parser = ArgumentParser(description=main.__doc__)
+    ini = "/usr/local/lib/chatmaild/chatmail.ini"
     parser.add_argument(
-        "chatmail_ini", action="store", help="path pointing to chatmail.ini file"
+        "chatmail_ini",
+        action="store",
+        nargs="?",
+        help=f"path pointing to chatmail.ini file, default: {ini}",
+        default=ini,
     )
     parser.add_argument(
         "--days",
