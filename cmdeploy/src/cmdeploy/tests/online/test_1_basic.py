@@ -143,6 +143,7 @@ def test_reject_missing_dkim(cmsetup, maildata, from_addr):
         "encrypted.eml", from_addr=from_addr, to_addr=recipient.addr
     ).as_string()
     conn = smtplib.SMTP(cmsetup.maildomain, 25, timeout=10)
+    conn.starttls()
 
     with conn as s:
         with pytest.raises(smtplib.SMTPDataError, match="No valid DKIM signature"):
