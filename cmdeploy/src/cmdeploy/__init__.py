@@ -153,11 +153,16 @@ def _install_remote_venv_with_chatmaild(config) -> None:
             dest=f"/etc/systemd/system/{basename}",
             **root_owned,
         )
+        if fn == "chatmail-expire" or fn == "chatmail-fsreport":
+            # don't auto-start but let the corresponding timer trigger execution
+            enabled = False
+        else:
+            enabled = True
         systemd.service(
             name=f"Setup {basename}",
             service=basename,
             running=True,
-            enabled=True,
+            enabled=enabled,
             restarted=True,
             daemon_reload=True,
         )
