@@ -79,6 +79,11 @@ def test_stats_mailbox(mbox1):
     assert mbox3.last_login is None
 
 
+def test_report_no_mailboxes(example_config):
+    args = (str(example_config._inipath),)
+    report_main(args)
+
+
 def test_report(mbox1, example_config):
     args = (str(example_config._inipath),)
     report_main(args)

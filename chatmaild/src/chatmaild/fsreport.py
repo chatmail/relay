@@ -81,7 +81,10 @@ class Report:
         print("## Mailbox storage use analysis")
         print(f"Mailbox data total size: {HSize(self.size_extra + all_messages)}")
         print(f"Messages total size    : {HSize(all_messages)}")
-        percent = self.size_extra / (self.size_extra + all_messages) * 100
+        try:
+            percent = self.size_extra / (self.size_extra + all_messages) * 100
+        except ZeroDivisionError:
+            percent = 100
         print(f"Extra files : {HSize(self.size_extra)} ({percent:.2f}%)")
 
         print()
@@ -98,7 +101,7 @@ class Report:
         user_logins = self.num_all_logins - self.num_ci_logins
 
         def p(num):
-            return f"({num / user_logins * 100:2.2f}%)"
+            return f"({num / user_logins * 100:2.2f}%)" if user_logins else "100%"
 
         print()
         print(f"## Login stats, from date reference {datetime.fromtimestamp(self.now)}")
