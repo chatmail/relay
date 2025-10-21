@@ -105,12 +105,17 @@ class Expiry:
 
         # all to-be-removed files are relative to the mailbox basedir
         os.chdir(mbox.basedir)
+        mboxname = os.path.basename(mbox.basedir)
+        if self.verbose:
+            print_info(f"checking for mailbox messages in: {mboxname}")
         self.all_files += len(mbox.messages)
         for message in mbox.messages:
             if message.mtime < cutoff_mails:
                 self.remove_file(message.relpath)
             elif message.size > 200000 and message.mtime < cutoff_large_mails:
-                self.remove_file(message.relpath)
+                # we only remove noticed large files (not unnoticed ones in new/)
+                if message.relpath.startswith("cur/"):
+                    self.remove_file(message.relpath)
             else:
                 continue
             changed = True
