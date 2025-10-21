@@ -18,6 +18,10 @@ FileEntry = namedtuple("FileEntry", ("relpath", "mtime", "size"))
 
 
 def iter_mailboxes(basedir, maxnum):
+    if not os.path.exists(basedir):
+        print_info(f"no mailboxes found at: {basedir}")
+        return
+
     for name in os.listdir(basedir)[:maxnum]:
         if "@" in name:
             yield MailboxStat(basedir + "/" + name)

@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from chatmaild.expire import FileEntry, MailboxStat
+from chatmaild.expire import FileEntry, MailboxStat, iter_mailboxes
 from chatmaild.expire import main as expiry_main
 from chatmaild.fsreport import main as report_main
 
@@ -49,6 +49,12 @@ def test_filentry_ordering(tmp_path):
     random.shuffle(l)
     l.sort(key=lambda x: x.size)
     assert l == sorted
+
+
+def test_no_mailbxoes(tmp_path, capsys):
+    assert [] == list(iter_mailboxes(str(tmp_path.joinpath("notexists")), maxnum=10))
+    out, err = capsys.readouterr()
+    assert "no mailboxes" in err
 
 
 def test_stats_mailbox(mbox1):
