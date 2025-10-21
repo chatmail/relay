@@ -161,9 +161,9 @@ def _install_remote_venv_with_chatmaild(config) -> None:
         systemd.service(
             name=f"Setup {basename}",
             service=basename,
-            running=True,
+            running=enabled,
             enabled=enabled,
-            restarted=True,
+            restarted=enabled,
             daemon_reload=True,
         )
 
