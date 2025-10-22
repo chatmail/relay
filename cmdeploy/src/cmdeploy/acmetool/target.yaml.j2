@@ -1,7 +1,8 @@
 request:
   provider: https://acme-v02.api.letsencrypt.org/directory
   key:
-    type: rsa
+    type: ecdsa
+    ecdsa-curve: nistp256
   challenge:
     webroot-paths:
     - /var/www/html/.well-known/acme-challenge

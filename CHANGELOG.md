@@ -2,6 +2,9 @@
 
 ## untagged
 
+- acmetool: use ECDSA keys instead of RSA
+  ([#689](https://github.com/chatmail/relay/pull/689))
+
 - Require TLS 1.2 for outgoing SMTP connections
   ([#685](https://github.com/chatmail/relay/pull/685))
 
