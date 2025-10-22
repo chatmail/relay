@@ -2,6 +2,7 @@ request:
   provider: https://acme-v02.api.letsencrypt.org/directory
   key:
     type: rsa
+    rsa-size: 4096
   challenge:
     webroot-paths:
     - /var/www/html/.well-known/acme-challenge
