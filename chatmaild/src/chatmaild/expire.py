@@ -22,9 +22,28 @@ def iter_mailboxes(basedir, maxnum):
         print_info(f"no mailboxes found at: {basedir}")
         return
 
-    for name in os.listdir(basedir)[:maxnum]:
+    for name in os_listdir_if_exists(basedir)[:maxnum]:
         if "@" in name:
             yield MailboxStat(basedir + "/" + name)
+
+
+def get_file_entry(path):
+    """return a FileEntry or None if the path does not exist or is not a regular file."""
+    try:
+        st = os.stat(path)
+    except FileNotFoundError:
+        return None
+    if not S_ISREG(st.st_mode):
+        return None
+    return FileEntry(path, st.st_mtime, st.st_size)
+
+
+def os_listdir_if_exists(path):
+    """return a list of names obtained from os.listdir or an empty list if the path does not exist."""
+    try:
+        return os.listdir(path)
+    except FileNotFoundError:
+        return []
 
 
 class MailboxStat:
@@ -40,19 +59,23 @@ class MailboxStat:
 
         # scan all relevant files (without recursion)
         old_cwd = os.getcwd()
-        os.chdir(self.basedir)
-        for name in os.listdir("."):
+        try:
+            os.chdir(self.basedir)
+        except FileNotFoundError:
+            return
+        for name in os_listdir_if_exists("."):
             if name in ("cur", "new", "tmp"):
-                for msg_name in os.listdir(name):
-                    relpath = name + "/" + msg_name
-                    st = os.stat(relpath)
-                    self.messages.append(FileEntry(relpath, st.st_mtime, st.st_size))
+                for msg_name in os_listdir_if_exists(name):
+                    entry = get_file_entry(f"{name}/{msg_name}")
+                    if entry is not None:
+                        self.messages.append(entry)
+
             else:
-                st = os.stat(name)
-                if S_ISREG(st.st_mode):
-                    self.extrafiles.append(FileEntry(name, st.st_mtime, st.st_size))
+                entry = get_file_entry(name)
+                if entry is not None:
+                    self.extrafiles.append(entry)
                     if name == "password":
-                        self.last_login = st.st_mtime
+                        self.last_login = entry.mtime
         self.extrafiles.sort(key=lambda x: -x.size)
         os.chdir(old_cwd)
 
@@ -104,7 +127,12 @@ class Expiry:
             return
 
         # all to-be-removed files are relative to the mailbox basedir
-        os.chdir(mbox.basedir)
+        try:
+            os.chdir(mbox.basedir)
+        except FileNotFoundError:
+            print_info(f"mailbox not found/vanished {mbox.basedir}")
+            return
+
         mboxname = os.path.basename(mbox.basedir)
         if self.verbose:
             print_info(f"checking for mailbox messages in: {mboxname}")
