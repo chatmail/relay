@@ -6,7 +6,13 @@ from pathlib import Path
 
 import pytest
 
-from chatmaild.expire import FileEntry, MailboxStat, iter_mailboxes
+from chatmaild.expire import (
+    FileEntry,
+    MailboxStat,
+    get_file_entry,
+    iter_mailboxes,
+    os_listdir_if_exists,
+)
 from chatmaild.expire import main as expiry_main
 from chatmaild.fsreport import main as report_main
 
@@ -127,3 +133,18 @@ def test_expiry_cli_old_files(capsys, example_config, mbox1):
                 pytest.fail(f"failed to remove {path}\n{err}")
 
     assert "shouldstay" not in err
+
+
+def test_get_file_entry(tmp_path):
+    assert get_file_entry(str(tmp_path.joinpath("123123"))) is None
+    p = tmp_path.joinpath("x")
+    p.write_text("hello")
+    entry = get_file_entry(str(p))
+    assert entry.size == 5
+    assert entry.mtime
+
+
+def test_os_listdir_if_exists(tmp_path):
+    tmp_path.joinpath("x").write_text("hello")
+    assert len(os_listdir_if_exists(str(tmp_path))) == 1
+    assert len(os_listdir_if_exists(str(tmp_path.joinpath("123123")))) == 0
