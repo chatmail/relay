@@ -906,11 +906,6 @@ class IrohDeployer(Deployer):
             ),
         }[host.get_fact(facts.server.Arch)]
 
-        apt.packages(
-            name="Install curl",
-            packages=["curl"],
-        )
-
         existing_sha256sum = host.get_fact(Sha256File, "/usr/local/bin/iroh-relay")
         if existing_sha256sum != sha256sum:
             server.shell(
@@ -1062,6 +1057,11 @@ class ChatmailDeployer(Deployer):
 
         apt.update(name="apt update", cache_time=24 * 3600)
         apt.upgrade(name="upgrade apt packages", auto_remove=True)
+
+        apt.packages(
+            name="Install curl",
+            packages=["curl"],
+        )
 
         apt.packages(
             name="Install rsync",
