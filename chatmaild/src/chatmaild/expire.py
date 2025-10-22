@@ -103,9 +103,13 @@ class Expiry:
             shutil.rmtree(mboxdir)
         self.del_mboxes += 1
 
-    def remove_file(self, path):
+    def remove_file(self, path, mtime=None):
         if self.verbose:
-            print_info(f"removing {path}")
+            if mtime is not None:
+                date = datetime.fromtimestamp(mtime).strftime("%b %d")
+                print_info(f"removing {date} {path}")
+            else:
+                print_info(f"removing {path}")
         if not self.dry:
             try:
                 os.unlink(path)
@@ -135,15 +139,19 @@ class Expiry:
 
         mboxname = os.path.basename(mbox.basedir)
         if self.verbose:
-            print_info(f"checking for mailbox messages in: {mboxname}")
+            date = datetime.fromtimestamp(mbox.last_login) if mbox.last_login else None
+            if date:
+                print_info(f"checking mailbox {date.strftime('%b %d')} {mboxname}")
+            else:
+                print_info(f"checking mailbox (no last_login) {mboxname}")
         self.all_files += len(mbox.messages)
         for message in mbox.messages:
             if message.mtime < cutoff_mails:
-                self.remove_file(message.relpath)
+                self.remove_file(message.relpath, mtime=message.mtime)
             elif message.size > 200000 and message.mtime < cutoff_large_mails:
                 # we only remove noticed large files (not unnoticed ones in new/)
                 if message.relpath.startswith("cur/"):
-                    self.remove_file(message.relpath)
+                    self.remove_file(message.relpath, mtime=message.mtime)
             else:
                 continue
             changed = True
