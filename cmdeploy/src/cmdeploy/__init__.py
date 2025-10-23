@@ -11,6 +11,7 @@ from io import StringIO
 from pathlib import Path
 
 from chatmaild.config import Config, read_config
+from cmdeploy.cmdeploy import Out
 from pyinfra import facts, host, logger
 from pyinfra.api import FactBase
 from pyinfra.facts.files import File, Sha256File
@@ -19,6 +20,7 @@ from pyinfra.facts.systemd import SystemdEnabled
 from pyinfra.operations import apt, files, pip, server, systemd
 
 from .acmetool import deploy_acmetool
+from .www import build_webpages, find_merge_conflict, get_paths
 
 
 class Port(FactBase):
@@ -681,8 +683,6 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     check_config(config)
     mail_domain = config.mail_domain
 
-    from .www import build_webpages, find_merge_conflict, get_paths
-
     server.group(name="Create vmail group", group="vmail", system=True)
     server.user(name="Create vmail user", user="vmail", group="vmail", system=True)
     server.group(name="Create opendkim group", group="opendkim", system=True)
@@ -738,7 +738,6 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     # Run local DNS resolver `unbound`.
     # `resolvconf` takes care of setting up /etc/resolv.conf
     # to use 127.0.0.1 as the resolver.
-    from cmdeploy.cmdeploy import Out
 
     port_services = [
         (["master", "smtpd"], 25),
