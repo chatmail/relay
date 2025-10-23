@@ -683,6 +683,13 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     check_config(config)
     mail_domain = config.mail_domain
 
+    if host.get_fact(Port, port=53) != "unbound":
+        files.line(
+            name="Add 9.9.9.9 to resolv.conf",
+            path="/etc/resolv.conf",
+            line="nameserver 9.9.9.9",
+        )
+
     server.group(name="Create vmail group", group="vmail", system=True)
     server.user(name="Create vmail user", user="vmail", group="vmail", system=True)
     server.group(name="Create opendkim group", group="opendkim", system=True)
@@ -719,12 +726,6 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
         present=False,
     )
 
-    if host.get_fact(Port, port=53) != "unbound":
-        files.line(
-            name="Add 9.9.9.9 to resolv.conf",
-            path="/etc/resolv.conf",
-            line="nameserver 9.9.9.9",
-        )
     apt.update(name="apt update", cache_time=24 * 3600)
     apt.upgrade(name="upgrade apt packages", auto_remove=True)
 
