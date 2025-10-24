@@ -2,6 +2,9 @@
 
 ## untagged
 
+- QoL: Add a script for creating DNS records in Cloudflare 
+  ([#692](https://github.com/chatmail/relay/pull/692))
+
 - Require TLS 1.2 for outgoing SMTP connections
   ([#685](https://github.com/chatmail/relay/pull/685))
 
