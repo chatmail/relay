@@ -69,6 +69,20 @@ Please substitute it with your own domain.
     mta-sts.chat.example.com. 3600 IN CNAME chat.example.com.
    ```
 
+> [!note]
+> If you use Cloudflare as your DNS server, you can use a script that will automatically create all the necessary DNS records!
+> To do this, you need to [create an API token](https://dash.cloudflare.com/profile/api-tokens) 
+> and execute the following commands in the console after you clone the repository (step 2):
+> ```bash
+> CLOUDFLARE_API_KEY="dsfkljhfkjldwsnfkjldsnf" # REPLACE TO YOURS
+> ZONE_ID="sdkjbfbnjkdsbfjkdsbkjfbds" # REPLACE TO YOURS
+> CHATMAIL_FULL_DNS_NAME="chat.example.com" # REPLACE TO YOURS
+> CHATMAIL_PUBLIC_IP="198.51.100.5" # REPLACE TO YOURS
+> # IPV6_ENABLED="true" # (optional) by default 'false'
+> # CHATMAIL_PUBLIC_IPv6="2001:db8::5" # (optional) REPLACE TO YOURS
+> ./scripts/create_cloudflare_records.sh
+> ```
+
 2. On your local PC, clone the repository and bootstrap the Python virtualenv.
 
    ```
