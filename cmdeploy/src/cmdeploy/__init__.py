@@ -1008,6 +1008,23 @@ class ChatmailDeployer(Deployer):
         )
 
 
+class FcgiwrapDeployer(Deployer):
+    @staticmethod
+    def install_impl():
+        apt.packages(
+            name="Install fcgiwrap",
+            packages=["fcgiwrap"],
+        )
+
+    def activate_impl(self):
+        systemd.service(
+            name="Start and enable fcgiwrap",
+            service="fcgiwrap.service",
+            running=True,
+            enabled=True,
+        )
+
+
 def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     """Deploy a chat-mail instance.
 
@@ -1046,6 +1063,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
 
     nginx_deployer = NginxDeployer(config=config)
     rspamd_deployer = RspamdDeployer()
+    fcgiwrap_deployer = FcgiwrapDeployer()
     journald_deployer = JournaldDeployer()
     mtail_deployer = MtailDeployer(mtail_address=config.mtail_address)
 
@@ -1061,6 +1079,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
         postfix_deployer,
         nginx_deployer,
         rspamd_deployer,
+        fcgiwrap_deployer,
         journald_deployer,
         mtail_deployer,
     ]
@@ -1129,11 +1148,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     dovecot_deployer.install()
     nginx_deployer.install()
     journald_deployer.install()
-
-    apt.packages(
-        name="Install fcgiwrap",
-        packages=["fcgiwrap"],
-    )
+    fcgiwrap_deployer.install()
 
     www_path, src_dir, build_dir = get_paths(config)
     # if www_folder was set to a non-existing folder, skip upload
@@ -1160,6 +1175,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
 
     rspamd_deployer.install()
     rspamd_deployer.configure()
+    fcgiwrap_deployer.configure()
     opendkim_deployer.configure()
     opendkim_deployer.activate()
 
@@ -1167,13 +1183,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     postfix_deployer.activate()
     nginx_deployer.activate()
     rspamd_deployer.activate()
-
-    systemd.service(
-        name="Start and enable fcgiwrap",
-        service="fcgiwrap.service",
-        running=True,
-        enabled=True,
-    )
+    fcgiwrap_deployer.activate()
 
     systemd.service(
         name="Restart echobot if postfix and dovecot were just started",
