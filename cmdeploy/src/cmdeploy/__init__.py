@@ -325,10 +325,30 @@ class UnboundDeployer(Deployer):
         # Run local DNS resolver `unbound`.
         # `resolvconf` takes care of setting up /etc/resolv.conf
         # to use 127.0.0.1 as the resolver.
+
+        #
+        # On an IPv4-only system, if unbound is started but not
+        # configured, it causes subsequent steps to fail to resolve hosts.
+        # Here, we use policy-rc.d to prevent unbound from starting up
+        # on initial install.  Later, we will configure it and start it.
+        #
+        # For documentation about policy-rc.d, see:
+        # https://people.debian.org/~hmh/invokerc.d-policyrc.d-specification.txt
+        #
+        files.put(
+            src=importlib.resources.files(__package__).joinpath("policy-rc.d"),
+            dest="/usr/sbin/policy-rc.d",
+            user="root",
+            group="root",
+            mode="755",
+        )
+
         apt.packages(
             name="Install unbound",
             packages=["unbound", "unbound-anchor", "dnsutils"],
         )
+
+        files.file("/usr/sbin/policy-rc.d", present=False)
 
     def configure_impl(self):
         server.shell(
