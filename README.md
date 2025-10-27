@@ -308,8 +308,8 @@ Chatmail address creation will be denied while this file is present.
 [Nginx](https://www.nginx.com/) listens on port 8443 (HTTPS-ALT) and 443 (HTTPS).
 Port 443 multiplexes HTTPS, IMAP and SMTP using ALPN to redirect connections to ports 8443, 465 or 993.
 [acmetool](https://hlandau.github.io/acmetool/) listens on port 80 (HTTP).
-[chatmail-turn](https://github.com/chatmail/chatmail-turn) listens on port 3478 (TURN),
-and might open up any port for UDP traffic.
+[chatmail-turn](https://github.com/chatmail/chatmail-turn) listens on TCP port 3478 (STUN/TURN),
+and temporarily opens UDP ports when users request them. UDP port range is not restricted, any free port may be allocated.
 
 chatmail-core based apps will, however, discover all ports and configurations
 automatically by reading the [autoconfig XML file](https://www.ietf.org/archive/id/draft-bucksch-autoconfig-00.html) from the chatmail relay server.
