@@ -30,7 +30,7 @@
   ([#650](https://github.com/chatmail/relay/pull/650))
 
 - filtermail: accept mails from Protonmail
-  ([#616](https://github.com/chatmail/relay/pull/655))
+  ([#616](https://github.com/chatmail/relay/pull/616))
 
 - Ignore all RCPT TO: parameters
   ([#651](https://github.com/chatmail/relay/pull/651))
@@ -63,7 +63,7 @@
   to only do a single iteration over sometimes millions of messages
   instead of doing "find" commands that iterate 9 times over the messages. 
   Provide an "fsreport" CLI for more fine grained analysis of message files. 
-  ([#637](https://github.com/chatmail/relay/pull/632))
+  ([#637](https://github.com/chatmail/relay/pull/637))
 
 
 ## 1.7.0 2025-09-11
