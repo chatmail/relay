@@ -79,10 +79,6 @@ http {
 			try_files $uri $uri/ =404;
 		}
 
-		location /metrics {
-			default_type text/plain;
-		}
-
 		location /new {
 {% if config.tls_cert_mode != "self" %}
 			if ($request_method = GET) {
