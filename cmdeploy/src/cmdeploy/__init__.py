@@ -1157,8 +1157,9 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     tls_domains = [mail_domain, f"mta-sts.{mail_domain}", f"www.{mail_domain}"]
 
     chatmail_deployer = ChatmailDeployer(mail_domain=mail_domain)
-    turn_deployer = TurnDeployer(mail_domain=mail_domain)
+    journald_deployer = JournaldDeployer()
     unbound_deployer = UnboundDeployer()
+    turn_deployer = TurnDeployer(mail_domain=mail_domain)
     iroh_deployer = IrohDeployer(enable_iroh_relay=config.enable_iroh_relay)
 
     # Deploy acmetool to have TLS certificates.
@@ -1175,19 +1176,19 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     dovecot_deployer = DovecotDeployer(config=config, disable_mail=disable_mail)
     postfix_deployer = PostfixDeployer(config=config, disable_mail=disable_mail)
 
+    fcgiwrap_deployer = FcgiwrapDeployer()
     nginx_deployer = NginxDeployer(config=config)
     rspamd_deployer = RspamdDeployer()
-    fcgiwrap_deployer = FcgiwrapDeployer()
     echobot_deployer = EchobotDeployer(
         dovecot_deployer=dovecot_deployer, postfix_deployer=postfix_deployer
     )
-    journald_deployer = JournaldDeployer()
     mtail_deployer = MtailDeployer(mtail_address=config.mtail_address)
 
     all_deployers = [
         chatmail_deployer,
-        turn_deployer,
+        journald_deployer,
         unbound_deployer,
+        turn_deployer,
         iroh_deployer,
         acmetool_deployer,
         website_deployer,
@@ -1196,11 +1197,10 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
         opendkim_deployer,
         dovecot_deployer,
         postfix_deployer,
+        fcgiwrap_deployer,
         nginx_deployer,
         rspamd_deployer,
-        fcgiwrap_deployer,
         echobot_deployer,
-        journald_deployer,
         mtail_deployer,
     ]
 
