@@ -115,7 +115,6 @@ def _install_remote_venv_with_chatmaild() -> None:
 
 def _configure_remote_venv_with_chatmaild(config) -> None:
     remote_base_dir = "/usr/local/lib/chatmaild"
-    remote_venv_dir = f"{remote_base_dir}/venv"
     remote_chatmail_inipath = f"{remote_base_dir}/chatmail.ini"
     root_owned = dict(user="root", group="root", mode="644")
 
@@ -126,16 +125,13 @@ def _configure_remote_venv_with_chatmaild(config) -> None:
         **root_owned,
     )
 
-    files.template(
-        src=get_resource("metrics.cron.j2"),
-        dest="/etc/cron.d/chatmail-metrics",
-        user="root",
-        group="root",
-        mode="644",
-        config={
-            "mailboxes_dir": config.mailboxes_dir,
-            "execpath": f"{remote_venv_dir}/bin/chatmail-metrics",
-        },
+    files.file(
+        path="/etc/cron.d/chatmail-metrics",
+        present=False,
+    )
+    files.file(
+        path="/var/www/html/metrics",
+        present=False,
     )
 
 
