@@ -48,3 +48,19 @@ graph LR;
 The edges in this graph should not be taken too literally; they
 reflect some sort of communication path or dependency relationship
 between components of the chatmail server.
+
+## Message between users on the same relay
+
+```mermaid
+graph LR;
+    chatmail core --> |465|smtps/smtpd;
+    chatmail core --> |587|submission/smtpd;
+    smtps/smtpd --> |10080|filtermail;
+    submission/smtpd --> |10080|filtermail;
+    filtermail --> |10025|smtpd reinject;
+    smtpd reinject --> cleanup;
+    cleanup --> qmgr;
+    qmgr --> smtpd accepts message;
+    qmgr --> |lmtp|dovecot;
+    dovecot --> chatmail core;
+```
