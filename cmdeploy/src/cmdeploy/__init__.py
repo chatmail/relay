@@ -1055,20 +1055,11 @@ class ChatmailDeployer(Deployer):
 
     @staticmethod
     def install_impl():
-        # Add our OBS repository for dovecot_no_delay
-        files.put(
-            name="Add Deltachat OBS GPG key to apt keyring",
-            src=importlib.resources.files(__package__).joinpath(
-                "obs-home-deltachat.gpg"
-            ),
-            dest="/etc/apt/keyrings/obs-home-deltachat.gpg",
-            user="root",
-            group="root",
-            mode="644",
-        )
+        # Remove OBS repository key that is no longer used.
+        files.file("/etc/apt/keyrings/obs-home-deltachat.gpg", present=False)
 
         files.line(
-            name="Add DeltaChat OBS home repository to sources.list",
+            name="Remove DeltaChat OBS home repository from sources.list",
             path="/etc/apt/sources.list",
             line="deb [signed-by=/etc/apt/keyrings/obs-home-deltachat.gpg] https://download.opensuse.org/repositories/home:/deltachat/Debian_12/ ./",
             escape_regex_characters=True,
