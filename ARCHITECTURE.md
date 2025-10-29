@@ -17,9 +17,7 @@ graph LR;
     nginx-internal --- autoconfig.xml;
     certs-nginx[("`TLS certs
     /var/lib/acme`")] --> nginx-internal;
-    cron --- chatmail-metrics;
     cron --- acmetool;
-    chatmail-metrics --- website;
     acmetool --> certs[("`TLS certs
     /var/lib/acme`")];
     nginx-external --- |993|dovecot;
