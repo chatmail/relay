@@ -1,6 +1,6 @@
-## Chatmail Server
+## Chatmail Relay
 
-This diagram shows components of the chatmail server; this is a draft
+This diagram shows components of the chatmail relay; this is a draft
 overview as of mid-August 2025:
 
 ```mermaid
