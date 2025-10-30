@@ -2,6 +2,9 @@
 
 ## untagged
 
+- Organized cmdeploy into install, configure, and activate stages
+  ([#695](https://github.com/chatmail/relay/pull/695))
+
 - don't deploy the website if there are merge conflicts in the www folder
   ([#714](https://github.com/chatmail/relay/pull/714))
 
