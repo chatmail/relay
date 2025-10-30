@@ -2,6 +2,9 @@
 
 ## untagged
 
+- Organized cmdeploy into install, configure, and activate stages
+  ([#695](https://github.com/chatmail/relay/pull/695))
+
 - Require TLS 1.2 for outgoing SMTP connections
   ([#685](https://github.com/chatmail/relay/pull/685))
 
