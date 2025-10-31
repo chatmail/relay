@@ -73,9 +73,7 @@ def query_dns(typ, domain):
 
     # Query authoritative nameserver directly to bypass DNS cache.
     res = shell(f"dig @{ns} -r -q {domain} -t {typ} +short", print=log_progress)
-    if res:
-        return res.split("\n")[0]
-    return ""
+    return next((line for line in res.split("\n") if not line.startswith(';')), '')
 
 
 def check_zonefile(zonefile, verbose=True):
