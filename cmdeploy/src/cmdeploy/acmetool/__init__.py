@@ -10,12 +10,9 @@ def deploy_acmetool(email="", domains=[]):
         packages=["acmetool"],
     )
 
-    files.put(
-        src=importlib.resources.files(__package__).joinpath("acmetool.cron").open("rb"),
-        dest="/etc/cron.d/acmetool",
-        user="root",
-        group="root",
-        mode="644",
+    files.file(
+        path="/etc/cron.d/acmetool",
+        present=False,
     )
 
     files.put(
