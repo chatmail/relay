@@ -29,3 +29,13 @@ exclude_patterns = []
 
 html_theme = 'furo'
 html_static_path = ['_static']
+html_css_files = [
+    "custom.css",
+]
+
+html_title = "chatmail documentation"
+#html_short_title = f"chatmail-{release}"
+
+html_logo = "_static/chatmail.svg"
+
+
