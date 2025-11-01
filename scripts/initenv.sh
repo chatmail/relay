@@ -22,3 +22,4 @@ python3 -m venv --upgrade-deps venv
 
 venv/bin/pip install -e chatmaild 
 venv/bin/pip install -e cmdeploy
+venv/bin/pip install sphinx-build sphinxcontrib-mermaid furo  # for building the docs
