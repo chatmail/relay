@@ -16,6 +16,7 @@ author = 'chatmail collective'
 extensions = [
     #'sphinx.ext.autodoc',
     #'sphinx.ext.viewdoc',
+    'sphinxcontrib.mermaid',
 ]
 
 templates_path = ['_templates']
