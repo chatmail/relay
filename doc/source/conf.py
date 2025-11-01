@@ -6,7 +6,7 @@
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-project = 'chatmail'
+project = 'chatmail relay documentation'
 copyright = '2025, chatmail collective'
 author = 'chatmail collective'
 
@@ -33,7 +33,7 @@ html_css_files = [
     "custom.css",
 ]
 
-html_title = "chatmail documentation"
+html_title = "chatmail relay documentation"
 #html_short_title = f"chatmail-{release}"
 
 html_logo = "_static/chatmail.svg"

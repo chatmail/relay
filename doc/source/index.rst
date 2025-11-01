@@ -2,9 +2,10 @@ Chatmail relays for end-to-end encrypted e-mail
 ===============================================
 
 .. toctree::
-    :caption: Mermaid
     :hidden:
 
+    proxy
+    migrate
     architecture
 
 Chatmail relay servers are interoperable Mail Transport Agents (MTAs)
