@@ -4,12 +4,16 @@ import time
 import traceback
 import webbrowser
 from pathlib import Path
+import re
 
 import markdown
 from chatmaild.config import read_config
 from jinja2 import Template
 
 from .genqr import gen_qr_png_data
+
+
+_MERGE_CONFLICT_RE = re.compile(r"^<<<<<<<.+^=======.+^>>>>>>>", re.DOTALL | re.MULTILINE)
 
 
 def snapshot_dir_stats(somedir):
@@ -114,6 +118,17 @@ def _build_webpages(src_dir, build_dir, config):
             target = build_dir.joinpath(path.name)
             target.write_bytes(path.read_bytes())
     return build_dir
+
+
+def find_merge_conflict(src_dir) -> Path:
+    assert src_dir.exists(), src_dir
+    result = None
+    for path in src_dir.iterdir():
+        if path.suffix in [".css", ".html", ".md"]:
+            if _MERGE_CONFLICT_RE.search(path.read_text()):
+                result = path
+                break
+    return result
 
 
 def main():
