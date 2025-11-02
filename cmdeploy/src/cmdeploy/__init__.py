@@ -681,7 +681,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     check_config(config)
     mail_domain = config.mail_domain
 
-    from .www import build_webpages, get_paths
+    from .www import build_webpages, find_merge_conflict, get_paths
 
     server.group(name="Create vmail group", group="vmail", system=True)
     server.user(name="Create vmail user", user="vmail", group="vmail", system=True)
@@ -823,6 +823,8 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     # if www_folder was set to a non-existing folder, skip upload
     if not www_path.is_dir():
         logger.warning("Building web pages is disabled in chatmail.ini, skipping")
+    elif (path := find_merge_conflict(src_dir)) is not None:
+        logger.warning(f"Merge conflict found in {path}, skipping")
     else:
         # if www_folder is a hugo page, build it
         if build_dir:
