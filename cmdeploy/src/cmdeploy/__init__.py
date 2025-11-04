@@ -763,7 +763,7 @@ class TurnDeployer(Deployer):
     def __init__(self, *, mail_domain, **kwargs):
         super().__init__(**kwargs)
         self.mail_domain = mail_domain
-        self.daemon_reload = False
+        self.units = ["turnserver"]
 
     @staticmethod
     def install_impl():
@@ -788,40 +788,11 @@ class TurnDeployer(Deployer):
                 ],
             )
 
-            #
-            # This will set need_restart when called from an object's
-            # install() method.
-            #
-            return True
-
     def configure_impl(self):
-        source_path = importlib.resources.files(__package__).joinpath(
-            "service", "turnserver.service.f"
-        )
-        content = source_path.read_text().format(mail_domain=self.mail_domain).encode()
-
-        systemd_unit = files.put(
-            name="Upload turnserver.service",
-            src=io.BytesIO(content),
-            dest="/etc/systemd/system/turnserver.service",
-            user="root",
-            group="root",
-            mode="644",
-        )
-        self.daemon_reload = systemd_unit.changed
-        self.need_restart |= systemd_unit.changed
+        _configure_remote_units(self.mail_domain, self.units)
 
     def activate_impl(self):
-        systemd.service(
-            name="Setup turnserver service",
-            service="turnserver.service",
-            running=True,
-            enabled=True,
-            restarted=self.need_restart,
-            daemon_reload=self.daemon_reload,
-        )
-        self.daemon_reload = False
-        self.need_restart = False
+        _activate_remote_units(self.units)
 
 
 class MtailDeployer(Deployer):
@@ -1018,7 +989,6 @@ class ChatmailVenvDeployer(Deployer):
             "echobot",
             "chatmail-metadata",
             "lastlogin",
-            "turnserver",
             "chatmail-expire",
             "chatmail-expire.timer",
             "chatmail-fsreport",
