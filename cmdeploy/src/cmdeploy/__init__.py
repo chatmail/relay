@@ -564,6 +564,7 @@ class DovecotDeployer(Deployer):
         super().__init__(**kwargs)
         self.config = config
         self.disable_mail = disable_mail
+        self.units = ["doveauth"]
 
     @staticmethod
     def install_impl():
@@ -574,9 +575,12 @@ class DovecotDeployer(Deployer):
             _install_dovecot_package("lmtpd", arch)
 
     def configure_impl(self):
+        _configure_remote_units(self.config.mail_domain, self.units)
         self.need_restart = _configure_dovecot(self.config)
 
     def activate_impl(self):
+        _activate_remote_units(self.units)
+
         restart = False if self.disable_mail else self.need_restart
 
         systemd.service(
@@ -978,7 +982,6 @@ class ChatmailVenvDeployer(Deployer):
         super().__init__(**kwargs)
         self.config = config
         self.units = (
-            "doveauth",
             "filtermail",
             "filtermail-incoming",
             "chatmail-metadata",
