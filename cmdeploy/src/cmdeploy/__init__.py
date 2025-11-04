@@ -129,26 +129,21 @@ def _configure_remote_venv_with_chatmaild(config) -> None:
         },
     )
 
+
+def _configure_remote_units(mail_domain, units) -> None:
+    remote_base_dir = "/usr/local/lib/chatmaild"
+    remote_venv_dir = f"{remote_base_dir}/venv"
+    remote_chatmail_inipath = f"{remote_base_dir}/chatmail.ini"
+    root_owned = dict(user="root", group="root", mode="644")
+
     # install systemd units
-    for fn in (
-        "doveauth",
-        "filtermail",
-        "filtermail-incoming",
-        "echobot",
-        "chatmail-metadata",
-        "lastlogin",
-        "turnserver",
-        "chatmail-expire",
-        "chatmail-expire.timer",
-        "chatmail-fsreport",
-        "chatmail-fsreport.timer",
-    ):
+    for fn in units:
         execpath = fn if fn != "filtermail-incoming" else "filtermail"
         params = dict(
             execpath=f"{remote_venv_dir}/bin/{execpath}",
             config_path=remote_chatmail_inipath,
             remote_venv_dir=remote_venv_dir,
-            mail_domain=config.mail_domain,
+            mail_domain=mail_domain,
         )
 
         basename = fn if "." in fn else f"{fn}.service"
@@ -164,21 +159,9 @@ def _configure_remote_venv_with_chatmaild(config) -> None:
         )
 
 
-def _activate_remote_venv_with_chatmaild() -> None:
+def _activate_remote_units(units) -> None:
     # activate systemd units
-    for fn in (
-        "doveauth",
-        "filtermail",
-        "filtermail-incoming",
-        "echobot",
-        "chatmail-metadata",
-        "lastlogin",
-        "turnserver",
-        "chatmail-expire",
-        "chatmail-expire.timer",
-        "chatmail-fsreport",
-        "chatmail-fsreport.timer",
-    ):
+    for fn in units:
         basename = fn if "." in fn else f"{fn}.service"
 
         if fn == "chatmail-expire" or fn == "chatmail-fsreport":
@@ -1028,6 +1011,19 @@ class ChatmailVenvDeployer(Deployer):
     def __init__(self, *, config, **kwargs):
         super().__init__(**kwargs)
         self.config = config
+        self.units = (
+            "doveauth",
+            "filtermail",
+            "filtermail-incoming",
+            "echobot",
+            "chatmail-metadata",
+            "lastlogin",
+            "turnserver",
+            "chatmail-expire",
+            "chatmail-expire.timer",
+            "chatmail-fsreport",
+            "chatmail-fsreport.timer",
+        )
 
     @staticmethod
     def install_impl():
@@ -1035,9 +1031,10 @@ class ChatmailVenvDeployer(Deployer):
 
     def configure_impl(self):
         _configure_remote_venv_with_chatmaild(self.config)
+        _configure_remote_units(self.config.mail_domain, self.units)
 
     def activate_impl(self):
-        _activate_remote_venv_with_chatmaild()
+        _activate_remote_units(self.units)
 
 
 class ChatmailDeployer(Deployer):
