@@ -429,7 +429,6 @@ class PostfixDeployer(Deployer):
         super().__init__(**kwargs)
         self.config = config
         self.disable_mail = disable_mail
-        self.was_restarted = False
 
     @staticmethod
     def required_users():
@@ -457,7 +456,6 @@ class PostfixDeployer(Deployer):
             enabled=False if self.disable_mail else True,
             restarted=restart,
         )
-        self.was_restarted = restart
         self.need_restart = False
 
 
@@ -566,7 +564,6 @@ class DovecotDeployer(Deployer):
         super().__init__(**kwargs)
         self.config = config
         self.disable_mail = disable_mail
-        self.was_restarted = False
 
     @staticmethod
     def install_impl():
@@ -589,7 +586,6 @@ class DovecotDeployer(Deployer):
             enabled=False if self.disable_mail else True,
             restarted=restart,
         )
-        self.was_restarted = restart
         self.need_restart = False
 
 
@@ -957,10 +953,10 @@ class EchobotDeployer(Deployer):
     # it needs to base its decision of whether to restart the service on
     # whether those two services were restarted.
     #
-    def __init__(self, *, dovecot_deployer, postfix_deployer, **kwargs):
+    def __init__(self, *, mail_domain, **kwargs):
         super().__init__(**kwargs)
-        self.dovecot_deployer = dovecot_deployer
-        self.postfix_deployer = postfix_deployer
+        self.mail_domain = mail_domain
+        self.units = ["echobot"]
 
     @staticmethod
     def install_impl():
@@ -970,12 +966,11 @@ class EchobotDeployer(Deployer):
             packages="acl",
         )
 
+    def configure_impl(self):
+        _configure_remote_units(self.mail_domain, self.units)
+
     def activate_impl(self):
-        systemd.service(
-            name="Restart echobot if postfix and dovecot were just started",
-            service="echobot.service",
-            restarted=self.postfix_deployer.was_restarted and self.dovecot_deployer.was_restarted,
-        )
+        _activate_remote_units(self.units)
 
 
 class ChatmailVenvDeployer(Deployer):
@@ -986,7 +981,6 @@ class ChatmailVenvDeployer(Deployer):
             "doveauth",
             "filtermail",
             "filtermail-incoming",
-            "echobot",
             "chatmail-metadata",
             "lastlogin",
             "chatmail-expire",
@@ -1146,9 +1140,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     fcgiwrap_deployer = FcgiwrapDeployer()
     nginx_deployer = NginxDeployer(config=config)
     rspamd_deployer = RspamdDeployer()
-    echobot_deployer = EchobotDeployer(
-        dovecot_deployer=dovecot_deployer, postfix_deployer=postfix_deployer
-    )
+    echobot_deployer = EchobotDeployer(mail_domain=mail_domain)
     mtail_deployer = MtailDeployer(mtail_address=config.mtail_address)
 
     all_deployers = [
