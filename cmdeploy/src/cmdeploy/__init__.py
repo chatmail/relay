@@ -824,7 +824,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     if not www_path.is_dir():
         logger.warning("Building web pages is disabled in chatmail.ini, skipping")
     elif (path := find_merge_conflict(src_dir)) is not None:
-        logger.warning(f"Merge conflict found in {path}, skipping")
+        logger.warning(f"Merge conflict found in {path}, skipping website deployment. Fix merge conflict if you want to upload your web page.")
     else:
         # if www_folder is a hugo page, build it
         if build_dir:
