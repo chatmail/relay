@@ -19,11 +19,17 @@ def deploy_acmetool(email="", domains=[]):
     )
 
     files.put(
+        name="Install acmetool hook.",
         src=importlib.resources.files(__package__).joinpath("acmetool.hook").open("rb"),
-        dest="/usr/lib/acme/hooks/nginx",
+        dest="/etc/acme/hooks/nginx",
         user="root",
         group="root",
         mode="744",
+    )
+    files.file(
+        name="Remove acmetool hook from the wrong location where it was previously installed.",
+        path="/usr/lib/acme/hooks/nginx",
+        present=False,
     )
 
     files.template(
