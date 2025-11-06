@@ -1,5 +1,21 @@
-Chatmail relays for end-to-end encrypted e-mail
-===============================================
+Chatmail relay installation and maintenance
+===========================================
+
+Chatmail relays are optimized for use by `chatmail clients <https://chatmail.at/clients>`_
+of which `Delta Chat <https://delta.chat>`_ is the most prominent one.
+A chatmail relay is a minimal Mail Transport Agent (MTA) setup that
+goes far beyond what most classic e-mail servers offer:
+
+-  **Zero State:** no private data or metadata collected, messages are auto-deleted, low disk usage
+
+-  **Instant/Realtime:** sub-second message delivery, realtime P2P
+   streaming, privacy-preserving Push Notifications for Apple, Google, and Huawei;
+
+-  **Security Enforcement**: only strict TLS, DKIM and OpenPGP with minimized metadata accepted
+
+-  **Reliable Federation and Decentralization:** No spam or IP reputation checks, federating
+   depends on established IETF standards and protocols.
+
 
 .. toctree::
     :maxdepth: 4
@@ -11,45 +27,4 @@ Chatmail relays for end-to-end encrypted e-mail
     troubleshooting
     related
     architecture
-
-Chatmail relay servers are interoperable Mail Transport Agents (MTAs)
-designed for:
-
--  **Convenience:** Low friction instant onboarding
-
--  **Privacy:** No name, phone numbers, email required or collected
-
--  **End-to-End Encryption enforced**: only OpenPGP messages with
-   metadata minimization allowed
-
--  **Instant:** Privacy-preserving Push Notifications for Apple, Google,
-   and Huawei
-
--  **Speed:** Message delivery in half a second, with optional P2P
-   realtime connections
-
--  **Transport Security:** Strict TLS and DKIM enforced
-
--  **Reliability:** No spam or IP reputation checks; rate-limits are
-   suitable for realtime chats
-
--  **Efficiency:** Messages are only stored for transit and removed
-   automatically
-
-This repository contains everything needed to setup a ready-to-use
-chatmail relay comprised of a minimal setup of the battle-tested
-`Postfix SMTP <https://www.postfix.org>`_ and `Dovecot
-IMAP <https://www.dovecot.org>`_ MTAs/MDAs.
-
-The automated setup is designed and optimized for providing chatmail
-addresses for immediate permission-free onboarding through chat apps and
-bots. Chatmail addresses are automatically created at first login, after
-which the initially specified password is required for sending and
-receiving messages through them.
-
-- `list of known apps and client projects <https://chatmail.at/clients.html>`_
-
-- `this list of known public 3rd party chatmail relay servers <https://chatmail.at/relays>`_.
-
-
 

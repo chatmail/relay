@@ -1,5 +1,17 @@
-Getting started
-===============
+Getting started to setup a relay
+================================
+
+
+This section contains everything needed to setup a ready-to-use
+chatmail relay comprised of a minimal setup of the battle-tested
+`Postfix SMTP <https://www.postfix.org>`_ and `Dovecot
+IMAP <https://www.dovecot.org>`_ MTAs/MDAs.
+
+The automated setup is designed and optimized for providing chatmail
+addresses for immediate permission-free onboarding through chat apps and
+bots. Chatmail addresses are automatically created at first login, after
+which the initially specified password is required for sending and
+receiving messages through them.
 
 Minimal requirements and prerequisites
 --------------------------------------
