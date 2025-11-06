@@ -1,6 +1,5 @@
-Getting started to setup a relay
-================================
-
+Setting up a chatmail relay
+===========================
 
 This section contains everything needed to setup a ready-to-use
 chatmail relay comprised of a minimal setup of the battle-tested
@@ -12,6 +11,7 @@ addresses for immediate permission-free onboarding through chat apps and
 bots. Chatmail addresses are automatically created at first login, after
 which the initially specified password is required for sending and
 receiving messages through them.
+
 
 Minimal requirements and prerequisites
 --------------------------------------
@@ -32,7 +32,7 @@ You will need the following:
    paramiko <https://github.com/paramiko/paramiko/issues/2191>`_)
 
 
-Setup with "script/cmdeploy"
+Setup with ``scripts/cmdeploy``
 -------------------------------------
 
 We use ``chat.example.org`` as the chatmail domain in the following
@@ -110,6 +110,7 @@ To measure the performance of your chatmail service:
    scripts/cmdeploy bench
 
 
+
 Modifying the home page
 -----------------------
 
@@ -156,5 +157,17 @@ can set ``www_folder`` in ``chatmail.ini`` to a custom directory on your
 computer. ``cmdeploy run`` will upload it as the server’s home page, and
 if it contains a ``src/index.md`` file, will build it with hugo.
 
+
+Disable automatic address creation
+--------------------------------------------------------
+
+If you need to stop address creation, e.g. because some script is wildly
+creating addresses, login with ssh and run:
+
+::
+
+       touch /etc/chatmail-nocreate
+
+Chatmail address creation will be denied while this file is present.
 
 

@@ -1,51 +1,47 @@
 
-Services and internal structure
--------------------------------
+Understanding internals
+==========================
 
-The chatmail relay repository has four directories:
 
--  `cmdeploy <https://github.com/chatmail/relay/tree/main/cmdeploy>`_
-   is a collection of configuration files and a
-   `pyinfra <https://pyinfra.com>`_ - based deployment script.
+Directories of the relay repository
+-----------------------------------
 
--  `chatmaild <https://github.com/chatmail/relay/tree/main/chatmaild>`_
-   is a Python package containing several small services which handle
-   authentication, trigger push notifications on new messages, ensure
-   that outbound mails are encrypted, delete inactive users, and some
-   other minor things. chatmaild can also be installed as a stand-alone
-   Python package.
+The chatmail relay repository has four directories.
 
--  `www <https://github.com/chatmail/relay/tree/main/www>`_ contains
-   the html, css, and markdown files which make up a chatmail relay’s
-   web page. Edit them before deploying to make your chatmail relay
-   stand out.
+``scripts/``
+~~~~~~~~~~~~~
 
--  `scripts <https://github.com/chatmail/relay/tree/main/scripts>`_
-   offers two convenience tools for beginners; ``initenv.sh`` installs
-   the necessary dependencies to a local virtual environment, and the
-   ``scripts/cmdeploy`` script enables you to run the ``cmdeploy``
-   command line tool in the local virtual environment.
+`scripts <https://github.com/chatmail/relay/tree/main/scripts>`_
+offers two convenience tools for beginners:
 
-cmdeploy
-~~~~~~~~
+- ``initenv.sh`` installs a local virtualenv Python environment and
+  installs necessary dependencies
 
-The ``cmdeploy/src/cmdeploy/cmdeploy.py`` command line tool helps with
-setting up and managing the chatmail service. ``cmdeploy init`` creates
-the ``chatmail.ini`` config file. ``cmdeploy run`` uses a
-`pyinfra <https://pyinfra.com/>`_-based
-`script <cmdeploy/src/cmdeploy/__init__.py>`_ to automatically
-install or upgrade all chatmail components on a relay, according to the
-``chatmail.ini`` config.
+- ``scripts/cmdeploy`` script enables you to run the ``cmdeploy``
+  command line tool in the local virtual environment.
 
-The components of chatmail are:
 
--  `Postfix SMTP MTA <https://www.postfix.org>`_ accepts and relays
+``cmdeploy/``
+~~~~~~~~~~~~~
+
+The ``cmdeploy`` directory contains the Python package and command line tool
+to setup a chatmail relay remotely via SSH:
+
+- ``cmdeploy init`` creates the ``chatmail.ini`` config file locally.
+
+- ``cmdeploy run`` under the hood uses pyinfra_
+  to automatically install or upgrade all chatmail components on a relay,
+  according to the local ``chatmail.ini`` config.
+
+The deployed system components of a chatmail relay are:
+
+-  `Postfix SMTP MTA <postfix>`_ accepts and relays
    messages (both from your users and from the wider e-mail MTA network)
 
--  `Dovecot IMAP MDA <https://www.dovecot.org>`_ stores messages for
+-  `Dovecot IMAP MDA <dovecot>`_ stores messages for
    your users until they download them
 
--  `Nginx <https://nginx.org/>`_ shows the web page with your privacy
+-  Nginx_ shows the web page with your privacy
    policy and additional information
 
 -  `acmetool <https://hlandau.github.io/acmetool/>`_ manages TLS
@@ -67,9 +63,15 @@ The components of chatmail are:
 -  and the chatmaild services, explained in the next section:
 
 
+``chatmaild/``
+~~~~~~~~~~~~~~
 
-chatmaild
-~~~~~~~~~
+`chatmaild <https://github.com/chatmail/relay/tree/main/chatmaild>`_
+is a Python package containing several small services which handle
+authentication, trigger push notifications on new messages, ensure
+that outbound mails are encrypted, delete inactive users, and some
+other minor things. chatmaild can also be installed as a stand-alone
+Python package.
 
 ``chatmaild`` implements various systemd-controlled services
 that integrate with Dovecot and Postfix to achieve instant-onboarding
@@ -115,6 +117,66 @@ short overview of ``chatmaild`` services:
    collects some metrics and displays them at
    ``https://example.org/metrics``.
 
+``www/``
+~~~~~~~~~
+
+`www <https://github.com/chatmail/relay/tree/main/www>`_ contains
+the html, css, and markdown files which make up a chatmail relay’s
+web page. Edit them before deploying to make your chatmail relay
+stand out.
+
+
+Component dependency diagram
+--------------------------------------
+
+.. mermaid::
+   :caption: This diagram shows relay components and dependencies/communication paths.
+
+    graph LR;
+        cmdeploy --- sshd;
+        letsencrypt --- |80|acmetool-redirector;
+        acmetool-redirector --- |443|nginx-right(["`nginx
+        (external)`"]);
+        nginx-external --- |465|postfix;
+        nginx-external(["`nginx
+        (external)`"]) --- |8443|nginx-internal["`nginx
+        (internal)`"];
+        nginx-internal --- website["`Website
+        /var/www/html`"];
+        nginx-internal --- newemail.py;
+        nginx-internal --- autoconfig.xml;
+        certs-nginx[("`TLS certs
+        /var/lib/acme`")] --> nginx-internal;
+        cron --- chatmail-metrics;
+        cron --- acmetool;
+        chatmail-metrics --- website;
+        acmetool --> certs[("`TLS certs
+        /var/lib/acme`")];
+        nginx-external --- |993|dovecot;
+        autoconfig.xml --- postfix;
+        autoconfig.xml --- dovecot;
+        postfix --- echobot;
+        postfix --- |10080,10081|filtermail;
+        postfix --- users["`User data
+        home/vmail/mail`"];
+        postfix --- |doveauth.socket|doveauth;
+        dovecot --- |doveauth.socket|doveauth;
+        dovecot --- users;
+        dovecot --- |metadata.socket|chatmail-metadata;
+        doveauth --- users;
+        chatmail-expire-daily --- users;
+        chatmail-fsreport-daily --- users;
+        chatmail-metadata --- iroh-relay;
+        certs-nginx --> postfix;
+        certs-nginx --> dovecot;
+        style certs fill:#ff6;
+        style certs-nginx fill:#ff6;
+        style nginx-external fill:#fc9;
+        style nginx-right fill:#fc9;
+
+
+Operational details of a chatmail relay
+----------------------------------------
 
 Mailbox directory layout
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -139,25 +201,44 @@ Fresh chatmail addresses have a mailbox directory that contains:
 Active ports
 ~~~~~~~~~~~~
 
-`Postfix <http://www.postfix.org/>`_ listens on ports 25 (SMTP) and 587
-(SUBMISSION) and 465 (SUBMISSIONS).
-`Dovecot <https://www.dovecot.org/>`_ listens on ports 143 (IMAP) and
-993 (IMAPS). `Nginx <https://www.nginx.com/>`_ listens on port 8443
-(HTTPS-ALT) and 443 (HTTPS). Port 443 multiplexes HTTPS, IMAP and SMTP
-using ALPN to redirect connections to ports 8443, 465 or 993.
-`acmetool <https://hlandau.github.io/acmetool/>`_ listens on port 80
-(HTTP). `chatmail-turn <https://github.com/chatmail/chatmail-turn>`_
-listens on UDP port 3478 (STUN/TURN), and temporarily opens UDP ports
-when users request them. UDP port range is not restricted, any free port
-may be allocated.
+`Postfix <http://www.postfix.org/>`_ listens on port
+
+- 25 (SMTP)
+
+- 587 (SUBMISSION) and
+
+- 465 (SUBMISSIONS)
+
+Dovecot_ listens on ports
+
+- 143 (IMAP) and
+
+- 993 (IMAPS)
+
+Nginx_ listens on port
+
+- 8443 (HTTPS-ALT) and
+
+- 443 (HTTPS) which multiplexes HTTPS, IMAP and SMTP using ALPN
+  to redirect connections to ports 8443, 465 or 993.
+
+`acmetool <https://hlandau.github.io/acmetool/>`_ listens on port:
+
+- 80 (HTTP).
+
+`chatmail-turn <https://github.com/chatmail/chatmail-turn>`_ listens on port
+
+- 3478 UDP (STUN/TURN), and temporarily opens further UDP ports
+  when users request them. UDP port range is not restricted, any free port
+  may be allocated.
 
 chatmail-core based apps will, however, discover all ports and
 configurations automatically by reading the `autoconfig XML
 file <https://www.ietf.org/archive/id/draft-bucksch-autoconfig-00.html>`_
 from the chatmail relay server.
 
-Email authentication
-~~~~~~~~~~~~~~~~~~~~
+Email domain authentication (DKIM)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Chatmail relays enforce
 `DKIM <https://www.rfc-editor.org/rfc/rfc6376>`_ to authenticate
@@ -207,3 +288,9 @@ default Exim does not log sessions that are closed before sending the
 ``MAIL`` command. This happens if certificate is not recognized as valid
 by Postfix, so you might think that connection is not established while
 actually it is a problem with your TLS certificate.
+
+
+.. _dovecot: https://dovecot.org
+.. _nginx: https://nginx.org
+.. _pyinfra: https://pyinfra.com
+

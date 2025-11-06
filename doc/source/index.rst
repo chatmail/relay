@@ -1,5 +1,6 @@
+*******************************************
 Chatmail relay installation and maintenance
-===========================================
+*******************************************
 
 Chatmail relays are optimized for use by `chatmail clients <https://chatmail.at/clients>`_
 of which `Delta Chat <https://delta.chat>`_ is the most prominent one.
@@ -18,13 +19,11 @@ goes far beyond what most classic e-mail servers offer:
 
 
 .. toctree::
-    :maxdepth: 4
+    :maxdepth: 5
 
     getting_started
-    overview
     proxy
     migrate
-    troubleshooting
+    overview
     related
-    architecture
 
