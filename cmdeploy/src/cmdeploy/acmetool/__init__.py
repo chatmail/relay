@@ -10,12 +10,10 @@ def deploy_acmetool(email="", domains=[]):
         packages=["acmetool"],
     )
 
-    files.put(
-        src=importlib.resources.files(__package__).joinpath("acmetool.cron").open("rb"),
-        dest="/etc/cron.d/acmetool",
-        user="root",
-        group="root",
-        mode="644",
+    files.file(
+        name="Remove old acmetool cronjob, it is replaced with systemd timer.",
+        path="/etc/cron.d/acmetool",
+        present=False,
     )
 
     files.put(
@@ -65,6 +63,40 @@ def deploy_acmetool(email="", domains=[]):
         running=True,
         enabled=True,
         restarted=service_file.changed,
+    )
+
+    reconcile_service_file = files.put(
+        src=importlib.resources.files(__package__).joinpath(
+            "acmetool-reconcile.service"
+        ),
+        dest="/etc/systemd/system/acmetool-reconcile.service",
+        user="root",
+        group="root",
+        mode="644",
+    )
+
+    systemd.service(
+        name="Setup acmetool-reconcile service",
+        service="acmetool-reconcile.service",
+        running=False,
+        enabled=False,
+        daemon_reload=reconcile_service_file.changed,
+    )
+
+    reconcile_timer_file = files.put(
+        src=importlib.resources.files(__package__).joinpath("acmetool-reconcile.timer"),
+        dest="/etc/systemd/system/acmetool-reconcile.timer",
+        user="root",
+        group="root",
+        mode="644",
+    )
+
+    systemd.service(
+        name="Setup acmetool-reconcile timer",
+        service="acmetool-reconcile.timer",
+        running=True,
+        enabled=True,
+        daemon_reload=reconcile_timer_file.changed,
     )
 
     server.shell(
