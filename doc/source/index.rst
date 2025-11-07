@@ -3,15 +3,11 @@ chatmail relays
 *******************************************
 
 .. image:: ../../www/src/collage-top.png
+   :target: https://testrun.org
 
+This documentation details how to setup, maintain and understand `chatmail <https://chatmail.at>`_ relays.
 
-Chatmail relays are optimized for use by `chatmail clients <https://chatmail.at/clients>`_
-of which `Delta Chat <https://delta.chat>`_ is the most prominent one.
-This documentation details how to setup and maintain chatmail relays
-and how they are internally composed.
-Documentation contributions and feedback welcome at
-the https://github.com/chatmail/relay repository.
-
+Contributions and feedback welcome at the https://github.com/chatmail/relay repository.
 
 .. toctree::
     :maxdepth: 5

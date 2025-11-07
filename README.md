@@ -18,4 +18,3 @@ For getting started and more information please refer to the web version of this
 
 [https://docs.chatmail.at/relays](https://docs.chatmail.at/relays)
 
-
