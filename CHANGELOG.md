@@ -2,6 +2,9 @@
 
 ## untagged
 
+- acmetool: replace cronjob with a systemd timer
+  ([#719](https://github.com/chatmail/relay/pull/719))
+
 - don't deploy the website if there are merge conflicts in the www folder
   ([#714](https://github.com/chatmail/relay/pull/714))
 
