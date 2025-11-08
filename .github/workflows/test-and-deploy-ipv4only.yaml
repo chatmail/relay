@@ -20,7 +20,7 @@ jobs:
       group: ci-ipv4-${{ github.workflow }}-${{ github.ref }}
       cancel-in-progress: ${{ !contains(github.ref, '$GITHUB_REF') }}
     steps:
-      - uses: jsok/serialize-workflow-action@v1
+      - uses: jsok/serialize-workflow-action@515cd04c46d7ea7435c4a22a3b4419127afdefe9
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/checkout@v4
