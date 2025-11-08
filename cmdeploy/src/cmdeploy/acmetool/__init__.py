@@ -22,7 +22,7 @@ def deploy_acmetool(email="", domains=[]):
         dest="/etc/acme/hooks/nginx",
         user="root",
         group="root",
-        mode="744",
+        mode="755",
     )
     files.file(
         name="Remove acmetool hook from the wrong location where it was previously installed.",
