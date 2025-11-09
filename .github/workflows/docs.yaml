@@ -21,10 +21,6 @@ jobs:
         working-directory: doc
         run: sphinx-build source build
 
-      - name: check links 
-        working-directory: doc
-        run: sphinx-build --builder linkcheck source build
-
       - name: build documentation second time (for TOC)
         working-directory: doc
         run: sphinx-build source build
@@ -75,3 +71,8 @@ jobs:
               repo: context.repo.repo,
               body: "Check out the page preview at https://staging.chatmail.at/doc/relay${{ steps.prepare.outputs.prid }}/"
             })
+
+      - name: check links 
+        working-directory: doc
+        run: sphinx-build --builder linkcheck source build
+
