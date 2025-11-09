@@ -41,7 +41,7 @@ How are chatmail relays run? Can I run one myself?
 Chatmail relays are designed to be very cheap to run, and are generally
 self-funded by respective operators. All chatmail relays are
 automatically deployed and updated using `the chatmail relay
-repository <https://github.com/chatmail/server>`__. Chatmail relays are
+repository <https://github.com/chatmail/relay>`__. Chatmail relays are
 composed of proven standard e-mail server components, Postfix and
 Dovecot, and are configured to run unattended without much maintenance
 effort. Chatmail relays happily run on low-end hardware like a Raspberry

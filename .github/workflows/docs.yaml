@@ -6,7 +6,7 @@ on:
 
 jobs:
   scripts:
-    name: build documentation 
+    name: build 
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -20,6 +20,10 @@ jobs:
       - name: build documentation 
         working-directory: doc
         run: sphinx-build source build
+
+      - name: check links 
+        working-directory: doc
+        run: sphinx-build --builder linkcheck source build
 
       - name: build documentation second time (for TOC)
         working-directory: doc
