@@ -35,14 +35,13 @@ to setup a chatmail relay remotely via SSH:
 
 The deployed system components of a chatmail relay are:
 
--  `Postfix SMTP MTA <postfix>`_ accepts and relays
-   messages (both from your users and from the wider e-mail MTA network)
+-  Postfix_ is the Mail Transport Agent (MTA) and
+   accepts messages from, and sends messages to, the wider e-mail MTA network
 
--  `Dovecot IMAP MDA <dovecot>`_ stores messages for
-   your users until they download them
+-  Dovecot_ is the Mail Delivery Agent (MDA) and
+   stores messages for users until they download them
 
--  Nginx_ shows the web page with your privacy
-   policy and additional information
+-  Nginx_ shows the web page with privacy policy and additional information
 
 -  `acmetool <https://hlandau.github.io/acmetool/>`_ manages TLS
    certificates for Dovecot, Postfix, and Nginx
@@ -81,8 +80,8 @@ short overview of ``chatmaild`` services:
 -  `doveauth <https://github.com/chatmail/relay/blob/main/chatmaild/src/chatmaild/doveauth.py>`_
    implements create-on-login address semantics and is used by Dovecot
    during IMAP login and by Postfix during SMTP/SUBMISSION login which
-   in turn uses `Dovecot
-   SASL <https://doc.dovecot.org/configuration_manual/authentication/dict/#complete-example-for-authenticating-via-a-unix-socket>`_
+   in turn uses `Dovecot SASL
+   <https://doc.dovecot.org/2.3/configuration_manual/authentication/dict/#complete-example-for-authenticating-via-a-unix-socket>`_
    to authenticate logins.
 
 -  `filtermail <https://github.com/chatmail/relay/blob/main/chatmaild/src/chatmaild/filtermail.py>`_
@@ -97,13 +96,13 @@ short overview of ``chatmaild`` services:
    the user’s push notification
    token <https://github.com/chatmail/relay/blob/main/chatmaild/src/chatmaild/notifier.py>`_
    to
-   `notifications.delta.chat <https://delta.chat/help#instant-delivery>`_
+   `notifications.delta.chat <https://delta.chat/en/help#instant-delivery>`_
    so the push notifications on the user’s phone can be triggered by
    Apple/Google/Huawei.
 
--  `delete_inactive_users <https://github.com/chatmail/relay/blob/main/chatmaild/src/chatmaild/delete_inactive_users.py>`_
-   deletes users if they have not logged in for a very long time. The
-   timeframe can be configured in ``chatmail.ini``.
+-  `chatmail-expire <https://github.com/chatmail/relay/blob/main/chatmaild/src/chatmaild/expire.py>`_
+   deletes users if they have not logged in for a longer while.
+   The timeframe can be configured in ``chatmail.ini``.
 
 -  `lastlogin <https://github.com/chatmail/relay/blob/main/chatmaild/src/chatmaild/lastlogin.py>`_
    is contacted by Dovecot when a user logs in and stores the date of
@@ -201,7 +200,7 @@ Fresh chatmail addresses have a mailbox directory that contains:
 Active ports
 ~~~~~~~~~~~~
 
-`Postfix <http://www.postfix.org/>`_ listens on port
+Postfix_ listens on ports
 
 - 25 (SMTP)
 
@@ -291,6 +290,7 @@ actually it is a problem with your TLS certificate.
 
 
 .. _dovecot: https://dovecot.org
+.. _postfix: https://postfix.org
 .. _nginx: https://nginx.org
 .. _pyinfra: https://pyinfra.com
 
