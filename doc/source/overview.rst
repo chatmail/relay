@@ -239,35 +239,37 @@ from the chatmail relay server.
 Email domain authentication (DKIM)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Chatmail relays enforce
-`DKIM <https://www.rfc-editor.org/rfc/rfc6376>`_ to authenticate
-incoming emails. Incoming emails must have a valid DKIM signature with
+Chatmail relays enforce :rfc:`DKIM <6376>` to authenticate incoming emails.
+Incoming emails must have a valid DKIM signature with
 Signing Domain Identifier (SDID, ``d=`` parameter in the DKIM-Signature
 header) equal to the ``From:`` header domain. This property is checked
 by OpenDKIM screen policy script before validating the signatures. This
-correpsonds to strict `DMARC <https://www.rfc-editor.org/rfc/rfc7489>`_
-alignment (``adkim=s``), but chatmail does not rely on DMARC and does
-not consult the sender policy published in DMARC records. Other legacy
-authentication mechanisms such as
-`iprev <https://www.rfc-editor.org/rfc/rfc8601#section-2.7.3>`_ and
-`SPF <https://www.rfc-editor.org/rfc/rfc7208>`_ are also not taken into
-account. If there is no valid DKIM signature on the incoming email, the
+correpsonds to strict :rfc:`DMARC <7489>` alignment (``adkim=s``).
+If there is no valid DKIM signature on the incoming email, the
 sender receives a “5.7.1 No valid DKIM signature found” error.
 
+Note that chatmail relays
+
+- do **not** rely on DMARC and do not consult the sender policy published in DMARC records;
+
+- do **not** rely on legacy authentication mechanisms such as
+  :rfc:`iprev <8601#section-2.7.3>` and :rfc:`SPF <7208>`.
+  Any IP address is accepted if the DKIM signature was valid.
+
 Outgoing emails must be sent over authenticated connection with envelope
-MAIL FROM (return path) corresponding to the login. This is ensured by
-Postfix which maps login username to MAIL FROM with
-```smtpd_sender_login_maps`` <https://www.postfix.org/postconf.5.html#smtpd_sender_login_maps>`_
+``MAIL FROM`` (return path) corresponding to the login.
+This is ensured by Postfix which maps login username to ``MAIL FROM`` with
+`smtpd_sender_login_maps <https://www.postfix.org/postconf.5.html#smtpd_sender_login_maps>`_
 and rejects incorrectly authenticated emails with
-```reject_sender_login_mismatch`` <reject_sender_login_mismatch>`_
-policy. ``From:`` header must correspond to envelope MAIL FROM, this is
+`reject_sender_login_mismatch <https://www.postfix.org/postconf.5.html#reject_sender_login_mismatch>`_ policy.
+``From:`` header must correspond to envelope ``MAIL FROM``, this is
 ensured by ``filtermail`` proxy.
 
 TLS requirements
 ~~~~~~~~~~~~~~~~
 
 Postfix is configured to require valid TLS by setting
-```smtp_tls_security_level`` <https://www.postfix.org/postconf.5.html#smtp_tls_security_level>`_
+`smtp_tls_security_level <https://www.postfix.org/postconf.5.html#smtp_tls_security_level>`_
 to ``verify``. If emails don’t arrive at your chatmail relay server, the
 problem is likely that your relay does not have a valid TLS certificate.
 
@@ -290,7 +292,7 @@ actually it is a problem with your TLS certificate.
 
 
 .. _dovecot: https://dovecot.org
-.. _postfix: https://postfix.org
+.. _postfix: https://www.postfix.org
 .. _nginx: https://nginx.org
 .. _pyinfra: https://pyinfra.com
 
