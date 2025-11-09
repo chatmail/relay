@@ -16,5 +16,5 @@ Chatmail relay servers are interoperable Mail Transport Agents (MTAs) designed f
 This repository contains everything needed to setup a ready-to-use chatmail relay on an ssh-reachable host. 
 For getting started and more information please refer to the web version of this repositories' documentation at
 
-[https://chatmail.at/docs/relays](https://chatmail.at/docs/relays)
+[https://chatmail.at/doc/relay](https://chatmail.at/doc/relay)
 
