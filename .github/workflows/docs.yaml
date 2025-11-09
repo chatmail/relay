@@ -1,0 +1,26 @@
+name: documentation
+
+on:
+  pull_request:
+  push:
+
+jobs:
+  scripts:
+    name: build documentation 
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: initenv 
+        run: scripts/initenv.sh
+
+      - name: append venv/bin to PATH
+        run: echo `pwd`/venv/bin >>$GITHUB_PATH
+
+      - name: build documentation 
+        working-directory: doc
+        run: sphinx-build source build
+
+      - name: build documentation second time (for TOC)
+        working-directory: doc
+        run: sphinx-build source build
