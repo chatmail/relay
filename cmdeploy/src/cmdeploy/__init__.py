@@ -272,7 +272,7 @@ def _configure_opendkim(domain: str, dkim_selector: str = "dkim") -> bool:
 class OpendkimDeployer(Deployer):
     required_users = [("opendkim", None, ["opendkim"])]
 
-    def __init__(self, *, mail_domain, **kwargs):
+    def __init__(self, mail_domain):
         self.mail_domain = mail_domain
 
     def install(self):
@@ -420,7 +420,7 @@ def _configure_postfix(config: Config, debug: bool = False) -> bool:
 class PostfixDeployer(Deployer):
     required_users = [("postfix", None, ["opendkim"]),]
 
-    def __init__(self, *, config, disable_mail, **kwargs):
+    def __init__(self, config, disable_mail):
         self.config = config
         self.disable_mail = disable_mail
 
@@ -548,7 +548,7 @@ def _configure_dovecot(config: Config, debug: bool = False) -> bool:
 
 
 class DovecotDeployer(Deployer):
-    def __init__(self, *, config, disable_mail):
+    def __init__(self, config, disable_mail):
         self.config = config
         self.disable_mail = disable_mail
         self.units = ["doveauth"]
@@ -637,7 +637,7 @@ def _configure_nginx(config: Config, debug: bool = False) -> bool:
 
 
 class NginxDeployer(Deployer):
-    def __init__(self, *, config):
+    def __init__(self, config):
         self.config = config
 
     def install(self):
@@ -690,7 +690,7 @@ class NginxDeployer(Deployer):
 
 
 class WebsiteDeployer(Deployer):
-    def __init__(self, *, config):
+    def __init__(self, config):
         self.config = config
 
     def install(self):
@@ -741,7 +741,7 @@ def check_config(config):
 
 
 class TurnDeployer(Deployer):
-    def __init__(self, *, mail_domain):
+    def __init__(self, mail_domain):
         self.mail_domain = mail_domain
         self.units = ["turnserver"]
 
@@ -775,7 +775,7 @@ class TurnDeployer(Deployer):
 
 
 class MtailDeployer(Deployer):
-    def __init__(self, *, mtail_address):
+    def __init__(self, mtail_address):
         self.mtail_address = mtail_address
 
     def install(self):
@@ -840,7 +840,7 @@ class MtailDeployer(Deployer):
 
 
 class IrohDeployer(Deployer):
-    def __init__(self, *, enable_iroh_relay):
+    def __init__(self, enable_iroh_relay):
         self.enable_iroh_relay = enable_iroh_relay
 
     def install(self):
@@ -932,7 +932,7 @@ class EchobotDeployer(Deployer):
     # it needs to base its decision of whether to restart the service on
     # whether those two services were restarted.
     #
-    def __init__(self, *, mail_domain):
+    def __init__(self, mail_domain):
         self.mail_domain = mail_domain
         self.units = ["echobot"]
 
@@ -951,7 +951,7 @@ class EchobotDeployer(Deployer):
 
 
 class ChatmailVenvDeployer(Deployer):
-    def __init__(self, *, config):
+    def __init__(self, config):
         self.config = config
         self.units = (
             "filtermail",
@@ -981,7 +981,7 @@ class ChatmailDeployer(Deployer):
             ("echobot", None, None),
             ("iroh", None, None),
     ]
-    def __init__(self, *, mail_domain):
+    def __init__(self, mail_domain):
         self.mail_domain = mail_domain
 
     def install(self):
