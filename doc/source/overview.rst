@@ -1,12 +1,13 @@
 
-Understanding internals
-==========================
+Technical overview
+======================
 
 
 Directories of the relay repository
 -----------------------------------
 
-The chatmail relay repository has four directories.
+The `chatmail relay repository <https://github.com/chatmail/relay/tree/main/>`_
+has four main directories.
 
 ``scripts/``
 ~~~~~~~~~~~~~
@@ -18,7 +19,7 @@ offers two convenience tools for beginners:
   installs necessary dependencies
 
 - ``scripts/cmdeploy`` script enables you to run the ``cmdeploy``
-  command line tool in the local virtual environment.
+  command line tool in the local Python virtual environment.
 
 
 ``cmdeploy/``

@@ -1,5 +1,5 @@
 *******************************************
-chatmail relays
+chatmail relay documentation
 *******************************************
 
 .. image:: ../../www/src/collage-top.png
@@ -7,7 +7,7 @@ chatmail relays
 
 This documentation details how to setup, maintain and understand `chatmail <https://chatmail.at>`_ relays.
 
-Contributions and feedback welcome at the https://github.com/chatmail/relay repository.
+Contributions and feedback welcome through the https://github.com/chatmail/relay repository.
 
 .. toctree::
     :maxdepth: 5
