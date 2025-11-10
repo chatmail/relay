@@ -270,15 +270,11 @@ def _configure_opendkim(domain: str, dkim_selector: str = "dkim") -> bool:
 
 
 class OpendkimDeployer(Deployer):
+    required_users = [("opendkim", None, ["opendkim"])]
+
     def __init__(self, *, mail_domain, **kwargs):
         super().__init__(**kwargs)
         self.mail_domain = mail_domain
-
-    @staticmethod
-    def required_users():
-        return [
-            ("opendkim", None, ["opendkim"]),
-        ]
 
     @staticmethod
     def install_impl():
@@ -425,16 +421,13 @@ def _configure_postfix(config: Config, debug: bool = False) -> bool:
 
 
 class PostfixDeployer(Deployer):
+    required_users = [("postfix", None, ["opendkim"]),]
+
     def __init__(self, *, config, disable_mail, **kwargs):
         super().__init__(**kwargs)
         self.config = config
         self.disable_mail = disable_mail
 
-    @staticmethod
-    def required_users():
-        return [
-            ("postfix", None, ["opendkim"]),
-        ]
 
     @staticmethod
     def install_impl():
@@ -1005,17 +998,14 @@ class ChatmailVenvDeployer(Deployer):
 
 
 class ChatmailDeployer(Deployer):
-    def __init__(self, *, mail_domain, **kwargs):
-        super().__init__(**kwargs)
-        self.mail_domain = mail_domain
-
-    @staticmethod
-    def required_users():
-        return [
+    required_users = [
             ("vmail", "vmail", None),
             ("echobot", None, None),
             ("iroh", None, None),
-        ]
+    ]
+    def __init__(self, *, mail_domain, **kwargs):
+        super().__init__(**kwargs)
+        self.mail_domain = mail_domain
 
     @staticmethod
     def install_impl():
@@ -1146,10 +1136,6 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
         MtailDeployer(mtail_address=config.mtail_address),
     ]
 
-    #
-    # Create all groups before users, because some users reference groups
-    # from other classes.
-    #
     for deployer in all_deployers:
         deployer.install()
 

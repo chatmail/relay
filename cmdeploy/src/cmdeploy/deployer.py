@@ -4,27 +4,21 @@ from pyinfra.operations import server
 
 
 class Deployer:
-    def __init__(self, **kwargs):
+
+    def __init__(self):
         default_stages = "install,configure,activate"
         self.stages = os.getenv("CMDEPLOY_STAGES", default_stages).split(",")
         self.need_restart = False
-
-    #
-    # In any override, this method should return a list of 3-element
-    # (user, group, secondary-group-list) tuples.  If the group is None,
-    # no group is created corresponding to that user.  If the secondary
-    # group list is not None, the listed groups are created as well.
-    #
-    @staticmethod
-    def required_users():
-        return []
 
     def install(self):
         if "install" not in self.stages:
             return
 
-        # create groups
-        for user, group, groups in self.required_users():
+        # optional 'required_users' contains a list of (user, group, secondary-group-list) tuples.
+        # If the group is None, no group is created corresponding to that user.
+        # If the secondary group list is not None, all listed groups are created as well.
+        required_users = getattr(self, "required_users", [])
+        for user, group, groups in required_users:
             if group is not None:
                 server.group(
                     name="Create {} group".format(group), group=group, system=True
@@ -34,9 +28,6 @@ class Deployer:
                     server.group(
                         name="Create {} group".format(group2), group=group2, system=True
                     )
-
-        # create users
-        for user, group, groups in self.required_users():
             server.user(
                 name="Create {} user".format(user),
                 user=user,
