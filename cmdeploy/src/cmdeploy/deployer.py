@@ -3,21 +3,12 @@ import os
 from pyinfra.operations import server
 
 
-class Deployer:
-
-    def __init__(self):
-        default_stages = "install,configure,activate"
-        self.stages = os.getenv("CMDEPLOY_STAGES", default_stages).split(",")
-        self.need_restart = False
-
-    def install(self):
-        if "install" not in self.stages:
-            return
-
+class Deployment:
+    def install(self, deployer):
         # optional 'required_users' contains a list of (user, group, secondary-group-list) tuples.
         # If the group is None, no group is created corresponding to that user.
         # If the secondary group list is not None, all listed groups are created as well.
-        required_users = getattr(self, "required_users", [])
+        required_users = getattr(deployer, "required_users", [])
         for user, group, groups in required_users:
             if group is not None:
                 server.group(
@@ -36,7 +27,27 @@ class Deployer:
                 system=True,
             )
 
-        self.need_restart |= bool(self.install_impl())
+        deployer.need_restart |= bool(deployer.install_impl())
+
+    def configure(self, deployer):
+        deployer.configure_impl()
+
+    def activate(self, deployer):
+        deployer.activate_impl()
+
+    def perform_stages(self, deployers):
+        default_stages = "install,configure,activate"
+        stages = os.getenv("CMDEPLOY_STAGES", default_stages).split(",")
+
+        for stage in stages:
+            for deployer in deployers:
+                getattr(self, stage)(deployer)
+
+
+class Deployer:
+
+    def __init__(self):
+        self.need_restart = False
 
     #
     # If a subclass overrides this with a method that returns a true
@@ -46,16 +57,8 @@ class Deployer:
     def install_impl():
         pass
 
-    def configure(self):
-        if "configure" in self.stages:
-            self.configure_impl()
-
     def configure_impl(self):
         pass
-
-    def activate(self):
-        if "activate" in self.stages:
-            self.activate_impl()
 
     def activate_impl(self):
         pass
