@@ -1120,50 +1120,30 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
 
     tls_domains = [mail_domain, f"mta-sts.{mail_domain}", f"www.{mail_domain}"]
 
-    chatmail_deployer = ChatmailDeployer(mail_domain=mail_domain)
-    journald_deployer = JournaldDeployer()
-    unbound_deployer = UnboundDeployer()
-    turn_deployer = TurnDeployer(mail_domain=mail_domain)
-    iroh_deployer = IrohDeployer(enable_iroh_relay=config.enable_iroh_relay)
-
-    # Deploy acmetool to have TLS certificates.
-    acmetool_deployer = AcmetoolDeployer(email=config.acme_email, domains=tls_domains)
-
-    website_deployer = WebsiteDeployer(config=config)
-    chatmail_venv_deployer = ChatmailVenvDeployer(config=config)
-    mtasts_deployer = MtastsDeployer()
-    opendkim_deployer = OpendkimDeployer(mail_domain=mail_domain)
-
-    # Dovecot should be started before Postfix
-    # because it creates authentication socket
-    # required by Postfix.
-    dovecot_deployer = DovecotDeployer(config=config, disable_mail=disable_mail)
-    postfix_deployer = PostfixDeployer(config=config, disable_mail=disable_mail)
-
-    fcgiwrap_deployer = FcgiwrapDeployer()
-    nginx_deployer = NginxDeployer(config=config)
-    rspamd_deployer = RspamdDeployer()
-    echobot_deployer = EchobotDeployer(mail_domain=mail_domain)
-    mtail_deployer = MtailDeployer(mtail_address=config.mtail_address)
 
     all_deployers = [
-        chatmail_deployer,
-        journald_deployer,
-        unbound_deployer,
-        turn_deployer,
-        iroh_deployer,
-        acmetool_deployer,
-        website_deployer,
-        chatmail_venv_deployer,
-        mtasts_deployer,
-        opendkim_deployer,
-        dovecot_deployer,
-        postfix_deployer,
-        fcgiwrap_deployer,
-        nginx_deployer,
-        rspamd_deployer,
-        echobot_deployer,
-        mtail_deployer,
+        ChatmailDeployer(mail_domain=mail_domain),
+        JournaldDeployer(),
+        UnboundDeployer(),
+        TurnDeployer(mail_domain=mail_domain),
+        IrohDeployer(enable_iroh_relay=config.enable_iroh_relay),
+        AcmetoolDeployer(email=config.acme_email, domains=tls_domains),
+
+        WebsiteDeployer(config=config),
+        ChatmailVenvDeployer(config=config),
+        MtastsDeployer(),
+        OpendkimDeployer(mail_domain=mail_domain),
+
+        # Dovecot should be started before Postfix
+        # because it creates authentication socket
+        # required by Postfix.
+        DovecotDeployer(config=config, disable_mail=disable_mail),
+        postfix_deployer = PostfixDeployer(config=config, disable_mail=disable_mail),
+        FcgiwrapDeployer(),
+        NginxDeployer(config=config),
+        RspamdDeployer(),
+        EchobotDeployer(mail_domain=mail_domain),
+        MtailDeployer(mtail_address=config.mtail_address),
     ]
 
     #
