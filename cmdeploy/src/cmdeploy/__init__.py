@@ -20,7 +20,7 @@ from pyinfra.facts.systemd import SystemdEnabled
 from pyinfra.operations import apt, files, pip, server, systemd
 
 from .acmetool import AcmetoolDeployer
-from .deployer import Deployer
+from .deployer import Deployer, Deployment
 from .www import build_webpages, find_merge_conflict, get_paths
 
 
@@ -1136,14 +1136,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
         MtailDeployer(mtail_address=config.mtail_address),
     ]
 
-    for deployer in all_deployers:
-        deployer.install()
-
-    for deployer in all_deployers:
-        deployer.configure()
-
-    for deployer in all_deployers:
-        deployer.activate()
+    Deployment().perform_stages(all_deployers)
 
     files.directory(
         name="Ensure old logs on disk are deleted",
