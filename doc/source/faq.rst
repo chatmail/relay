@@ -3,11 +3,11 @@
 Frequently asked questions
 ===========================
 
-What is the difference between chatmail relays and classic e-mail servers?
+What is the difference between chatmail relays and classic email servers?
 --------------------------------------------------------------------------
 
 A chatmail relay is a minimal Mail Transport Agent (MTA) setup that
-goes beyond what classic e-mail servers offer:
+goes beyond what classic email servers offer:
 
 -  **Zero State:** no private data or metadata collected, messages are auto-deleted, low disk usage
 
@@ -20,13 +20,13 @@ goes beyond what classic e-mail servers offer:
    depends on established IETF standards and protocols.
 
 
-How about interoperability with classic e-mail servers?
+How about interoperability with classic email servers?
 -------------------------------------------------------
 
-Generally, chatmail relays interoperate well with classic e-mail servers.
-However, some chatmail relays may be blocked by Big-Tech e-mail
+Generally, chatmail relays interoperate well with classic email servers.
+However, some chatmail relays may be blocked by Big-Tech email
 providers that use intransparent and proprietary techniques for scanning
-and looking at cleartext e-mail messages between users, or because they
+and looking at cleartext email messages between users, or because they
 use questionable IP-reputation systems that break interoperability.
 
 **Chatmail relays instead use and require strong cryptography, allowing
@@ -42,7 +42,7 @@ Chatmail relays are designed to be very cheap to run, and are generally
 self-funded by respective operators. All chatmail relays are
 automatically deployed and updated using `the chatmail relay
 repository <https://github.com/chatmail/relay>`__. Chatmail relays are
-composed of proven standard e-mail server components, Postfix and
+composed of proven standard email server components, Postfix and
 Dovecot, and are configured to run unattended without much maintenance
 effort. Chatmail relays happily run on low-end hardware like a Raspberry
 Pi.

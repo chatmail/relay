@@ -1,5 +1,5 @@
 
-# Chatmail relays for end-to-end encrypted e-mail
+# Chatmail relays for end-to-end encrypted email
 
 Chatmail relay servers are interoperable Mail Transport Agents (MTAs) designed for: 
 
