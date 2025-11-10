@@ -27,13 +27,13 @@ class Deployment:
                 system=True,
             )
 
-        deployer.need_restart |= bool(deployer.install_impl())
+        deployer.need_restart |= bool(deployer.install())
 
     def configure(self, deployer):
-        deployer.configure_impl()
+        deployer.configure()
 
     def activate(self, deployer):
-        deployer.activate_impl()
+        deployer.activate()
 
     def perform_stages(self, deployers):
         default_stages = "install,configure,activate"
@@ -54,11 +54,11 @@ class Deployer:
     # value, self.need_restart will be set when install() is called.
     #
     @staticmethod
-    def install_impl():
+    def install():
         pass
 
-    def configure_impl(self):
+    def configure(self):
         pass
 
-    def activate_impl(self):
+    def activate(self):
         pass

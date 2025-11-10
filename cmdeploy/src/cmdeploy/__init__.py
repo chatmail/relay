@@ -277,16 +277,16 @@ class OpendkimDeployer(Deployer):
         self.mail_domain = mail_domain
 
     @staticmethod
-    def install_impl():
+    def install():
         apt.packages(
             name="apt install opendkim opendkim-tools",
             packages=["opendkim", "opendkim-tools"],
         )
 
-    def configure_impl(self):
+    def configure(self):
         self.need_restart = _configure_opendkim(self.mail_domain, "opendkim")
 
-    def activate_impl(self):
+    def activate(self):
         systemd.service(
             name="Start and enable OpenDKIM",
             service="opendkim.service",
@@ -300,7 +300,7 @@ class OpendkimDeployer(Deployer):
 
 class UnboundDeployer(Deployer):
     @staticmethod
-    def install_impl():
+    def install():
         # Run local DNS resolver `unbound`.
         # `resolvconf` takes care of setting up /etc/resolv.conf
         # to use 127.0.0.1 as the resolver.
@@ -329,7 +329,7 @@ class UnboundDeployer(Deployer):
 
         files.file("/usr/sbin/policy-rc.d", present=False)
 
-    def configure_impl(self):
+    def configure(self):
         server.shell(
             name="Generate root keys for validating DNSSEC",
             commands=[
@@ -337,7 +337,7 @@ class UnboundDeployer(Deployer):
             ],
         )
 
-    def activate_impl(self):
+    def activate(self):
         server.shell(
             name="Generate root keys for validating DNSSEC",
             commands=[
@@ -354,13 +354,13 @@ class UnboundDeployer(Deployer):
 
 
 class MtastsDeployer(Deployer):
-    def configure_impl(self):
+    def configure(self):
         # Remove configuration.
         files.file("/etc/mta-sts-daemon.yml", present=False)
         files.directory("/usr/local/lib/postfix-mta-sts-resolver", present=False)
         files.file("/etc/systemd/system/mta-sts-daemon.service", present=False)
 
-    def activate_impl(self):
+    def activate(self):
         systemd.service(
             name="Stop MTA-STS daemon",
             service="mta-sts-daemon.service",
@@ -430,16 +430,16 @@ class PostfixDeployer(Deployer):
 
 
     @staticmethod
-    def install_impl():
+    def install():
         apt.packages(
             name="Install Postfix",
             packages="postfix",
         )
 
-    def configure_impl(self):
+    def configure(self):
         self.need_restart = _configure_postfix(self.config)
 
-    def activate_impl(self):
+    def activate(self):
         restart = False if self.disable_mail else self.need_restart
 
         systemd.service(
@@ -560,18 +560,18 @@ class DovecotDeployer(Deployer):
         self.units = ["doveauth"]
 
     @staticmethod
-    def install_impl():
+    def install():
         arch = host.get_fact(facts.server.Arch)
         if not "dovecot.service" in host.get_fact(SystemdEnabled):
             _install_dovecot_package("core", arch)
             _install_dovecot_package("imapd", arch)
             _install_dovecot_package("lmtpd", arch)
 
-    def configure_impl(self):
+    def configure(self):
         _configure_remote_units(self.config.mail_domain, self.units)
         self.need_restart = _configure_dovecot(self.config)
 
-    def activate_impl(self):
+    def activate(self):
         _activate_remote_units(self.units)
 
         restart = False if self.disable_mail else self.need_restart
@@ -649,7 +649,7 @@ class NginxDeployer(Deployer):
         self.config = config
 
     @staticmethod
-    def install_impl():
+    def install():
         #
         # If we allow nginx to start up on install, it will grab port
         # 80, which then will block acmetool from listening on the port.
@@ -684,10 +684,10 @@ class NginxDeployer(Deployer):
 
         files.file("/usr/sbin/policy-rc.d", present=False)
 
-    def configure_impl(self):
+    def configure(self):
         self.need_restart = _configure_nginx(self.config)
 
-    def activate_impl(self):
+    def activate(self):
         systemd.service(
             name="Start and enable nginx",
             service="nginx.service",
@@ -704,7 +704,7 @@ class WebsiteDeployer(Deployer):
         self.config = config
 
     @staticmethod
-    def install_impl():
+    def install():
         files.directory(
             name="Ensure /var/www exists",
             path="/var/www",
@@ -714,7 +714,7 @@ class WebsiteDeployer(Deployer):
             present=True,
         )
 
-    def configure_impl(self):
+    def configure(self):
         www_path, src_dir, build_dir = get_paths(self.config)
         # if www_folder was set to a non-existing folder, skip upload
         if not www_path.is_dir():
@@ -733,7 +733,7 @@ class WebsiteDeployer(Deployer):
 
 class RspamdDeployer(Deployer):
     @staticmethod
-    def install_impl():
+    def install():
         apt.packages(name="Remove rspamd", packages="rspamd", present=False)
 
 
@@ -759,7 +759,7 @@ class TurnDeployer(Deployer):
         self.units = ["turnserver"]
 
     @staticmethod
-    def install_impl():
+    def install():
         (url, sha256sum) = {
             "x86_64": (
                 "https://github.com/chatmail/chatmail-turn/releases/download/v0.3/chatmail-turn-x86_64-linux",
@@ -781,10 +781,10 @@ class TurnDeployer(Deployer):
                 ],
             )
 
-    def configure_impl(self):
+    def configure(self):
         _configure_remote_units(self.mail_domain, self.units)
 
-    def activate_impl(self):
+    def activate(self):
         _activate_remote_units(self.units)
 
 
@@ -794,7 +794,7 @@ class MtailDeployer(Deployer):
         self.mtail_address = mtail_address
 
     @staticmethod
-    def install_impl():
+    def install():
         # Uninstall mtail package, we are going to install a static binary.
         apt.packages(name="Uninstall mtail", packages=["mtail"], present=False)
 
@@ -817,7 +817,7 @@ class MtailDeployer(Deployer):
             ],
         )
 
-    def configure_impl(self):
+    def configure(self):
         # Using our own systemd unit instead of `/usr/lib/systemd/system/mtail.service`.
         # This allows to read from journalctl instead of log files.
         files.template(
@@ -844,7 +844,7 @@ class MtailDeployer(Deployer):
         )
         self.need_restart = mtail_conf.changed
 
-    def activate_impl(self):
+    def activate(self):
         systemd.service(
             name="Start and enable mtail",
             service="mtail.service",
@@ -861,7 +861,7 @@ class IrohDeployer(Deployer):
         self.enable_iroh_relay = enable_iroh_relay
 
     @staticmethod
-    def install_impl():
+    def install():
         (url, sha256sum) = {
             "x86_64": (
                 "https://github.com/n0-computer/iroh/releases/download/v0.35.0/iroh-relay-v0.35.0-x86_64-unknown-linux-musl.tar.gz",
@@ -889,7 +889,7 @@ class IrohDeployer(Deployer):
             #
             return True
 
-    def configure_impl(self):
+    def configure(self):
         systemd_unit = files.put(
             name="Upload iroh-relay systemd unit",
             src=importlib.resources.files(__package__).joinpath("iroh-relay.service"),
@@ -910,7 +910,7 @@ class IrohDeployer(Deployer):
         )
         self.need_restart |= iroh_config.changed
 
-    def activate_impl(self):
+    def activate(self):
         systemd.service(
             name="Start and enable iroh-relay",
             service="iroh-relay.service",
@@ -922,7 +922,7 @@ class IrohDeployer(Deployer):
 
 
 class JournaldDeployer(Deployer):
-    def configure_impl(self):
+    def configure(self):
         journald_conf = files.put(
             name="Configure journald",
             src=importlib.resources.files(__package__).joinpath("journald.conf"),
@@ -933,7 +933,7 @@ class JournaldDeployer(Deployer):
         )
         self.need_restart = journald_conf.changed
 
-    def activate_impl(self):
+    def activate(self):
         systemd.service(
             name="Start and enable journald",
             service="systemd-journald.service",
@@ -956,17 +956,17 @@ class EchobotDeployer(Deployer):
         self.units = ["echobot"]
 
     @staticmethod
-    def install_impl():
+    def install():
         apt.packages(
             # required for setfacl for echobot
             name="Install acl",
             packages="acl",
         )
 
-    def configure_impl(self):
+    def configure(self):
         _configure_remote_units(self.mail_domain, self.units)
 
-    def activate_impl(self):
+    def activate(self):
         _activate_remote_units(self.units)
 
 
@@ -986,14 +986,14 @@ class ChatmailVenvDeployer(Deployer):
         )
 
     @staticmethod
-    def install_impl():
+    def install():
         _install_remote_venv_with_chatmaild()
 
-    def configure_impl(self):
+    def configure(self):
         _configure_remote_venv_with_chatmaild(self.config)
         _configure_remote_units(self.config.mail_domain, self.units)
 
-    def activate_impl(self):
+    def activate(self):
         _activate_remote_units(self.units)
 
 
@@ -1008,7 +1008,7 @@ class ChatmailDeployer(Deployer):
         self.mail_domain = mail_domain
 
     @staticmethod
-    def install_impl():
+    def install():
         # Remove OBS repository key that is no longer used.
         files.file("/etc/apt/keyrings/obs-home-deltachat.gpg", present=False)
 
@@ -1037,7 +1037,7 @@ class ChatmailDeployer(Deployer):
             packages=["cron"],
         )
 
-    def configure_impl(self):
+    def configure(self):
         # This file is used by auth proxy.
         # https://wiki.debian.org/EtcMailName
         server.shell(
@@ -1050,13 +1050,13 @@ class ChatmailDeployer(Deployer):
 
 class FcgiwrapDeployer(Deployer):
     @staticmethod
-    def install_impl():
+    def install():
         apt.packages(
             name="Install fcgiwrap",
             packages=["fcgiwrap"],
         )
 
-    def activate_impl(self):
+    def activate(self):
         systemd.service(
             name="Start and enable fcgiwrap",
             service="fcgiwrap.service",
