@@ -1040,6 +1040,24 @@ class FcgiwrapDeployer(Deployer):
         )
 
 
+class GithashDeployer(Deployer):
+    def activate(self):
+        try:
+            git_hash = subprocess.check_output(["git", "rev-parse", "HEAD"]).decode()
+        except Exception:
+            git_hash = "unknown\n"
+        try:
+            git_diff = subprocess.check_output(["git", "diff"]).decode()
+        except Exception:
+            git_diff = ""
+        files.put(
+            name="Upload chatmail relay git commiit hash",
+            src=StringIO(git_hash + git_diff),
+            dest="/etc/chatmail-version",
+            mode="700",
+        )
+
+
 def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     """Deploy a chat-mail instance.
 
@@ -1109,6 +1127,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
         RspamdDeployer(),
         EchobotDeployer(mail_domain=mail_domain),
         MtailDeployer(mtail_address=config.mtail_address),
+        GithashDeployer(),
     ]
 
     Deployment().perform_stages(all_deployers)
@@ -1119,17 +1138,3 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
         present=False,
     )
 
-    try:
-        git_hash = subprocess.check_output(["git", "rev-parse", "HEAD"]).decode()
-    except Exception:
-        git_hash = "unknown\n"
-    try:
-        git_diff = subprocess.check_output(["git", "diff"]).decode()
-    except Exception:
-        git_diff = ""
-    files.put(
-        name="Upload chatmail relay git commiit hash",
-        src=StringIO(git_hash + git_diff),
-        dest="/etc/chatmail-version",
-        mode="700",
-    )
