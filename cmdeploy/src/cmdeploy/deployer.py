@@ -5,14 +5,8 @@ from pyinfra.operations import server
 
 class Deployer:
     def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
         default_stages = "install,configure,activate"
-        stages = os.getenv("CMDEPLOY_STAGES", default_stages).split(",")
-
-        self.run_install = "install" in stages
-        self.run_configure = "configure" in stages
-        self.run_activate = "activate" in stages
+        self.stages = os.getenv("CMDEPLOY_STAGES", default_stages).split(",")
         self.need_restart = False
 
     #
@@ -25,10 +19,11 @@ class Deployer:
     def required_users():
         return []
 
-    def create_groups(self):
-        if not self.run_install:
+    def install(self):
+        if "install" not in self.stages:
             return
 
+        # create groups
         for user, group, groups in self.required_users():
             if group is not None:
                 server.group(
@@ -40,10 +35,7 @@ class Deployer:
                         name="Create {} group".format(group2), group=group2, system=True
                     )
 
-    def create_users(self):
-        if not self.run_install:
-            return
-
+        # create users
         for user, group, groups in self.required_users():
             server.user(
                 name="Create {} user".format(user),
@@ -53,9 +45,7 @@ class Deployer:
                 system=True,
             )
 
-    def install(self):
-        if self.run_install:
-            self.need_restart |= bool(self.install_impl())
+        self.need_restart |= bool(self.install_impl())
 
     #
     # If a subclass overrides this with a method that returns a true
@@ -66,14 +56,14 @@ class Deployer:
         pass
 
     def configure(self):
-        if self.run_configure:
+        if "configure" in self.stages:
             self.configure_impl()
 
     def configure_impl(self):
         pass
 
     def activate(self):
-        if self.run_activate:
+        if "activate" in self.stages:
             self.activate_impl()
 
     def activate_impl(self):

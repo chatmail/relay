@@ -1138,7 +1138,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
         # because it creates authentication socket
         # required by Postfix.
         DovecotDeployer(config=config, disable_mail=disable_mail),
-        postfix_deployer = PostfixDeployer(config=config, disable_mail=disable_mail),
+        PostfixDeployer(config=config, disable_mail=disable_mail),
         FcgiwrapDeployer(),
         NginxDeployer(config=config),
         RspamdDeployer(),
@@ -1150,12 +1150,6 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     # Create all groups before users, because some users reference groups
     # from other classes.
     #
-    for deployer in all_deployers:
-        deployer.create_groups()
-
-    for deployer in all_deployers:
-        deployer.create_users()
-
     for deployer in all_deployers:
         deployer.install()
 
