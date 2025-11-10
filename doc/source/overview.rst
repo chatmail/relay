@@ -36,7 +36,7 @@ to setup a chatmail relay remotely via SSH:
 The deployed system components of a chatmail relay are:
 
 -  Postfix_ is the Mail Transport Agent (MTA) and
-   accepts messages from, and sends messages to, the wider e-mail MTA network
+   accepts messages from, and sends messages to, the wider email MTA network
 
 -  Dovecot_ is the Mail Delivery Agent (MDA) and
    stores messages for users until they download them
