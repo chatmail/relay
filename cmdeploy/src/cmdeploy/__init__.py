@@ -273,11 +273,9 @@ class OpendkimDeployer(Deployer):
     required_users = [("opendkim", None, ["opendkim"])]
 
     def __init__(self, *, mail_domain, **kwargs):
-        super().__init__(**kwargs)
         self.mail_domain = mail_domain
 
-    @staticmethod
-    def install():
+    def install(self):
         apt.packages(
             name="apt install opendkim opendkim-tools",
             packages=["opendkim", "opendkim-tools"],
@@ -299,8 +297,7 @@ class OpendkimDeployer(Deployer):
 
 
 class UnboundDeployer(Deployer):
-    @staticmethod
-    def install():
+    def install(self):
         # Run local DNS resolver `unbound`.
         # `resolvconf` takes care of setting up /etc/resolv.conf
         # to use 127.0.0.1 as the resolver.
@@ -424,13 +421,11 @@ class PostfixDeployer(Deployer):
     required_users = [("postfix", None, ["opendkim"]),]
 
     def __init__(self, *, config, disable_mail, **kwargs):
-        super().__init__(**kwargs)
         self.config = config
         self.disable_mail = disable_mail
 
 
-    @staticmethod
-    def install():
+    def install(self):
         apt.packages(
             name="Install Postfix",
             packages="postfix",
@@ -553,14 +548,12 @@ def _configure_dovecot(config: Config, debug: bool = False) -> bool:
 
 
 class DovecotDeployer(Deployer):
-    def __init__(self, *, config, disable_mail, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, *, config, disable_mail):
         self.config = config
         self.disable_mail = disable_mail
         self.units = ["doveauth"]
 
-    @staticmethod
-    def install():
+    def install(self):
         arch = host.get_fact(facts.server.Arch)
         if not "dovecot.service" in host.get_fact(SystemdEnabled):
             _install_dovecot_package("core", arch)
@@ -644,12 +637,10 @@ def _configure_nginx(config: Config, debug: bool = False) -> bool:
 
 
 class NginxDeployer(Deployer):
-    def __init__(self, *, config, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, *, config):
         self.config = config
 
-    @staticmethod
-    def install():
+    def install(self):
         #
         # If we allow nginx to start up on install, it will grab port
         # 80, which then will block acmetool from listening on the port.
@@ -699,12 +690,10 @@ class NginxDeployer(Deployer):
 
 
 class WebsiteDeployer(Deployer):
-    def __init__(self, *, config, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, *, config):
         self.config = config
 
-    @staticmethod
-    def install():
+    def install(self):
         files.directory(
             name="Ensure /var/www exists",
             path="/var/www",
@@ -732,8 +721,7 @@ class WebsiteDeployer(Deployer):
 
 
 class RspamdDeployer(Deployer):
-    @staticmethod
-    def install():
+    def install(self):
         apt.packages(name="Remove rspamd", packages="rspamd", present=False)
 
 
@@ -753,13 +741,11 @@ def check_config(config):
 
 
 class TurnDeployer(Deployer):
-    def __init__(self, *, mail_domain, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, *, mail_domain):
         self.mail_domain = mail_domain
         self.units = ["turnserver"]
 
-    @staticmethod
-    def install():
+    def install(self):
         (url, sha256sum) = {
             "x86_64": (
                 "https://github.com/chatmail/chatmail-turn/releases/download/v0.3/chatmail-turn-x86_64-linux",
@@ -789,12 +775,10 @@ class TurnDeployer(Deployer):
 
 
 class MtailDeployer(Deployer):
-    def __init__(self, *, mtail_address, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, *, mtail_address):
         self.mtail_address = mtail_address
 
-    @staticmethod
-    def install():
+    def install(self):
         # Uninstall mtail package, we are going to install a static binary.
         apt.packages(name="Uninstall mtail", packages=["mtail"], present=False)
 
@@ -856,12 +840,10 @@ class MtailDeployer(Deployer):
 
 
 class IrohDeployer(Deployer):
-    def __init__(self, *, enable_iroh_relay, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, *, enable_iroh_relay):
         self.enable_iroh_relay = enable_iroh_relay
 
-    @staticmethod
-    def install():
+    def install(self):
         (url, sha256sum) = {
             "x86_64": (
                 "https://github.com/n0-computer/iroh/releases/download/v0.35.0/iroh-relay-v0.35.0-x86_64-unknown-linux-musl.tar.gz",
@@ -950,13 +932,11 @@ class EchobotDeployer(Deployer):
     # it needs to base its decision of whether to restart the service on
     # whether those two services were restarted.
     #
-    def __init__(self, *, mail_domain, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, *, mail_domain):
         self.mail_domain = mail_domain
         self.units = ["echobot"]
 
-    @staticmethod
-    def install():
+    def install(self):
         apt.packages(
             # required for setfacl for echobot
             name="Install acl",
@@ -971,8 +951,7 @@ class EchobotDeployer(Deployer):
 
 
 class ChatmailVenvDeployer(Deployer):
-    def __init__(self, *, config, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, *, config):
         self.config = config
         self.units = (
             "filtermail",
@@ -985,8 +964,7 @@ class ChatmailVenvDeployer(Deployer):
             "chatmail-fsreport.timer",
         )
 
-    @staticmethod
-    def install():
+    def install(self):
         _install_remote_venv_with_chatmaild()
 
     def configure(self):
@@ -1003,12 +981,10 @@ class ChatmailDeployer(Deployer):
             ("echobot", None, None),
             ("iroh", None, None),
     ]
-    def __init__(self, *, mail_domain, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, *, mail_domain):
         self.mail_domain = mail_domain
 
-    @staticmethod
-    def install():
+    def install(self):
         # Remove OBS repository key that is no longer used.
         files.file("/etc/apt/keyrings/obs-home-deltachat.gpg", present=False)
 
@@ -1049,8 +1025,7 @@ class ChatmailDeployer(Deployer):
 
 
 class FcgiwrapDeployer(Deployer):
-    @staticmethod
-    def install():
+    def install(self):
         apt.packages(
             name="Install fcgiwrap",
             packages=["fcgiwrap"],

@@ -27,7 +27,9 @@ class Deployment:
                 system=True,
             )
 
-        deployer.need_restart |= bool(deployer.install())
+        ret = bool(deployer.install())
+        if ret:
+            deployer.need_restart = True
 
     def configure(self, deployer):
         deployer.configure()
@@ -45,16 +47,9 @@ class Deployment:
 
 
 class Deployer:
+    need_restart = False
 
-    def __init__(self):
-        self.need_restart = False
-
-    #
-    # If a subclass overrides this with a method that returns a true
-    # value, self.need_restart will be set when install() is called.
-    #
-    @staticmethod
-    def install():
+    def install(self):
         pass
 
     def configure(self):
