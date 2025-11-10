@@ -12,7 +12,7 @@ goes beyond what classic email servers offer:
 -  **Zero State:** no private data or metadata collected, messages are auto-deleted, low disk usage
 
 -  **Instant/Realtime:** sub-second message delivery, realtime P2P
-   streaming, privacy-preserving Push Notifications for Apple, Google, and Huawei;
+   streaming, privacy-preserving Push Notifications for Apple, Google, and `Ubuntu Touch <https://docs.ubports.com/en/latest/appdev/guides/pushnotifications.html>`_;
 
 -  **Security Enforcement**: only strict TLS, DKIM and OpenPGP with minimized metadata accepted
 
