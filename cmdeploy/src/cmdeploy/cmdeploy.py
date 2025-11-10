@@ -171,10 +171,15 @@ def dns_cmd(args, out):
     return retcode
 
 
+def status_cmd_options(parser):
+    add_ssh_host_option(parser)
+
+
 def status_cmd(args, out):
     """Display status for online chatmail instance."""
 
-    sshexec = args.get_sshexec()
+    ssh_host = args.ssh_host if args.ssh_host else args.config.mail_domain
+    sshexec = get_sshexec(ssh_host, verbose=args.verbose)
 
     out.green(f"chatmail domain: {args.config.mail_domain}")
     if args.config.privacy_mail:
