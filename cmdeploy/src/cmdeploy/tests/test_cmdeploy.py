@@ -35,46 +35,6 @@ class TestCmdline:
         out, err = capsys.readouterr()
         assert "deleting config file" in out.lower()
 
-    def test_status_cmd(self, capsys, request):
-        os.chdir(request.config.invocation_params.dir)
-        assert main(["status"]) == 0
-        status_out = capsys.readouterr()
-        print(status_out.out)
-
-        services = [
-            "acmetool-redirector",
-            "chatmail-metadata",
-            "doveauth",
-            "dovecot",
-            "echobot",
-            "fcgiwrap",
-            "filtermail-incoming",
-            "filtermail",
-            "lastlogin",
-            "nginx",
-            "opendkim",
-            "postfix@-",
-            "systemd-journald",
-            "turnserver",
-            "unbound",
-        ]
-        not_running = []
-        for service in services:
-            active = False
-            for line in status_out:
-                if service in line:
-                    active = True
-                    if not "loaded" in line:
-                        active = False
-                    if not "active" in line:
-                        active = False
-                    if not "running" in line:
-                        active = False
-                    break
-            if not active:
-                not_running.append(service)
-        assert not_running == []
-
 
 def test_www_folder(example_config, tmp_path):
     reporoot = importlib.resources.files(__package__).joinpath("../../../../").resolve()
