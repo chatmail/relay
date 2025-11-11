@@ -35,7 +35,7 @@ jobs:
         working-directory: doc
         run: sphinx-build --builder linkcheck source build
 
-      - name: Upload documentations
+      - name: upload documentation
         run: |
           mkdir -p "$HOME/.ssh"
           echo "${{ secrets.CHATMAIL_STAGING_SSHKEY }}" > "$HOME/.ssh/key"
