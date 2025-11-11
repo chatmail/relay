@@ -1104,28 +1104,28 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     tls_domains = [mail_domain, f"mta-sts.{mail_domain}", f"www.{mail_domain}"]
 
     all_deployers = [
-        ChatmailDeployer(mail_domain=mail_domain),
+        ChatmailDeployer(mail_domain),
         JournaldDeployer(),
         UnboundDeployer(),
-        TurnDeployer(mail_domain=mail_domain),
-        IrohDeployer(enable_iroh_relay=config.enable_iroh_relay),
-        AcmetoolDeployer(email=config.acme_email, domains=tls_domains),
+        TurnDeployer(mail_domain),
+        IrohDeployer(config.enable_iroh_relay),
+        AcmetoolDeployer(config.acme_email, tls_domains),
 
-        WebsiteDeployer(config=config),
-        ChatmailVenvDeployer(config=config),
+        WebsiteDeployer(config),
+        ChatmailVenvDeployer(config),
         MtastsDeployer(),
-        OpendkimDeployer(mail_domain=mail_domain),
+        OpendkimDeployer(mail_domain),
 
         # Dovecot should be started before Postfix
         # because it creates authentication socket
         # required by Postfix.
-        DovecotDeployer(config=config, disable_mail=disable_mail),
-        PostfixDeployer(config=config, disable_mail=disable_mail),
+        DovecotDeployer(config, disable_mail),
+        PostfixDeployer(config, disable_mail),
         FcgiwrapDeployer(),
-        NginxDeployer(config=config),
+        NginxDeployer(config),
         RspamdDeployer(),
-        EchobotDeployer(mail_domain=mail_domain),
-        MtailDeployer(mtail_address=config.mtail_address),
+        EchobotDeployer(mail_domain),
+        MtailDeployer(config.mtail_address),
         GithashDeployer(),
     ]
 
