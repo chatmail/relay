@@ -1,0 +1,44 @@
+name: build and upload documentation
+
+on:
+  push:
+    branches:
+      - main
+      - 'missytake/docs-ci'
+    paths:
+      - 'doc/**'
+      - 'scripts/build-docs.sh'
+      - '.github/workflows/docs-preview.yaml'
+
+jobs:
+  scripts:
+    name: build 
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: initenv 
+        run: scripts/initenv.sh
+
+      - name: append venv/bin to PATH
+        run: echo `pwd`/venv/bin >>$GITHUB_PATH
+
+      - name: build documentation 
+        working-directory: doc
+        run: sphinx-build source build
+
+      - name: build documentation second time (for TOC)
+        working-directory: doc
+        run: sphinx-build source build
+
+      - name: check links 
+        working-directory: doc
+        run: sphinx-build --builder linkcheck source build
+
+      - name: Upload documentations
+        run: |
+          mkdir -p "$HOME/.ssh"
+          echo "${{ secrets.CHATMAIL_STAGING_SSHKEY }}" > "$HOME/.ssh/key"
+          chmod 600 "$HOME/.ssh/key"
+          rsync -rILvh -e "ssh -i $HOME/.ssh/key -o StrictHostKeyChecking=no" $GITHUB_WORKSPACE/doc/build/ "${{ secrets.USERNAME }}@chatmail.at:/var/www/html/chatmail.at/doc/relay/"
+
