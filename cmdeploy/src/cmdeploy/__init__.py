@@ -418,12 +418,11 @@ def _configure_postfix(config: Config, debug: bool = False) -> bool:
 
 
 class PostfixDeployer(Deployer):
-    required_users = [("postfix", None, ["opendkim"]),]
+    required_users = [("postfix", None, ["opendkim"])]
 
     def __init__(self, config, disable_mail):
         self.config = config
         self.disable_mail = disable_mail
-
 
     def install(self):
         apt.packages(
@@ -977,10 +976,11 @@ class ChatmailVenvDeployer(Deployer):
 
 class ChatmailDeployer(Deployer):
     required_users = [
-            ("vmail", "vmail", None),
-            ("echobot", None, None),
-            ("iroh", None, None),
+        ("vmail", "vmail", None),
+        ("echobot", None, None),
+        ("iroh", None, None),
     ]
+
     def __init__(self, mail_domain):
         self.mail_domain = mail_domain
 
@@ -1103,7 +1103,6 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
 
     tls_domains = [mail_domain, f"mta-sts.{mail_domain}", f"www.{mail_domain}"]
 
-
     all_deployers = [
         ChatmailDeployer(mail_domain=mail_domain),
         JournaldDeployer(),
@@ -1137,4 +1136,3 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
         path="/var/log/journal/",
         present=False,
     )
-
