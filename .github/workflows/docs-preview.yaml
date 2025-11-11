@@ -1,8 +1,10 @@
-name: documentation
+name: documentation preview
 
 on:
   pull_request:
-  push:
+    paths:
+      - 'doc/**'
+      - 'scripts/build-docs.sh'
 
 jobs:
   scripts:
