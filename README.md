@@ -224,9 +224,6 @@ A short overview of `chatmaild` services:
   is a small bot for test purposes.
   It simply echoes back messages from users.
 
-- [`chatmail-metrics`](https://github.com/chatmail/relay/blob/main/chatmaild/src/chatmaild/metrics.py)
-  collects some metrics and displays them at `https://example.org/metrics`.
-
 ### Home page and getting started for users
 
 `cmdeploy run` also creates default static web pages and deploys them
