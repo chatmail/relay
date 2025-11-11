@@ -6,16 +6,14 @@ from ..deployer import Deployer
 
 
 class AcmetoolDeployer(Deployer):
-    def __init__(self, *, email, domains, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, email, domains):
         self.domains = domains
         self.email = email
         self.need_restart_redirector = False
         self.need_restart_reconcile_service = False
         self.need_restart_reconcile_timer = False
 
-    @staticmethod
-    def install_impl():
+    def install(self):
         apt.packages(
             name="Install acmetool",
             packages=["acmetool"],
@@ -41,7 +39,7 @@ class AcmetoolDeployer(Deployer):
             present=False,
         )
 
-    def configure_impl(self):
+    def configure(self):
         files.template(
             src=importlib.resources.files(__package__).joinpath("response-file.yaml.j2"),
             dest="/var/lib/acme/conf/responses",
@@ -90,7 +88,7 @@ class AcmetoolDeployer(Deployer):
         )
         self.need_restart_reconcile_timer = reconcile_timer_file.changed
 
-    def activate_impl(self):
+    def activate(self):
         systemd.service(
             name="Setup acmetool-redirector service",
             service="acmetool-redirector.service",
