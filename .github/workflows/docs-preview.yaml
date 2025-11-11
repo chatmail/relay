@@ -51,10 +51,9 @@ jobs:
           # URLs for API connection and uploads
           export GITHUB_API_URL="https://api.github.com/repos/chatmail/relay/statuses/${{ github.event.after }}"
           export PREVIEW_LINK="https://staging.chatmail.at/doc/relay/${{ steps.prepare.outputs.prid }}/"
-          # Post AppImage download link to check details
           export STATUS_DATA="{\"state\": \"success\", \
-                               \"description\": \"Preview the page here:\", \
-                               \"context\": \"Page Preview\", \
+                               \"description\": \"Preview the changed documentation here:\", \
+                               \"context\": \"Documentation Preview\", \
                                \"target_url\": \"${PREVIEW_LINK}\"}"
           curl -X POST --header "Accept: application/vnd.github+json" --header "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" --url "$GITHUB_API_URL" --header "content-type: application/json" --data "$STATUS_DATA"
 
