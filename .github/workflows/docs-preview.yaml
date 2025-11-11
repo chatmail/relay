@@ -5,6 +5,7 @@ on:
     paths:
       - 'doc/**'
       - 'scripts/build-docs.sh'
+      - '.github/workflows/docs-preview.yaml'
 
 jobs:
   scripts:
