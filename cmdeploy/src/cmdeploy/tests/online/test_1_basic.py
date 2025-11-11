@@ -70,7 +70,7 @@ class TestSSHExecutor:
         assert (now - since_date).total_seconds() < 60 * 60 * 51
 
 
-def test_status_cmd(capsys, request):
+def test_status_cmd(chatmail_config, capsys, request):
     os.chdir(request.config.invocation_params.dir)
     assert main(["status"]) == 0
     status_out = capsys.readouterr()
