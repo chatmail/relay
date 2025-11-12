@@ -27,9 +27,7 @@ class Deployment:
                 system=True,
             )
 
-        ret = bool(deployer.install())
-        if ret:
-            deployer.need_restart = True
+        deployer.install()
 
     def configure(self, deployer):
         deployer.configure()

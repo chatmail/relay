@@ -864,11 +864,7 @@ class IrohDeployer(Deployer):
                 ],
             )
 
-            #
-            # This will set need_restart when called from an object's
-            # install() method.
-            #
-            return True
+            self.need_restart = True
 
     def configure(self):
         systemd_unit = files.put(
