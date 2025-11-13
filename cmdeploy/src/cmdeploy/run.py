@@ -3,7 +3,7 @@ import os
 
 import pyinfra
 
-from cmdeploy import deploy_chatmail
+from .deployers import deploy_chatmail
 
 
 def main():
