@@ -1,11 +1,61 @@
 import importlib.resources
+import io
 import os
 
-from pyinfra.operations import server
+from pyinfra.operations import files, server, systemd
 
 
 def get_resource(arg, pkg=__package__):
     return importlib.resources.files(pkg).joinpath(arg)
+
+
+def _configure_remote_units(mail_domain, units) -> None:
+    remote_base_dir = "/usr/local/lib/chatmaild"
+    remote_venv_dir = f"{remote_base_dir}/venv"
+    remote_chatmail_inipath = f"{remote_base_dir}/chatmail.ini"
+    root_owned = dict(user="root", group="root", mode="644")
+
+    # install systemd units
+    for fn in units:
+        execpath = fn if fn != "filtermail-incoming" else "filtermail"
+        params = dict(
+            execpath=f"{remote_venv_dir}/bin/{execpath}",
+            config_path=remote_chatmail_inipath,
+            remote_venv_dir=remote_venv_dir,
+            mail_domain=mail_domain,
+        )
+
+        basename = fn if "." in fn else f"{fn}.service"
+
+        source_path = get_resource(f"service/{basename}.f")
+        content = source_path.read_text().format(**params).encode()
+
+        files.put(
+            name=f"Upload {basename}",
+            src=io.BytesIO(content),
+            dest=f"/etc/systemd/system/{basename}",
+            **root_owned,
+        )
+
+
+def _activate_remote_units(units) -> None:
+    # activate systemd units
+    for fn in units:
+        basename = fn if "." in fn else f"{fn}.service"
+
+        if fn == "chatmail-expire" or fn == "chatmail-fsreport":
+            # don't auto-start but let the corresponding timer trigger execution
+            enabled = False
+        else:
+            enabled = True
+        systemd.service(
+            name=f"Setup {basename}",
+            service=basename,
+            running=enabled,
+            enabled=enabled,
+            restarted=enabled,
+            daemon_reload=True,
+        )
 
 
 class Deployment:
