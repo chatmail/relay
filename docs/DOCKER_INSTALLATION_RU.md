@@ -34,7 +34,10 @@ Please substitute it with your own domain.
 ```shell
 cp ./docker/docker-compose-default.yaml docker-compose.yaml
 ```
-
+2. Скопировать `./docker/example.env` и переименовать в `.env`. Здесь хранятся переменные, которые используются в `docker-compose.yaml`.
+```shell
+cp ./docker/example.env .env
+```\
 3. Настроить переменные окружения в `.env` файле. Эти переменные используются в `docker-compose.yaml` файле, чтобы передавать повторяющиеся значения.
 
 4. Настроить параметры ядра, потому что внутри контейнера их нельзя изменить, а конкретно `fs.inotify.max_user_instances` и `fs.inotify.max_user_watches`. Для этого выполнить следующее:
