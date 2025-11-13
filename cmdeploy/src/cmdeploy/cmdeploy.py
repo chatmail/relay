@@ -100,6 +100,8 @@ def run_cmd(args, out):
 
     cmd = f"{pyinf} --ssh-user root {ssh_host} {deploy_path} -y"
     if ssh_host in ["localhost", "@docker"]:
+        if ssh_host == "@docker":
+            env["CHATMAIL_DOCKER"] = "True"
         cmd = f"{pyinf} @local {deploy_path} -y"
 
     if version.parse(pyinfra.__version__) < version.parse("3"):
