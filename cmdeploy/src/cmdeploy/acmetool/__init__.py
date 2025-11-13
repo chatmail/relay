@@ -27,7 +27,9 @@ class AcmetoolDeployer(Deployer):
 
         files.put(
             name="Install acmetool hook.",
-            src=importlib.resources.files(__package__).joinpath("acmetool.hook").open("rb"),
+            src=importlib.resources.files(__package__)
+            .joinpath("acmetool.hook")
+            .open("rb"),
             dest="/etc/acme/hooks/nginx",
             user="root",
             group="root",
@@ -41,7 +43,9 @@ class AcmetoolDeployer(Deployer):
 
     def configure(self):
         files.template(
-            src=importlib.resources.files(__package__).joinpath("response-file.yaml.j2"),
+            src=importlib.resources.files(__package__).joinpath(
+                "response-file.yaml.j2"
+            ),
             dest="/var/lib/acme/conf/responses",
             user="root",
             group="root",
@@ -80,7 +84,9 @@ class AcmetoolDeployer(Deployer):
         self.need_restart_reconcile_service = reconcile_service_file.changed
 
         reconcile_timer_file = files.put(
-            src=importlib.resources.files(__package__).joinpath("acmetool-reconcile.timer"),
+            src=importlib.resources.files(__package__).joinpath(
+                "acmetool-reconcile.timer"
+            ),
             dest="/etc/systemd/system/acmetool-reconcile.timer",
             user="root",
             group="root",

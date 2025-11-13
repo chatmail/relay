@@ -11,13 +11,14 @@ from io import StringIO
 from pathlib import Path
 
 from chatmaild.config import Config, read_config
-from cmdeploy.cmdeploy import Out
 from pyinfra import facts, host, logger
 from pyinfra.api import FactBase
 from pyinfra.facts.files import File, Sha256File
 from pyinfra.facts.server import Sysctl
 from pyinfra.facts.systemd import SystemdEnabled
 from pyinfra.operations import apt, files, pip, server, systemd
+
+from cmdeploy.cmdeploy import Out
 
 from .acmetool import AcmetoolDeployer
 from .basedeploy import Deployer, Deployment
@@ -148,7 +149,9 @@ def _configure_remote_units(mail_domain, units) -> None:
 
         basename = fn if "." in fn else f"{fn}.service"
 
-        source_path = importlib.resources.files(__package__).joinpath("service", f"{basename}.f")
+        source_path = importlib.resources.files(__package__).joinpath(
+            "service", f"{basename}.f"
+        )
         content = source_path.read_text().format(**params).encode()
 
         files.put(
@@ -177,7 +180,6 @@ def _activate_remote_units(units) -> None:
             restarted=enabled,
             daemon_reload=True,
         )
-
 
 
 def _configure_opendkim(domain: str, dkim_selector: str = "dkim") -> bool:
@@ -437,7 +439,9 @@ class PostfixDeployer(Deployer):
         restart = False if self.disable_mail else self.need_restart
 
         systemd.service(
-            name="disable postfix for now" if self.disable_mail else "Start and enable Postfix",
+            name="disable postfix for now"
+            if self.disable_mail
+            else "Start and enable Postfix",
             service="postfix.service",
             running=False if self.disable_mail else True,
             enabled=False if self.disable_mail else True,
@@ -569,7 +573,9 @@ class DovecotDeployer(Deployer):
         restart = False if self.disable_mail else self.need_restart
 
         systemd.service(
-            name="disable dovecot for now" if self.disable_mail else "Start and enable Dovecot",
+            name="disable dovecot for now"
+            if self.disable_mail
+            else "Start and enable Dovecot",
             service="dovecot.service",
             running=False if self.disable_mail else True,
             enabled=False if self.disable_mail else True,
@@ -708,7 +714,9 @@ class WebsiteDeployer(Deployer):
         if not www_path.is_dir():
             logger.warning("Building web pages is disabled in chatmail.ini, skipping")
         elif (path := find_merge_conflict(src_dir)) is not None:
-            logger.warning(f"Merge conflict found in {path}, skipping website deployment. Fix merge conflict if you want to upload your web page.")
+            logger.warning(
+                f"Merge conflict found in {path}, skipping website deployment. Fix merge conflict if you want to upload your web page."
+            )
         else:
             # if www_folder is a hugo page, build it
             if build_dir:
@@ -1106,12 +1114,10 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
         TurnDeployer(mail_domain),
         IrohDeployer(config.enable_iroh_relay),
         AcmetoolDeployer(config.acme_email, tls_domains),
-
         WebsiteDeployer(config),
         ChatmailVenvDeployer(config),
         MtastsDeployer(),
         OpendkimDeployer(mail_domain),
-
         # Dovecot should be started before Postfix
         # because it creates authentication socket
         # required by Postfix.

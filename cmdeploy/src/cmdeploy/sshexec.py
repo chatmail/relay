@@ -93,7 +93,7 @@ class LocalExec:
         where = "locally"
         if self.docker:
             if call == remote.rdns.perform_initial_checks:
-                kwargs['pre_command'] = "docker exec chatmail "
+                kwargs["pre_command"] = "docker exec chatmail "
                 where = "in docker"
         if self.verbose:
             print(f"Running {where}: {call.__name__}(**{kwargs})")

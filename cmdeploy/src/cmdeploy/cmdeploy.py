@@ -19,7 +19,7 @@ from packaging import version
 from termcolor import colored
 
 from . import dns, remote
-from .sshexec import SSHExec, LocalExec
+from .sshexec import LocalExec, SSHExec
 
 #
 # cmdeploy sub commands and options
@@ -309,7 +309,7 @@ def add_ssh_host_option(parser):
         "--ssh-host",
         dest="ssh_host",
         help="Run commands on 'localhost', via '@docker', or on a specific SSH host "
-             "instead of chatmail.ini's mail_domain.",
+        "instead of chatmail.ini's mail_domain.",
     )
 
 

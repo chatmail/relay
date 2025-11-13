@@ -65,7 +65,9 @@ class TestPerformInitialChecks:
         remote_data = remote.rdns.perform_initial_checks("some.domain")
         assert remote_data["A"] == mockdns_expected["A"]["some.domain"]
         assert remote_data["AAAA"] == mockdns_expected["AAAA"]["some.domain"]
-        assert remote_data["MTA_STS"] == mockdns_expected["CNAME"]["mta-sts.some.domain"]
+        assert (
+            remote_data["MTA_STS"] == mockdns_expected["CNAME"]["mta-sts.some.domain"]
+        )
         assert remote_data["WWW"] == mockdns_expected["CNAME"]["www.some.domain"]
 
     @pytest.mark.parametrize("drop", ["A", "AAAA"])

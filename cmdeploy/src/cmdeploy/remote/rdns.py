@@ -12,7 +12,7 @@ All functions of this module
 
 import re
 
-from .rshell import CalledProcessError, shell, log_progress
+from .rshell import CalledProcessError, log_progress, shell
 
 
 def perform_initial_checks(mail_domain, pre_command=""):
@@ -26,7 +26,9 @@ def perform_initial_checks(mail_domain, pre_command=""):
     WWW = query_dns("CNAME", f"www.{mail_domain}")
 
     res = dict(mail_domain=mail_domain, A=A, AAAA=AAAA, MTA_STS=MTA_STS, WWW=WWW)
-    res["acme_account_url"] = shell(pre_command + "acmetool account-url", fail_ok=True, print=log_progress)
+    res["acme_account_url"] = shell(
+        pre_command + "acmetool account-url", fail_ok=True, print=log_progress
+    )
     res["dkim_entry"], res["web_dkim_entry"] = get_dkim_entry(
         mail_domain, pre_command, dkim_selector="opendkim"
     )
@@ -45,7 +47,7 @@ def get_dkim_entry(mail_domain, pre_command, dkim_selector):
         dkim_pubkey = shell(
             f"{pre_command}openssl rsa -in /etc/dkimkeys/{dkim_selector}.private "
             "-pubout 2>/dev/null | awk '/-/{next}{printf(\"%s\",$0)}'",
-            print=log_progress
+            print=log_progress,
         )
     except CalledProcessError:
         return
@@ -62,9 +64,9 @@ def query_dns(typ, domain):
     # Get autoritative nameserver from the SOA record.
     soa_answers = [
         x.split()
-        for x in shell(f"dig -r -q {domain} -t SOA +noall +authority +answer", print=log_progress).split(
-            "\n"
-        )
+        for x in shell(
+            f"dig -r -q {domain} -t SOA +noall +authority +answer", print=log_progress
+        ).split("\n")
     ]
     soa = [a for a in soa_answers if len(a) >= 3 and a[3] == "SOA"]
     if not soa:
@@ -73,7 +75,7 @@ def query_dns(typ, domain):
 
     # Query authoritative nameserver directly to bypass DNS cache.
     res = shell(f"dig @{ns} -r -q {domain} -t {typ} +short", print=log_progress)
-    return next((line for line in res.split("\n") if not line.startswith(';')), '')
+    return next((line for line in res.split("\n") if not line.startswith(";")), "")
 
 
 def check_zonefile(zonefile, verbose=True):

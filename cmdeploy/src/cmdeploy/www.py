@@ -1,10 +1,10 @@
 import hashlib
 import importlib.resources
+import re
 import time
 import traceback
 import webbrowser
 from pathlib import Path
-import re
 
 import markdown
 from chatmaild.config import read_config
@@ -12,8 +12,9 @@ from jinja2 import Template
 
 from .genqr import gen_qr_png_data
 
-
-_MERGE_CONFLICT_RE = re.compile(r"^<<<<<<<.+^=======.+^>>>>>>>", re.DOTALL | re.MULTILINE)
+_MERGE_CONFLICT_RE = re.compile(
+    r"^<<<<<<<.+^=======.+^>>>>>>>", re.DOTALL | re.MULTILINE
+)
 
 
 def snapshot_dir_stats(somedir):

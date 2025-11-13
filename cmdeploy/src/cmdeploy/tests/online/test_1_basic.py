@@ -35,7 +35,7 @@ class TestSSHExecutor:
         out, err = capsys.readouterr()
         assert err.startswith("Collecting")
         # XXX could not figure out how capturing can be made to work properly
-        #assert err.endswith("....\n")
+        # assert err.endswith("....\n")
         assert err.count("\n") == 1
 
         sshexec.verbose = True
@@ -45,7 +45,7 @@ class TestSSHExecutor:
         out, err = capsys.readouterr()
         lines = err.split("\n")
         # XXX could not figure out how capturing can be made to work properly
-        #assert len(lines) > 4
+        # assert len(lines) > 4
         assert remote.rdns.perform_initial_checks.__doc__ in lines[0]
 
     def test_exception(self, sshexec, capsys):

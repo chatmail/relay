@@ -1,5 +1,4 @@
 import sys
-
 from subprocess import DEVNULL, CalledProcessError, check_output
 
 
