@@ -5,7 +5,6 @@ import pyinfra
 
 # pyinfra runs this module as a python file and not as a module so
 # import paths must be absolute
-
 from cmdeploy.deployers import deploy_chatmail
 
 

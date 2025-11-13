@@ -40,6 +40,10 @@ class Port(FactBase):
         return output[0]
 
 
+def get_resource(arg, pkg=__package__):
+    return importlib.resources.files(pkg).joinpath(arg)
+
+
 def _build_chatmaild(dist_dir) -> None:
     dist_dir = Path(dist_dir).resolve()
     if dist_dir.exists():
@@ -119,7 +123,7 @@ def _configure_remote_venv_with_chatmaild(config) -> None:
     )
 
     files.template(
-        src=importlib.resources.files(__package__).joinpath("metrics.cron.j2"),
+        src=get_resource("metrics.cron.j2"),
         dest="/etc/cron.d/chatmail-metrics",
         user="root",
         group="root",
@@ -149,9 +153,7 @@ def _configure_remote_units(mail_domain, units) -> None:
 
         basename = fn if "." in fn else f"{fn}.service"
 
-        source_path = importlib.resources.files(__package__).joinpath(
-            "service", f"{basename}.f"
-        )
+        source_path = get_resource(f"service/{basename}.f")
         content = source_path.read_text().format(**params).encode()
 
         files.put(
@@ -187,7 +189,7 @@ def _configure_opendkim(domain: str, dkim_selector: str = "dkim") -> bool:
     need_restart = False
 
     main_config = files.template(
-        src=importlib.resources.files(__package__).joinpath("opendkim/opendkim.conf"),
+        src=get_resource("opendkim/opendkim.conf"),
         dest="/etc/opendkim.conf",
         user="root",
         group="root",
@@ -197,7 +199,7 @@ def _configure_opendkim(domain: str, dkim_selector: str = "dkim") -> bool:
     need_restart |= main_config.changed
 
     screen_script = files.put(
-        src=importlib.resources.files(__package__).joinpath("opendkim/screen.lua"),
+        src=get_resource("opendkim/screen.lua"),
         dest="/etc/opendkim/screen.lua",
         user="root",
         group="root",
@@ -206,7 +208,7 @@ def _configure_opendkim(domain: str, dkim_selector: str = "dkim") -> bool:
     need_restart |= screen_script.changed
 
     final_script = files.put(
-        src=importlib.resources.files(__package__).joinpath("opendkim/final.lua"),
+        src=get_resource("opendkim/final.lua"),
         dest="/etc/opendkim/final.lua",
         user="root",
         group="root",
@@ -224,7 +226,7 @@ def _configure_opendkim(domain: str, dkim_selector: str = "dkim") -> bool:
     )
 
     keytable = files.template(
-        src=importlib.resources.files(__package__).joinpath("opendkim/KeyTable"),
+        src=get_resource("opendkim/KeyTable"),
         dest="/etc/dkimkeys/KeyTable",
         user="opendkim",
         group="opendkim",
@@ -234,7 +236,7 @@ def _configure_opendkim(domain: str, dkim_selector: str = "dkim") -> bool:
     need_restart |= keytable.changed
 
     signing_table = files.template(
-        src=importlib.resources.files(__package__).joinpath("opendkim/SigningTable"),
+        src=get_resource("opendkim/SigningTable"),
         dest="/etc/dkimkeys/SigningTable",
         user="opendkim",
         group="opendkim",
@@ -263,7 +265,7 @@ def _configure_opendkim(domain: str, dkim_selector: str = "dkim") -> bool:
 
     service_file = files.put(
         name="Configure opendkim to restart once a day",
-        src=importlib.resources.files(__package__).joinpath("opendkim/systemd.conf"),
+        src=get_resource("opendkim/systemd.conf"),
         dest="/etc/systemd/system/opendkim.service.d/10-prevent-memory-leak.conf",
     )
     need_restart |= service_file.changed
@@ -314,7 +316,7 @@ class UnboundDeployer(Deployer):
         # https://people.debian.org/~hmh/invokerc.d-policyrc.d-specification.txt
         #
         files.put(
-            src=importlib.resources.files(__package__).joinpath("policy-rc.d"),
+            src=get_resource("policy-rc.d"),
             dest="/usr/sbin/policy-rc.d",
             user="root",
             group="root",
@@ -374,7 +376,7 @@ def _configure_postfix(config: Config, debug: bool = False) -> bool:
     need_restart = False
 
     main_config = files.template(
-        src=importlib.resources.files(__package__).joinpath("postfix/main.cf.j2"),
+        src=get_resource("postfix/main.cf.j2"),
         dest="/etc/postfix/main.cf",
         user="root",
         group="root",
@@ -385,7 +387,7 @@ def _configure_postfix(config: Config, debug: bool = False) -> bool:
     need_restart |= main_config.changed
 
     master_config = files.template(
-        src=importlib.resources.files(__package__).joinpath("postfix/master.cf.j2"),
+        src=get_resource("postfix/master.cf.j2"),
         dest="/etc/postfix/master.cf",
         user="root",
         group="root",
@@ -396,9 +398,7 @@ def _configure_postfix(config: Config, debug: bool = False) -> bool:
     need_restart |= master_config.changed
 
     header_cleanup = files.put(
-        src=importlib.resources.files(__package__).joinpath(
-            "postfix/submission_header_cleanup"
-        ),
+        src=get_resource("postfix/submission_header_cleanup"),
         dest="/etc/postfix/submission_header_cleanup",
         user="root",
         group="root",
@@ -408,7 +408,7 @@ def _configure_postfix(config: Config, debug: bool = False) -> bool:
 
     # Login map that 1:1 maps email address to login.
     login_map = files.put(
-        src=importlib.resources.files(__package__).joinpath("postfix/login_map"),
+        src=get_resource("postfix/login_map"),
         dest="/etc/postfix/login_map",
         user="root",
         group="root",
@@ -489,7 +489,7 @@ def _configure_dovecot(config: Config, debug: bool = False) -> bool:
     need_restart = False
 
     main_config = files.template(
-        src=importlib.resources.files(__package__).joinpath("dovecot/dovecot.conf.j2"),
+        src=get_resource("dovecot/dovecot.conf.j2"),
         dest="/etc/dovecot/dovecot.conf",
         user="root",
         group="root",
@@ -500,7 +500,7 @@ def _configure_dovecot(config: Config, debug: bool = False) -> bool:
     )
     need_restart |= main_config.changed
     auth_config = files.put(
-        src=importlib.resources.files(__package__).joinpath("dovecot/auth.conf"),
+        src=get_resource("dovecot/auth.conf"),
         dest="/etc/dovecot/auth.conf",
         user="root",
         group="root",
@@ -508,9 +508,7 @@ def _configure_dovecot(config: Config, debug: bool = False) -> bool:
     )
     need_restart |= auth_config.changed
     lua_push_notification_script = files.put(
-        src=importlib.resources.files(__package__).joinpath(
-            "dovecot/push_notification.lua"
-        ),
+        src=get_resource("dovecot/push_notification.lua"),
         dest="/etc/dovecot/push_notification.lua",
         user="root",
         group="root",
@@ -589,7 +587,7 @@ def _configure_nginx(config: Config, debug: bool = False) -> bool:
     need_restart = False
 
     main_config = files.template(
-        src=importlib.resources.files(__package__).joinpath("nginx/nginx.conf.j2"),
+        src=get_resource("nginx/nginx.conf.j2"),
         dest="/etc/nginx/nginx.conf",
         user="root",
         group="root",
@@ -600,7 +598,7 @@ def _configure_nginx(config: Config, debug: bool = False) -> bool:
     need_restart |= main_config.changed
 
     autoconfig = files.template(
-        src=importlib.resources.files(__package__).joinpath("nginx/autoconfig.xml.j2"),
+        src=get_resource("nginx/autoconfig.xml.j2"),
         dest="/var/www/html/.well-known/autoconfig/mail/config-v1.1.xml",
         user="root",
         group="root",
@@ -610,7 +608,7 @@ def _configure_nginx(config: Config, debug: bool = False) -> bool:
     need_restart |= autoconfig.changed
 
     mta_sts_config = files.template(
-        src=importlib.resources.files(__package__).joinpath("nginx/mta-sts.txt.j2"),
+        src=get_resource("nginx/mta-sts.txt.j2"),
         dest="/var/www/html/.well-known/mta-sts.txt",
         user="root",
         group="root",
@@ -631,7 +629,7 @@ def _configure_nginx(config: Config, debug: bool = False) -> bool:
 
     files.put(
         name="Upload cgi newemail.py script",
-        src=importlib.resources.files("chatmaild").joinpath("newemail.py").open("rb"),
+        src=get_resource("newemail.py", pkg="chatmaild").open("rb"),
         dest=f"{cgi_dir}/newemail.py",
         user="root",
         group="root",
@@ -666,7 +664,7 @@ class NginxDeployer(Deployer):
         # https://people.debian.org/~hmh/invokerc.d-policyrc.d-specification.txt
         #
         files.put(
-            src=importlib.resources.files(__package__).joinpath("policy-rc.d"),
+            src=get_resource("policy-rc.d"),
             dest="/usr/sbin/policy-rc.d",
             user="root",
             group="root",
@@ -812,9 +810,7 @@ class MtailDeployer(Deployer):
         # Using our own systemd unit instead of `/usr/lib/systemd/system/mtail.service`.
         # This allows to read from journalctl instead of log files.
         files.template(
-            src=importlib.resources.files(__package__).joinpath(
-                "mtail/mtail.service.j2"
-            ),
+            src=get_resource("mtail/mtail.service.j2"),
             dest="/etc/systemd/system/mtail.service",
             user="root",
             group="root",
@@ -825,9 +821,7 @@ class MtailDeployer(Deployer):
 
         mtail_conf = files.put(
             name="Mtail configuration",
-            src=importlib.resources.files(__package__).joinpath(
-                "mtail/delivered_mail.mtail"
-            ),
+            src=get_resource("mtail/delivered_mail.mtail"),
             dest="/etc/mtail/delivered_mail.mtail",
             user="root",
             group="root",
@@ -877,7 +871,7 @@ class IrohDeployer(Deployer):
     def configure(self):
         systemd_unit = files.put(
             name="Upload iroh-relay systemd unit",
-            src=importlib.resources.files(__package__).joinpath("iroh-relay.service"),
+            src=get_resource("iroh-relay.service"),
             dest="/etc/systemd/system/iroh-relay.service",
             user="root",
             group="root",
@@ -887,7 +881,7 @@ class IrohDeployer(Deployer):
 
         iroh_config = files.put(
             name="Upload iroh-relay config",
-            src=importlib.resources.files(__package__).joinpath("iroh-relay.toml"),
+            src=get_resource("iroh-relay.toml"),
             dest="/etc/iroh-relay.toml",
             user="root",
             group="root",
@@ -910,7 +904,7 @@ class JournaldDeployer(Deployer):
     def configure(self):
         journald_conf = files.put(
             name="Configure journald",
-            src=importlib.resources.files(__package__).joinpath("journald.conf"),
+            src=get_resource("journald.conf"),
             dest="/etc/systemd/journald.conf",
             user="root",
             group="root",
