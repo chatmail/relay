@@ -516,13 +516,6 @@ def _configure_dovecot(config: Config, debug: bool = False) -> bool:
     )
     need_restart |= lua_push_notification_script.changed
 
-    # remove historic expunge script
-    # which is now implemented through a systemd chatmail-expire service/timer
-    files.file(
-        path="/etc/cron.d/expunge",
-        present=False,
-    )
-
     # as per https://doc.dovecot.org/configuration_manual/os/
     # it is recommended to set the following inotify limits
     for name in ("max_user_instances", "max_user_watches"):
@@ -725,9 +718,33 @@ class WebsiteDeployer(Deployer):
             )
 
 
-class RspamdDeployer(Deployer):
+class LegacyRemoveDeployer(Deployer):
     def install(self):
         apt.packages(name="Remove rspamd", packages="rspamd", present=False)
+
+        # remove historic expunge script
+        # which is now implemented through a systemd timer (chatmail-expire)
+        files.file(
+            path="/etc/cron.d/expunge",
+            present=False,
+        )
+
+        # Remove OBS repository key that is no longer used.
+        files.file("/etc/apt/keyrings/obs-home-deltachat.gpg", present=False)
+        files.line(
+            name="Remove DeltaChat OBS home repository from sources.list",
+            path="/etc/apt/sources.list",
+            line="deb [signed-by=/etc/apt/keyrings/obs-home-deltachat.gpg] https://download.opensuse.org/repositories/home:/deltachat/Debian_12/ ./",
+            escape_regex_characters=True,
+            present=False,
+        )
+
+        # prior relay versions used filelogging
+        files.directory(
+            name="Ensure old logs on disk are deleted",
+            path="/var/log/journal/",
+            present=False,
+        )
 
 
 def check_config(config):
@@ -784,7 +801,7 @@ class MtailDeployer(Deployer):
         self.mtail_address = mtail_address
 
     def install(self):
-        # Uninstall mtail package, we are going to install a static binary.
+        # Uninstall mtail package to install a static binary.
         apt.packages(name="Uninstall mtail", packages=["mtail"], present=False)
 
         (url, sha256sum) = {
@@ -983,17 +1000,6 @@ class ChatmailDeployer(Deployer):
         self.mail_domain = mail_domain
 
     def install(self):
-        # Remove OBS repository key that is no longer used.
-        files.file("/etc/apt/keyrings/obs-home-deltachat.gpg", present=False)
-
-        files.line(
-            name="Remove DeltaChat OBS home repository from sources.list",
-            path="/etc/apt/sources.list",
-            line="deb [signed-by=/etc/apt/keyrings/obs-home-deltachat.gpg] https://download.opensuse.org/repositories/home:/deltachat/Debian_12/ ./",
-            escape_regex_characters=True,
-            present=False,
-        )
-
         apt.update(name="apt update", cache_time=24 * 3600)
         apt.upgrade(name="upgrade apt packages", auto_remove=True)
 
@@ -1103,6 +1109,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
 
     all_deployers = [
         ChatmailDeployer(mail_domain),
+        LegacyRemoveDeployer(),
         JournaldDeployer(),
         UnboundDeployer(),
         TurnDeployer(mail_domain),
@@ -1119,7 +1126,6 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
         PostfixDeployer(config, disable_mail),
         FcgiwrapDeployer(),
         NginxDeployer(config),
-        RspamdDeployer(),
         EchobotDeployer(mail_domain),
         MtailDeployer(config.mtail_address),
         GithashDeployer(),
@@ -1127,8 +1133,3 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
 
     Deployment().perform_stages(all_deployers)
 
-    files.directory(
-        name="Ensure old logs on disk are deleted",
-        path="/var/log/journal/",
-        present=False,
-    )
