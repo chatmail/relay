@@ -126,8 +126,8 @@ web page. Edit them before deploying to make your chatmail relay
 stand out.
 
 
-Chaitmail relay dependency diagram
--------------------------------------------
+Chatmail relay dependency diagram
+---------------------------------
 
 .. mermaid::
    :caption: This diagram shows relay components and dependencies/communication paths.
