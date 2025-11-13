@@ -95,7 +95,7 @@ def run_cmd(args, out):
     env["CHATMAIL_INI"] = args.inipath
     env["CHATMAIL_DISABLE_MAIL"] = "True" if args.disable_mail else ""
     env["CHATMAIL_REQUIRE_IROH"] = "True" if require_iroh else ""
-    deploy_path = importlib.resources.files(__package__).joinpath("deploy.py").resolve()
+    deploy_path = importlib.resources.files(__package__).joinpath("run.py").resolve()
     pyinf = "pyinfra --dry" if args.dry_run else "pyinfra"
 
     cmd = f"{pyinf} --ssh-user root {ssh_host} {deploy_path} -y"
