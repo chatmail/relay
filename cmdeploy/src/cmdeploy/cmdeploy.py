@@ -238,7 +238,12 @@ def fmt_cmd_options(parser):
 def fmt_cmd(args, out):
     """Run formattting fixes on all chatmail source code."""
 
-    sources = [str(importlib.resources.files(x)) for x in ("chatmaild", "cmdeploy")]
+    chatmaild_dir = importlib.resources.files("chatmaild").resolve()
+    cmdeploy_dir = chatmaild_dir.joinpath(
+        "..", "..", "..", "cmdeploy", "src", "cmdeploy"
+    ).resolve()
+    sources = [str(chatmaild_dir), str(cmdeploy_dir)]
+
     format_args = [shutil.which("ruff"), "format"]
     check_args = [shutil.which("ruff"), "check"]
 
