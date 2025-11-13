@@ -215,12 +215,31 @@ Message to an external address
         smtps/smtpd --> |10080|filtermail;
         submission/smtpd --> |10080|filtermail;
         filtermail --> |10025|smtpd_reinject;
+        smtpd_reinject --> opendkim;
+        opendkim --> smtpd_reinject;
         smtpd_reinject --> cleanup;
         cleanup --> qmgr;
         qmgr --> external_smtp_server;
         qmgr --> |lmtp|dovecot;
         external_smtp_server --> recipient;
         dovecot --> senders_other_devices;
+
+Message from an external address
+--------------------------------
+
+.. mermaid::
+    :caption: This diagram shows the path a federated message takes.
+
+    graph LR;
+        external_smtp_server --> |25|smtpd;
+        smtps/smtpd --> |10081|filtermail-incoming;
+        filtermail-incoming --> |10026|smtpd_reinject_incoming;
+        smtpd_reinject_incoming --> opendkim;
+        opendkim --> smtpd_reinject_incoming;
+        smtpd_reinject_incoming --> cleanup;
+        cleanup --> qmgr;
+        qmgr --> |lmtp|dovecot;
+        dovecot --> recipient;
 
 Operational details of a chatmail relay
 ----------------------------------------
