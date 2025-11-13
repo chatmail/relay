@@ -315,11 +315,12 @@ which all derive from a common ``Deployer`` base class, defined in
 cmdeploy/src/cmdeploy/deployer.py.  Each object provides
 implementation methods for the three stages -- install, configure, and
 activate.  The top-level procedure in ``deploy_chatmail()`` calls
-these methods for all the deployer objects, first calling all the
-install methods, then the configure methods, then the activate
-methods.
+these methods for all the deployer objects, via the
+``Deployment.perform_stages()`` method, also defined in deployer.py.
+This first calls all the install methods, then the configure methods,
+then the activate methods.
 
-The base class also implements support for a CMDEPLOY_STAGES
+The ``Deployment`` class also implements support for a CMDEPLOY_STAGES
 environment variable, which allows limiting the process to specific
 stages.  Note that some deployers are stateful between the stages
 (this is one reason why they are implemented as objects), and that
@@ -327,13 +328,16 @@ state will not get propagated between stages when run in separate
 invocations of cmdeploy.  This environment variable is intended for
 use in future revisions to support building Docker images with
 software pre-installed, and configuration of containers at run time
-from environmnet variables.
+from environment variables.
 
-The ``install_impl()`` method for the deployer classes is static, to
-ensure that it does not rely on any object state, in particular, the
-configuration details of the deployment.  This helps ensure that all
-install methods are suitable for running as part of a container image
-build.
+The, ``install()`` methods for the deployer classes should use 'self'
+as little as possible, preferably not at all.  In particular,
+``install()`` methods should never depend on "config" data, such as
+the config dictionary in ``self.config`` or specific values like
+``self.mail_domain``.  This ensures that these methods can be used to
+perform generic installation operations that are applicable across
+multiple relay deployments, and therefore can be called in the process
+of building a general-purpose container image.
 
 Operations that start services for systemd-based deployments should
 only be called from the ``activate_impl()`` methods.  These methods
