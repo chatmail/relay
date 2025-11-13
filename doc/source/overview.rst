@@ -171,7 +171,7 @@ Chatmail relay dependency diagram
         chatmail-expire-daily --- maildir;
         chatmail-fsreport-daily --- maildir;
         chatmail-metadata --- iroh-relay;
-        chatmail-metadata --- |encrypted device token| notification-proxy;
+        chatmail-metadata --- |encrypted device token| notifications.delta.chat;
         certs-nginx --> postfix;
         certs-nginx --> dovecot;
         style certs fill:#ff6;
