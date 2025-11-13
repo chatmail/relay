@@ -38,7 +38,11 @@ Please substitute it with your own domain.
 ```shell
 cp ./docker/docker-compose-default.yaml docker-compose.yaml
 ```
+2. Copy `./docker/example.env` and rename it to `.env`. This file stores variables used in `docker-compose.yaml`.
 
+```shell
+cp ./docker/example.env .env
+```\
 3. Configure environment variables in the `.env` file. These variables are used in the `docker-compose.yaml` file to pass repeated values.
 
 4. Configure kernel parameters because they cannot be changed inside the container, specifically `fs.inotify.max_user_instances` and `fs.inotify.max_user_watches`. Run the following:
