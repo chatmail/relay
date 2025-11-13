@@ -1,5 +1,11 @@
 enable_relay = true
 http_bind_addr = "[::]:3340"
-enable_stun = true
+
+# Disable built-in STUN server in iroh-relay 0.35
+# as we deploy our own TURN server instead.
+# STUN server is going to be removed in iroh-relay 1.0
+# and this line can be removed after upgrade.
+enable_stun = false
+
 enable_metrics = false
 metrics_bind_addr = "127.0.0.1:9092"

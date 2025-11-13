@@ -11,14 +11,17 @@ from io import StringIO
 from pathlib import Path
 
 from chatmaild.config import Config, read_config
-from pyinfra import facts, host
+from cmdeploy.cmdeploy import Out
+from pyinfra import facts, host, logger
 from pyinfra.api import FactBase
-from pyinfra.facts.files import File
+from pyinfra.facts.files import File, Sha256File
 from pyinfra.facts.server import Sysctl
 from pyinfra.facts.systemd import SystemdEnabled
 from pyinfra.operations import apt, files, pip, server, systemd
 
-from .acmetool import deploy_acmetool
+from .acmetool import AcmetoolDeployer
+from .deployer import Deployer, Deployment
+from .www import build_webpages, find_merge_conflict, get_paths
 
 
 class Port(FactBase):
@@ -61,13 +64,12 @@ def remove_legacy_artifacts():
         )
 
 
-def _install_remote_venv_with_chatmaild(config) -> None:
+def _install_remote_venv_with_chatmaild() -> None:
     remove_legacy_artifacts()
     dist_file = _build_chatmaild(dist_dir=Path("chatmaild/dist"))
     remote_base_dir = "/usr/local/lib/chatmaild"
     remote_dist_file = f"{remote_base_dir}/dist/{dist_file.name}"
     remote_venv_dir = f"{remote_base_dir}/venv"
-    remote_chatmail_inipath = f"{remote_base_dir}/chatmail.ini"
     root_owned = dict(user="root", group="root", mode="644")
 
     apt.packages(
@@ -80,13 +82,6 @@ def _install_remote_venv_with_chatmaild(config) -> None:
         src=dist_file.open("rb"),
         dest=remote_dist_file,
         create_remote_dir=True,
-        **root_owned,
-    )
-
-    files.put(
-        name=f"Upload {remote_chatmail_inipath}",
-        src=config._getbytefile(),
-        dest=remote_chatmail_inipath,
         **root_owned,
     )
 
@@ -108,6 +103,20 @@ def _install_remote_venv_with_chatmaild(config) -> None:
         ],
     )
 
+
+def _configure_remote_venv_with_chatmaild(config) -> None:
+    remote_base_dir = "/usr/local/lib/chatmaild"
+    remote_venv_dir = f"{remote_base_dir}/venv"
+    remote_chatmail_inipath = f"{remote_base_dir}/chatmail.ini"
+    root_owned = dict(user="root", group="root", mode="644")
+
+    files.put(
+        name=f"Upload {remote_chatmail_inipath}",
+        src=config._getbytefile(),
+        dest=remote_chatmail_inipath,
+        **root_owned,
+    )
+
     files.template(
         src=importlib.resources.files(__package__).joinpath("metrics.cron.j2"),
         dest="/etc/cron.d/chatmail-metrics",
@@ -120,41 +129,55 @@ def _install_remote_venv_with_chatmaild(config) -> None:
         },
     )
 
+
+def _configure_remote_units(mail_domain, units) -> None:
+    remote_base_dir = "/usr/local/lib/chatmaild"
+    remote_venv_dir = f"{remote_base_dir}/venv"
+    remote_chatmail_inipath = f"{remote_base_dir}/chatmail.ini"
+    root_owned = dict(user="root", group="root", mode="644")
+
     # install systemd units
-    for fn in (
-        "doveauth",
-        "filtermail",
-        "filtermail-incoming",
-        "echobot",
-        "chatmail-metadata",
-        "lastlogin",
-    ):
+    for fn in units:
         execpath = fn if fn != "filtermail-incoming" else "filtermail"
         params = dict(
             execpath=f"{remote_venv_dir}/bin/{execpath}",
             config_path=remote_chatmail_inipath,
             remote_venv_dir=remote_venv_dir,
-            mail_domain=config.mail_domain,
+            mail_domain=mail_domain,
         )
-        source_path = importlib.resources.files(__package__).joinpath(
-            "service", f"{fn}.service.f"
-        )
+
+        basename = fn if "." in fn else f"{fn}.service"
+
+        source_path = importlib.resources.files(__package__).joinpath("service", f"{basename}.f")
         content = source_path.read_text().format(**params).encode()
 
         files.put(
-            name=f"Upload {fn}.service",
+            name=f"Upload {basename}",
             src=io.BytesIO(content),
-            dest=f"/etc/systemd/system/{fn}.service",
+            dest=f"/etc/systemd/system/{basename}",
             **root_owned,
         )
+
+
+def _activate_remote_units(units) -> None:
+    # activate systemd units
+    for fn in units:
+        basename = fn if "." in fn else f"{fn}.service"
+
+        if fn == "chatmail-expire" or fn == "chatmail-fsreport":
+            # don't auto-start but let the corresponding timer trigger execution
+            enabled = False
+        else:
+            enabled = True
         systemd.service(
-            name=f"Setup {fn} service",
-            service=f"{fn}.service",
-            running=True,
-            enabled=True,
-            restarted=True,
+            name=f"Setup {basename}",
+            service=basename,
+            running=enabled,
+            enabled=enabled,
+            restarted=enabled,
             daemon_reload=True,
         )
+
 
 
 def _configure_opendkim(domain: str, dkim_selector: str = "dkim") -> bool:
@@ -226,11 +249,6 @@ def _configure_opendkim(domain: str, dkim_selector: str = "dkim") -> bool:
         present=True,
     )
 
-    apt.packages(
-        name="apt install opendkim opendkim-tools",
-        packages=["opendkim", "opendkim-tools"],
-    )
-
     if not host.get_fact(File, f"/etc/dkimkeys/{dkim_selector}.private"):
         server.shell(
             name="Generate OpenDKIM domain keys",
@@ -251,21 +269,102 @@ def _configure_opendkim(domain: str, dkim_selector: str = "dkim") -> bool:
     return need_restart
 
 
-def _uninstall_mta_sts_daemon() -> None:
-    # Remove configuration.
-    files.file("/etc/mta-sts-daemon.yml", present=False)
+class OpendkimDeployer(Deployer):
+    required_users = [("opendkim", None, ["opendkim"])]
 
-    files.directory("/usr/local/lib/postfix-mta-sts-resolver", present=False)
+    def __init__(self, mail_domain):
+        self.mail_domain = mail_domain
 
-    files.file("/etc/systemd/system/mta-sts-daemon.service", present=False)
+    def install(self):
+        apt.packages(
+            name="apt install opendkim opendkim-tools",
+            packages=["opendkim", "opendkim-tools"],
+        )
 
-    systemd.service(
-        name="Stop MTA-STS daemon",
-        service="mta-sts-daemon.service",
-        daemon_reload=True,
-        running=False,
-        enabled=False,
-    )
+    def configure(self):
+        self.need_restart = _configure_opendkim(self.mail_domain, "opendkim")
+
+    def activate(self):
+        systemd.service(
+            name="Start and enable OpenDKIM",
+            service="opendkim.service",
+            running=True,
+            enabled=True,
+            daemon_reload=self.need_restart,
+            restarted=self.need_restart,
+        )
+        self.need_restart = False
+
+
+class UnboundDeployer(Deployer):
+    def install(self):
+        # Run local DNS resolver `unbound`.
+        # `resolvconf` takes care of setting up /etc/resolv.conf
+        # to use 127.0.0.1 as the resolver.
+
+        #
+        # On an IPv4-only system, if unbound is started but not
+        # configured, it causes subsequent steps to fail to resolve hosts.
+        # Here, we use policy-rc.d to prevent unbound from starting up
+        # on initial install.  Later, we will configure it and start it.
+        #
+        # For documentation about policy-rc.d, see:
+        # https://people.debian.org/~hmh/invokerc.d-policyrc.d-specification.txt
+        #
+        files.put(
+            src=importlib.resources.files(__package__).joinpath("policy-rc.d"),
+            dest="/usr/sbin/policy-rc.d",
+            user="root",
+            group="root",
+            mode="755",
+        )
+
+        apt.packages(
+            name="Install unbound",
+            packages=["unbound", "unbound-anchor", "dnsutils"],
+        )
+
+        files.file("/usr/sbin/policy-rc.d", present=False)
+
+    def configure(self):
+        server.shell(
+            name="Generate root keys for validating DNSSEC",
+            commands=[
+                "unbound-anchor -a /var/lib/unbound/root.key || true",
+            ],
+        )
+
+    def activate(self):
+        server.shell(
+            name="Generate root keys for validating DNSSEC",
+            commands=[
+                "systemctl reset-failed unbound.service",
+            ],
+        )
+
+        systemd.service(
+            name="Start and enable unbound",
+            service="unbound.service",
+            running=True,
+            enabled=True,
+        )
+
+
+class MtastsDeployer(Deployer):
+    def configure(self):
+        # Remove configuration.
+        files.file("/etc/mta-sts-daemon.yml", present=False)
+        files.directory("/usr/local/lib/postfix-mta-sts-resolver", present=False)
+        files.file("/etc/systemd/system/mta-sts-daemon.service", present=False)
+
+    def activate(self):
+        systemd.service(
+            name="Stop MTA-STS daemon",
+            service="mta-sts-daemon.service",
+            daemon_reload=True,
+            running=False,
+            enabled=False,
+        )
 
 
 def _configure_postfix(config: Config, debug: bool = False) -> bool:
@@ -318,6 +417,69 @@ def _configure_postfix(config: Config, debug: bool = False) -> bool:
     return need_restart
 
 
+class PostfixDeployer(Deployer):
+    required_users = [("postfix", None, ["opendkim"])]
+
+    def __init__(self, config, disable_mail):
+        self.config = config
+        self.disable_mail = disable_mail
+
+    def install(self):
+        apt.packages(
+            name="Install Postfix",
+            packages="postfix",
+        )
+
+    def configure(self):
+        self.need_restart = _configure_postfix(self.config)
+
+    def activate(self):
+        restart = False if self.disable_mail else self.need_restart
+
+        systemd.service(
+            name="disable postfix for now" if self.disable_mail else "Start and enable Postfix",
+            service="postfix.service",
+            running=False if self.disable_mail else True,
+            enabled=False if self.disable_mail else True,
+            restarted=restart,
+        )
+        self.need_restart = False
+
+
+def _install_dovecot_package(package: str, arch: str):
+    arch = "amd64" if arch == "x86_64" else arch
+    arch = "arm64" if arch == "aarch64" else arch
+    url = f"https://download.delta.chat/dovecot/dovecot-{package}_2.3.21%2Bdfsg1-3_{arch}.deb"
+    deb_filename = "/root/" + url.split("/")[-1]
+
+    match (package, arch):
+        case ("core", "amd64"):
+            sha256 = "dd060706f52a306fa863d874717210b9fe10536c824afe1790eec247ded5b27d"
+        case ("core", "arm64"):
+            sha256 = "e7548e8a82929722e973629ecc40fcfa886894cef3db88f23535149e7f730dc9"
+        case ("imapd", "amd64"):
+            sha256 = "8d8dc6fc00bbb6cdb25d345844f41ce2f1c53f764b79a838eb2a03103eebfa86"
+        case ("imapd", "arm64"):
+            sha256 = "178fa877ddd5df9930e8308b518f4b07df10e759050725f8217a0c1fb3fd707f"
+        case ("lmtpd", "amd64"):
+            sha256 = "2f69ba5e35363de50962d42cccbfe4ed8495265044e244007d7ccddad77513ab"
+        case ("lmtpd", "arm64"):
+            sha256 = "89f52fb36524f5877a177dff4a713ba771fd3f91f22ed0af7238d495e143b38f"
+        case _:
+            apt.packages(packages=[f"dovecot-{package}"])
+            return
+
+    files.download(
+        name=f"Download dovecot-{package}",
+        src=url,
+        dest=deb_filename,
+        sha256sum=sha256,
+        cache_time=60 * 60 * 24 * 365 * 10,  # never redownload the package
+    )
+
+    apt.deb(name=f"Install dovecot-{package}", src=deb_filename)
+
+
 def _configure_dovecot(config: Config, debug: bool = False) -> bool:
     """Configures Dovecot IMAP server."""
     need_restart = False
@@ -352,13 +514,11 @@ def _configure_dovecot(config: Config, debug: bool = False) -> bool:
     )
     need_restart |= lua_push_notification_script.changed
 
-    files.template(
-        src=importlib.resources.files(__package__).joinpath("dovecot/expunge.cron.j2"),
-        dest="/etc/cron.d/expunge",
-        user="root",
-        group="root",
-        mode="644",
-        config=config,
+    # remove historic expunge script
+    # which is now implemented through a systemd chatmail-expire service/timer
+    files.file(
+        path="/etc/cron.d/expunge",
+        present=False,
     )
 
     # as per https://doc.dovecot.org/configuration_manual/os/
@@ -376,7 +536,46 @@ def _configure_dovecot(config: Config, debug: bool = False) -> bool:
             persist=True,
         )
 
+    timezone_env = files.line(
+        name="Set TZ environment variable",
+        path="/etc/environment",
+        line="TZ=:/etc/localtime",
+    )
+    need_restart |= timezone_env.changed
+
     return need_restart
+
+
+class DovecotDeployer(Deployer):
+    def __init__(self, config, disable_mail):
+        self.config = config
+        self.disable_mail = disable_mail
+        self.units = ["doveauth"]
+
+    def install(self):
+        arch = host.get_fact(facts.server.Arch)
+        if not "dovecot.service" in host.get_fact(SystemdEnabled):
+            _install_dovecot_package("core", arch)
+            _install_dovecot_package("imapd", arch)
+            _install_dovecot_package("lmtpd", arch)
+
+    def configure(self):
+        _configure_remote_units(self.config.mail_domain, self.units)
+        self.need_restart = _configure_dovecot(self.config)
+
+    def activate(self):
+        _activate_remote_units(self.units)
+
+        restart = False if self.disable_mail else self.need_restart
+
+        systemd.service(
+            name="disable dovecot for now" if self.disable_mail else "Start and enable Dovecot",
+            service="dovecot.service",
+            running=False if self.disable_mail else True,
+            enabled=False if self.disable_mail else True,
+            restarted=restart,
+        )
+        self.need_restart = False
 
 
 def _configure_nginx(config: Config, debug: bool = False) -> bool:
@@ -436,9 +635,93 @@ def _configure_nginx(config: Config, debug: bool = False) -> bool:
     return need_restart
 
 
-def _remove_rspamd() -> None:
-    """Remove rspamd"""
-    apt.packages(name="Remove rspamd", packages="rspamd", present=False)
+class NginxDeployer(Deployer):
+    def __init__(self, config):
+        self.config = config
+
+    def install(self):
+        #
+        # If we allow nginx to start up on install, it will grab port
+        # 80, which then will block acmetool from listening on the port.
+        # That in turn prevents getting certificates, which then causes
+        # an error when we try to start nginx on the custom config
+        # that leaves port 80 open but also requires certificates to
+        # be present.  To avoid getting into that interlocking mess,
+        # we use policy-rc.d to prevent nginx from starting up when it
+        # is installed.
+        #
+        # This approach allows us to avoid performing any explicit
+        # systemd operations during the install stage (as opposed to
+        # allowing it to start and then forcing it to stop), which allows
+        # the install stage to run in non-systemd environments like a
+        # container image build.
+        #
+        # For documentation about policy-rc.d, see:
+        # https://people.debian.org/~hmh/invokerc.d-policyrc.d-specification.txt
+        #
+        files.put(
+            src=importlib.resources.files(__package__).joinpath("policy-rc.d"),
+            dest="/usr/sbin/policy-rc.d",
+            user="root",
+            group="root",
+            mode="755",
+        )
+
+        apt.packages(
+            name="Install nginx",
+            packages=["nginx", "libnginx-mod-stream"],
+        )
+
+        files.file("/usr/sbin/policy-rc.d", present=False)
+
+    def configure(self):
+        self.need_restart = _configure_nginx(self.config)
+
+    def activate(self):
+        systemd.service(
+            name="Start and enable nginx",
+            service="nginx.service",
+            running=True,
+            enabled=True,
+            restarted=self.need_restart,
+        )
+        self.need_restart = False
+
+
+class WebsiteDeployer(Deployer):
+    def __init__(self, config):
+        self.config = config
+
+    def install(self):
+        files.directory(
+            name="Ensure /var/www exists",
+            path="/var/www",
+            user="root",
+            group="root",
+            mode="755",
+            present=True,
+        )
+
+    def configure(self):
+        www_path, src_dir, build_dir = get_paths(self.config)
+        # if www_folder was set to a non-existing folder, skip upload
+        if not www_path.is_dir():
+            logger.warning("Building web pages is disabled in chatmail.ini, skipping")
+        elif (path := find_merge_conflict(src_dir)) is not None:
+            logger.warning(f"Merge conflict found in {path}, skipping website deployment. Fix merge conflict if you want to upload your web page.")
+        else:
+            # if www_folder is a hugo page, build it
+            if build_dir:
+                www_path = build_webpages(src_dir, build_dir, self.config)
+            # if it is not a hugo page, upload it as is
+            files.rsync(
+                f"{www_path}/", "/var/www/html", flags=["-avz", "--chown=www-data"]
+            )
+
+
+class RspamdDeployer(Deployer):
+    def install(self):
+        apt.packages(name="Remove rspamd", packages="rspamd", present=False)
 
 
 def check_config(config):
@@ -456,115 +739,319 @@ def check_config(config):
     return config
 
 
-def deploy_mtail(config):
-    # Uninstall mtail package, we are going to install a static binary.
-    apt.packages(name="Uninstall mtail", packages=["mtail"], present=False)
+class TurnDeployer(Deployer):
+    def __init__(self, mail_domain):
+        self.mail_domain = mail_domain
+        self.units = ["turnserver"]
 
-    (url, sha256sum) = {
-        "x86_64": (
-            "https://github.com/google/mtail/releases/download/v3.0.8/mtail_3.0.8_linux_amd64.tar.gz",
-            "123c2ee5f48c3eff12ebccee38befd2233d715da736000ccde49e3d5607724e4",
-        ),
-        "aarch64": (
-            "https://github.com/google/mtail/releases/download/v3.0.8/mtail_3.0.8_linux_arm64.tar.gz",
-            "aa04811c0929b6754408676de520e050c45dddeb3401881888a092c9aea89cae",
-        ),
-    }[host.get_fact(facts.server.Arch)]
+    def install(self):
+        (url, sha256sum) = {
+            "x86_64": (
+                "https://github.com/chatmail/chatmail-turn/releases/download/v0.3/chatmail-turn-x86_64-linux",
+                "841e527c15fdc2940b0469e206188ea8f0af48533be12ecb8098520f813d41e4",
+            ),
+            "aarch64": (
+                "https://github.com/chatmail/chatmail-turn/releases/download/v0.3/chatmail-turn-aarch64-linux",
+                "a5fc2d06d937b56a34e098d2cd72a82d3e89967518d159bf246dc69b65e81b42",
+            ),
+        }[host.get_fact(facts.server.Arch)]
 
-    server.shell(
-        name="Download mtail",
-        commands=[
-            f"(echo '{sha256sum} /usr/local/bin/mtail' | sha256sum -c) || (curl -L {url} | gunzip | tar -x -f - mtail -O >/usr/local/bin/mtail.new && mv /usr/local/bin/mtail.new /usr/local/bin/mtail)",
-            "chmod 755 /usr/local/bin/mtail",
-        ],
-    )
+        existing_sha256sum = host.get_fact(Sha256File, "/usr/local/bin/chatmail-turn")
+        if existing_sha256sum != sha256sum:
+            server.shell(
+                name="Download chatmail-turn",
+                commands=[
+                    f"(curl -L {url} >/usr/local/bin/chatmail-turn.new && (echo '{sha256sum} /usr/local/bin/chatmail-turn.new' | sha256sum -c) && mv /usr/local/bin/chatmail-turn.new /usr/local/bin/chatmail-turn)",
+                    "chmod 755 /usr/local/bin/chatmail-turn",
+                ],
+            )
 
-    # Using our own systemd unit instead of `/usr/lib/systemd/system/mtail.service`.
-    # This allows to read from journalctl instead of log files.
-    files.template(
-        src=importlib.resources.files(__package__).joinpath("mtail/mtail.service.j2"),
-        dest="/etc/systemd/system/mtail.service",
-        user="root",
-        group="root",
-        mode="644",
-        address=config.mtail_address or "127.0.0.1",
-        port=3903,
-    )
+    def configure(self):
+        _configure_remote_units(self.mail_domain, self.units)
 
-    mtail_conf = files.put(
-        name="Mtail configuration",
-        src=importlib.resources.files(__package__).joinpath(
-            "mtail/delivered_mail.mtail"
-        ),
-        dest="/etc/mtail/delivered_mail.mtail",
-        user="root",
-        group="root",
-        mode="644",
-    )
-
-    systemd.service(
-        name="Start and enable mtail",
-        service="mtail.service",
-        running=bool(config.mtail_address),
-        enabled=bool(config.mtail_address),
-        restarted=mtail_conf.changed,
-    )
+    def activate(self):
+        _activate_remote_units(self.units)
 
 
-def deploy_iroh_relay(config) -> None:
-    (url, sha256sum) = {
-        "x86_64": (
-            "https://github.com/n0-computer/iroh/releases/download/v0.28.1/iroh-relay-v0.28.1-x86_64-unknown-linux-musl.tar.gz",
-            "2ffacf7c0622c26b67a5895ee8e07388769599f60e5f52a3bd40a3258db89b2c",
-        ),
-        "aarch64": (
-            "https://github.com/n0-computer/iroh/releases/download/v0.28.1/iroh-relay-v0.28.1-aarch64-unknown-linux-musl.tar.gz",
-            "b915037bcc1ff1110cc9fcb5de4a17c00ff576fd2f568cd339b3b2d54c420dc4",
-        ),
-    }[host.get_fact(facts.server.Arch)]
+class MtailDeployer(Deployer):
+    def __init__(self, mtail_address):
+        self.mtail_address = mtail_address
 
-    apt.packages(
-        name="Install curl",
-        packages=["curl"],
-    )
+    def install(self):
+        # Uninstall mtail package, we are going to install a static binary.
+        apt.packages(name="Uninstall mtail", packages=["mtail"], present=False)
 
-    server.shell(
-        name="Download iroh-relay",
-        commands=[
-            f"(echo '{sha256sum} /usr/local/bin/iroh-relay' | sha256sum -c) || (curl -L {url} | gunzip | tar -x -f - ./iroh-relay -O >/usr/local/bin/iroh-relay.new && mv /usr/local/bin/iroh-relay.new /usr/local/bin/iroh-relay)",
-            "chmod 755 /usr/local/bin/iroh-relay",
-        ],
-    )
+        (url, sha256sum) = {
+            "x86_64": (
+                "https://github.com/google/mtail/releases/download/v3.0.8/mtail_3.0.8_linux_amd64.tar.gz",
+                "123c2ee5f48c3eff12ebccee38befd2233d715da736000ccde49e3d5607724e4",
+            ),
+            "aarch64": (
+                "https://github.com/google/mtail/releases/download/v3.0.8/mtail_3.0.8_linux_arm64.tar.gz",
+                "aa04811c0929b6754408676de520e050c45dddeb3401881888a092c9aea89cae",
+            ),
+        }[host.get_fact(facts.server.Arch)]
 
-    need_restart = False
+        server.shell(
+            name="Download mtail",
+            commands=[
+                f"(echo '{sha256sum} /usr/local/bin/mtail' | sha256sum -c) || (curl -L {url} | gunzip | tar -x -f - mtail -O >/usr/local/bin/mtail.new && mv /usr/local/bin/mtail.new /usr/local/bin/mtail)",
+                "chmod 755 /usr/local/bin/mtail",
+            ],
+        )
 
-    systemd_unit = files.put(
-        name="Upload iroh-relay systemd unit",
-        src=importlib.resources.files(__package__).joinpath("iroh-relay.service"),
-        dest="/etc/systemd/system/iroh-relay.service",
-        user="root",
-        group="root",
-        mode="644",
-    )
-    need_restart |= systemd_unit.changed
+    def configure(self):
+        # Using our own systemd unit instead of `/usr/lib/systemd/system/mtail.service`.
+        # This allows to read from journalctl instead of log files.
+        files.template(
+            src=importlib.resources.files(__package__).joinpath(
+                "mtail/mtail.service.j2"
+            ),
+            dest="/etc/systemd/system/mtail.service",
+            user="root",
+            group="root",
+            mode="644",
+            address=self.mtail_address or "127.0.0.1",
+            port=3903,
+        )
 
-    iroh_config = files.put(
-        name="Upload iroh-relay config",
-        src=importlib.resources.files(__package__).joinpath("iroh-relay.toml"),
-        dest="/etc/iroh-relay.toml",
-        user="root",
-        group="root",
-        mode="644",
-    )
-    need_restart |= iroh_config.changed
+        mtail_conf = files.put(
+            name="Mtail configuration",
+            src=importlib.resources.files(__package__).joinpath(
+                "mtail/delivered_mail.mtail"
+            ),
+            dest="/etc/mtail/delivered_mail.mtail",
+            user="root",
+            group="root",
+            mode="644",
+        )
+        self.need_restart = mtail_conf.changed
 
-    systemd.service(
-        name="Start and enable iroh-relay",
-        service="iroh-relay.service",
-        running=True,
-        enabled=config.enable_iroh_relay,
-        restarted=need_restart,
-    )
+    def activate(self):
+        systemd.service(
+            name="Start and enable mtail",
+            service="mtail.service",
+            running=bool(self.mtail_address),
+            enabled=bool(self.mtail_address),
+            restarted=self.need_restart,
+        )
+        self.need_restart = False
+
+
+class IrohDeployer(Deployer):
+    def __init__(self, enable_iroh_relay):
+        self.enable_iroh_relay = enable_iroh_relay
+
+    def install(self):
+        (url, sha256sum) = {
+            "x86_64": (
+                "https://github.com/n0-computer/iroh/releases/download/v0.35.0/iroh-relay-v0.35.0-x86_64-unknown-linux-musl.tar.gz",
+                "45c81199dbd70f8c4c30fef7f3b9727ca6e3cea8f2831333eeaf8aa71bf0fac1",
+            ),
+            "aarch64": (
+                "https://github.com/n0-computer/iroh/releases/download/v0.35.0/iroh-relay-v0.35.0-aarch64-unknown-linux-musl.tar.gz",
+                "f8ef27631fac213b3ef668d02acd5b3e215292746a3fc71d90c63115446008b1",
+            ),
+        }[host.get_fact(facts.server.Arch)]
+
+        existing_sha256sum = host.get_fact(Sha256File, "/usr/local/bin/iroh-relay")
+        if existing_sha256sum != sha256sum:
+            server.shell(
+                name="Download iroh-relay",
+                commands=[
+                    f"(curl -L {url} | gunzip | tar -x -f - ./iroh-relay -O >/usr/local/bin/iroh-relay.new && (echo '{sha256sum} /usr/local/bin/iroh-relay.new' | sha256sum -c) && mv /usr/local/bin/iroh-relay.new /usr/local/bin/iroh-relay)",
+                    "chmod 755 /usr/local/bin/iroh-relay",
+                ],
+            )
+
+            self.need_restart = True
+
+    def configure(self):
+        systemd_unit = files.put(
+            name="Upload iroh-relay systemd unit",
+            src=importlib.resources.files(__package__).joinpath("iroh-relay.service"),
+            dest="/etc/systemd/system/iroh-relay.service",
+            user="root",
+            group="root",
+            mode="644",
+        )
+        self.need_restart |= systemd_unit.changed
+
+        iroh_config = files.put(
+            name="Upload iroh-relay config",
+            src=importlib.resources.files(__package__).joinpath("iroh-relay.toml"),
+            dest="/etc/iroh-relay.toml",
+            user="root",
+            group="root",
+            mode="644",
+        )
+        self.need_restart |= iroh_config.changed
+
+    def activate(self):
+        systemd.service(
+            name="Start and enable iroh-relay",
+            service="iroh-relay.service",
+            running=True,
+            enabled=self.enable_iroh_relay,
+            restarted=self.need_restart,
+        )
+        self.need_restart = False
+
+
+class JournaldDeployer(Deployer):
+    def configure(self):
+        journald_conf = files.put(
+            name="Configure journald",
+            src=importlib.resources.files(__package__).joinpath("journald.conf"),
+            dest="/etc/systemd/journald.conf",
+            user="root",
+            group="root",
+            mode="644",
+        )
+        self.need_restart = journald_conf.changed
+
+    def activate(self):
+        systemd.service(
+            name="Start and enable journald",
+            service="systemd-journald.service",
+            running=True,
+            enabled=True,
+            restarted=self.need_restart,
+        )
+        self.need_restart = False
+
+
+class EchobotDeployer(Deployer):
+    #
+    # This deployer depends on the dovecot and postfix deployers because
+    # it needs to base its decision of whether to restart the service on
+    # whether those two services were restarted.
+    #
+    def __init__(self, mail_domain):
+        self.mail_domain = mail_domain
+        self.units = ["echobot"]
+
+    def install(self):
+        apt.packages(
+            # required for setfacl for echobot
+            name="Install acl",
+            packages="acl",
+        )
+
+    def configure(self):
+        _configure_remote_units(self.mail_domain, self.units)
+
+    def activate(self):
+        _activate_remote_units(self.units)
+
+
+class ChatmailVenvDeployer(Deployer):
+    def __init__(self, config):
+        self.config = config
+        self.units = (
+            "filtermail",
+            "filtermail-incoming",
+            "chatmail-metadata",
+            "lastlogin",
+            "chatmail-expire",
+            "chatmail-expire.timer",
+            "chatmail-fsreport",
+            "chatmail-fsreport.timer",
+        )
+
+    def install(self):
+        _install_remote_venv_with_chatmaild()
+
+    def configure(self):
+        _configure_remote_venv_with_chatmaild(self.config)
+        _configure_remote_units(self.config.mail_domain, self.units)
+
+    def activate(self):
+        _activate_remote_units(self.units)
+
+
+class ChatmailDeployer(Deployer):
+    required_users = [
+        ("vmail", "vmail", None),
+        ("echobot", None, None),
+        ("iroh", None, None),
+    ]
+
+    def __init__(self, mail_domain):
+        self.mail_domain = mail_domain
+
+    def install(self):
+        # Remove OBS repository key that is no longer used.
+        files.file("/etc/apt/keyrings/obs-home-deltachat.gpg", present=False)
+
+        files.line(
+            name="Remove DeltaChat OBS home repository from sources.list",
+            path="/etc/apt/sources.list",
+            line="deb [signed-by=/etc/apt/keyrings/obs-home-deltachat.gpg] https://download.opensuse.org/repositories/home:/deltachat/Debian_12/ ./",
+            escape_regex_characters=True,
+            present=False,
+        )
+
+        apt.update(name="apt update", cache_time=24 * 3600)
+        apt.upgrade(name="upgrade apt packages", auto_remove=True)
+
+        apt.packages(
+            name="Install curl",
+            packages=["curl"],
+        )
+
+        apt.packages(
+            name="Install rsync",
+            packages=["rsync"],
+        )
+        apt.packages(
+            name="Ensure cron is installed",
+            packages=["cron"],
+        )
+
+    def configure(self):
+        # This file is used by auth proxy.
+        # https://wiki.debian.org/EtcMailName
+        server.shell(
+            name="Setup /etc/mailname",
+            commands=[
+                f"echo {self.mail_domain} >/etc/mailname; chmod 644 /etc/mailname"
+            ],
+        )
+
+
+class FcgiwrapDeployer(Deployer):
+    def install(self):
+        apt.packages(
+            name="Install fcgiwrap",
+            packages=["fcgiwrap"],
+        )
+
+    def activate(self):
+        systemd.service(
+            name="Start and enable fcgiwrap",
+            service="fcgiwrap.service",
+            running=True,
+            enabled=True,
+        )
+
+
+class GithashDeployer(Deployer):
+    def activate(self):
+        try:
+            git_hash = subprocess.check_output(["git", "rev-parse", "HEAD"]).decode()
+        except Exception:
+            git_hash = "unknown\n"
+        try:
+            git_diff = subprocess.check_output(["git", "diff"]).decode()
+        except Exception:
+            git_diff = ""
+        files.put(
+            name="Upload chatmail relay git commiit hash",
+            src=StringIO(git_hash + git_diff),
+            dest="/etc/chatmail-version",
+            mode="700",
+        )
 
 
 def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
@@ -577,211 +1064,71 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     check_config(config)
     mail_domain = config.mail_domain
 
-    from .www import build_webpages
-
-    server.group(name="Create vmail group", group="vmail", system=True)
-    server.user(name="Create vmail user", user="vmail", group="vmail", system=True)
-    server.group(name="Create opendkim group", group="opendkim", system=True)
-    server.user(
-        name="Create opendkim user",
-        user="opendkim",
-        groups=["opendkim"],
-        system=True,
-    )
-    server.user(
-        name="Add postfix user to opendkim group for socket access",
-        user="postfix",
-        groups=["opendkim"],
-        system=True,
-    )
-    server.user(name="Create echobot user", user="echobot", system=True)
-    server.user(name="Create iroh user", user="iroh", system=True)
-
-    # Add our OBS repository for dovecot_no_delay
-    files.put(
-        name="Add Deltachat OBS GPG key to apt keyring",
-        src=importlib.resources.files(__package__).joinpath("obs-home-deltachat.gpg"),
-        dest="/etc/apt/keyrings/obs-home-deltachat.gpg",
-        user="root",
-        group="root",
-        mode="644",
-    )
-
-    files.line(
-        name="Add DeltaChat OBS home repository to sources.list",
-        path="/etc/apt/sources.list",
-        line="deb [signed-by=/etc/apt/keyrings/obs-home-deltachat.gpg] https://download.opensuse.org/repositories/home:/deltachat/Debian_12/ ./",
-        escape_regex_characters=True,
-        ensure_newline=True,
-    )
-
     if host.get_fact(Port, port=53) != "unbound":
         files.line(
             name="Add 9.9.9.9 to resolv.conf",
             path="/etc/resolv.conf",
             line="nameserver 9.9.9.9",
         )
-    apt.update(name="apt update", cache_time=24 * 3600)
-    apt.upgrade(name="upgrade apt packages", auto_remove=True)
 
-    apt.packages(
-        name="Install rsync",
-        packages=["rsync"],
-    )
+    port_services = [
+        (["master", "smtpd"], 25),
+        ("unbound", 53),
+        ("acmetool", 80),
+        (["imap-login", "dovecot"], 143),
+        ("nginx", 443),
+        (["master", "smtpd"], 465),
+        (["master", "smtpd"], 587),
+        (["imap-login", "dovecot"], 993),
+        ("iroh-relay", 3340),
+        ("nginx", 8443),
+        (["master", "smtpd"], config.postfix_reinject_port),
+        (["master", "smtpd"], config.postfix_reinject_port_incoming),
+        ("filtermail", config.filtermail_smtp_port),
+        ("filtermail", config.filtermail_smtp_port_incoming),
+    ]
+    for service, port in port_services:
+        print(f"Checking if port {port} is available for {service}...")
+        running_service = host.get_fact(Port, port=port)
+        if running_service:
+            if running_service not in service:
+                Out().red(
+                    f"Deploy failed: port {port} is occupied by: {running_service}"
+                )
+                exit(1)
 
-    # Run local DNS resolver `unbound`.
-    # `resolvconf` takes care of setting up /etc/resolv.conf
-    # to use 127.0.0.1 as the resolver.
-    from cmdeploy.cmdeploy import Out
-
-    process_on_53 = host.get_fact(Port, port=53)
-    if process_on_53 not in (None, "unbound"):
-        Out().red(f"Can't install unbound: port 53 is occupied by: {process_on_53}")
-        exit(1)
-    apt.packages(
-        name="Install unbound",
-        packages=["unbound", "unbound-anchor", "dnsutils"],
-    )
-    server.shell(
-        name="Generate root keys for validating DNSSEC",
-        commands=[
-            "unbound-anchor -a /var/lib/unbound/root.key || true",
-            "systemctl reset-failed unbound.service",
-        ],
-    )
-    systemd.service(
-        name="Start and enable unbound",
-        service="unbound.service",
-        running=True,
-        enabled=True,
-    )
-
-    deploy_iroh_relay(config)
-
-    # Deploy acmetool to have TLS certificates.
     tls_domains = [mail_domain, f"mta-sts.{mail_domain}", f"www.{mail_domain}"]
-    deploy_acmetool(
-        domains=tls_domains,
-    )
 
-    apt.packages(
-        # required for setfacl for echobot
-        name="Install acl",
-        packages="acl",
-    )
+    all_deployers = [
+        ChatmailDeployer(mail_domain),
+        JournaldDeployer(),
+        UnboundDeployer(),
+        TurnDeployer(mail_domain),
+        IrohDeployer(config.enable_iroh_relay),
+        AcmetoolDeployer(config.acme_email, tls_domains),
 
-    apt.packages(
-        name="Install Postfix",
-        packages="postfix",
-    )
+        WebsiteDeployer(config),
+        ChatmailVenvDeployer(config),
+        MtastsDeployer(),
+        OpendkimDeployer(mail_domain),
 
-    apt.packages(
-        name="Install Dovecot",
-        packages=["dovecot-imapd", "dovecot-lmtpd"],
-    )
+        # Dovecot should be started before Postfix
+        # because it creates authentication socket
+        # required by Postfix.
+        DovecotDeployer(config, disable_mail),
+        PostfixDeployer(config, disable_mail),
+        FcgiwrapDeployer(),
+        NginxDeployer(config),
+        RspamdDeployer(),
+        EchobotDeployer(mail_domain),
+        MtailDeployer(config.mtail_address),
+        GithashDeployer(),
+    ]
 
-    apt.packages(
-        name="Install nginx",
-        packages=["nginx", "libnginx-mod-stream"],
-    )
+    Deployment().perform_stages(all_deployers)
 
-    apt.packages(
-        name="Install fcgiwrap",
-        packages=["fcgiwrap"],
-    )
-
-    www_path = importlib.resources.files(__package__).joinpath("../../../www").resolve()
-
-    build_dir = www_path.joinpath("build")
-    src_dir = www_path.joinpath("src")
-    build_webpages(src_dir, build_dir, config)
-    files.rsync(f"{build_dir}/", "/var/www/html", flags=["-avz"])
-
-    _install_remote_venv_with_chatmaild(config)
-    debug = False
-    dovecot_need_restart = _configure_dovecot(config, debug=debug)
-    postfix_need_restart = _configure_postfix(config, debug=debug)
-    nginx_need_restart = _configure_nginx(config)
-    _uninstall_mta_sts_daemon()
-
-    _remove_rspamd()
-    opendkim_need_restart = _configure_opendkim(mail_domain, "opendkim")
-
-    systemd.service(
-        name="Start and enable OpenDKIM",
-        service="opendkim.service",
-        running=True,
-        enabled=True,
-        daemon_reload=opendkim_need_restart,
-        restarted=opendkim_need_restart,
-    )
-
-    # Dovecot should be started before Postfix
-    # because it creates authentication socket
-    # required by Postfix.
-    systemd.service(
-        name="disable dovecot for now" if disable_mail else "Start and enable Dovecot",
-        service="dovecot.service",
-        running=False if disable_mail else True,
-        enabled=False if disable_mail else True,
-        restarted=dovecot_need_restart if not disable_mail else False,
-    )
-
-    systemd.service(
-        name="disable postfix for now" if disable_mail else "Start and enable Postfix",
-        service="postfix.service",
-        running=False if disable_mail else True,
-        enabled=False if disable_mail else True,
-        restarted=postfix_need_restart if not disable_mail else False,
-    )
-
-    systemd.service(
-        name="Start and enable nginx",
-        service="nginx.service",
-        running=True,
-        enabled=True,
-        restarted=nginx_need_restart,
-    )
-
-    # This file is used by auth proxy.
-    # https://wiki.debian.org/EtcMailName
-    server.shell(
-        name="Setup /etc/mailname",
-        commands=[f"echo {mail_domain} >/etc/mailname; chmod 644 /etc/mailname"],
-    )
-
-    journald_conf = files.put(
-        name="Configure journald",
-        src=importlib.resources.files(__package__).joinpath("journald.conf"),
-        dest="/etc/systemd/journald.conf",
-        user="root",
-        group="root",
-        mode="644",
-    )
-    systemd.service(
-        name="Start and enable journald",
-        service="systemd-journald.service",
-        running=True,
-        enabled=True,
-        restarted=journald_conf.changed,
-    )
     files.directory(
         name="Ensure old logs on disk are deleted",
         path="/var/log/journal/",
         present=False,
     )
-
-    apt.packages(
-        name="Ensure cron is installed",
-        packages=["cron"],
-    )
-    git_hash = subprocess.check_output(["git", "rev-parse", "HEAD"]).decode()
-    git_diff = subprocess.check_output(["git", "diff"]).decode()
-    files.put(
-        name="Upload chatmail relay git commiit hash",
-        src=StringIO(git_hash + git_diff),
-        dest="/etc/chatmail-version",
-        mode="700",
-    )
-
-    deploy_mtail(config)

@@ -1,0 +1,8 @@
+[Unit]
+Description=Renew TLS certificates with acmetool
+
+[Timer]
+OnCalendar=*-*-* 16:20:00
+
+[Install]
+WantedBy=timers.target

@@ -14,6 +14,7 @@ smtp      inet  n       -       y       -       -       smtpd -v
 {%- else %}
 smtp      inet  n       -       y       -       -       smtpd 
 {%- endif %}
+  -o smtpd_tls_security_level=encrypt
   -o smtpd_proxy_filter=127.0.0.1:{{ config.filtermail_smtp_port_incoming }}
 submission inet n       -       y       -       5000    smtpd
   -o syslog_name=postfix/submission
@@ -77,13 +78,13 @@ scache    unix  -       -       y       -       1       scache
 postlog   unix-dgram n  -       n       -       1       postlogd
 filter    unix -        n       n       -       -       lmtp
 # Local SMTP server for reinjecting outgoing filtered mail.
-127.0.0.1:{{ config.postfix_reinject_port }} inet  n       -       n       -       10      smtpd
+127.0.0.1:{{ config.postfix_reinject_port }} inet  n       -       n       -       100      smtpd
   -o syslog_name=postfix/reinject
   -o smtpd_milters=unix:opendkim/opendkim.sock
   -o cleanup_service_name=authclean
 
 # Local SMTP server for reinjecting incoming filtered mail 
-127.0.0.1:{{ config.postfix_reinject_port_incoming }} inet  n       -       n       -       10      smtpd
+127.0.0.1:{{ config.postfix_reinject_port_incoming }} inet  n       -       n       -       100      smtpd
   -o syslog_name=postfix/reinject_incoming
   -o smtpd_milters=unix:opendkim/opendkim.sock
 

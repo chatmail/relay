@@ -42,6 +42,7 @@ def bootstrap_remote(gateway, remote=remote):
 
 def print_stderr(item="", end="\n"):
     print(item, file=sys.stderr, end=end)
+    sys.stderr.flush()
 
 
 class SSHExec:
@@ -70,10 +71,6 @@ class SSHExec:
                 raise self.FuncError(data)
 
     def logged(self, call, kwargs):
-        def log_progress(data):
-            sys.stderr.write(".")
-            sys.stderr.flush()
-
         title = call.__doc__
         if not title:
             title = call.__name__
@@ -82,6 +79,22 @@ class SSHExec:
             return self(call, kwargs, log_callback=print_stderr)
         else:
             print_stderr(title, end="")
-            res = self(call, kwargs, log_callback=log_progress)
+            res = self(call, kwargs, log_callback=remote.rshell.log_progress)
             print_stderr()
             return res
+
+
+class LocalExec:
+    def __init__(self, verbose=False, docker=False):
+        self.verbose = verbose
+        self.docker = docker
+
+    def logged(self, call, kwargs: dict):
+        where = "locally"
+        if self.docker:
+            if call == remote.rdns.perform_initial_checks:
+                kwargs['pre_command'] = "docker exec chatmail "
+                where = "in docker"
+        if self.verbose:
+            print(f"Running {where}: {call.__name__}(**{kwargs})")
+        return call(**kwargs)

@@ -1,4 +1,0 @@
-SHELL=/bin/sh
-PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin
-MAILTO=root
-20 16 * * * root /usr/bin/acmetool --batch reconcile && systemctl reload dovecot && systemctl reload postfix && systemctl reload nginx

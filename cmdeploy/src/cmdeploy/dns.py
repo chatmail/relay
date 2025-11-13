@@ -45,8 +45,7 @@ def check_full_zone(sshexec, remote_data, out, zonefile) -> int:
     and return (exitcode, remote_data) tuple."""
 
     required_diff, recommended_diff = sshexec.logged(
-        remote.rdns.check_zonefile,
-        kwargs=dict(zonefile=zonefile, mail_domain=remote_data["mail_domain"]),
+        remote.rdns.check_zonefile, kwargs=dict(zonefile=zonefile, verbose=False),
     )
 
     returncode = 0

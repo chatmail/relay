@@ -27,8 +27,10 @@ chatmail-metadata = "chatmaild.metadata:main"
 filtermail = "chatmaild.filtermail:main"
 echobot = "chatmaild.echo:main"
 chatmail-metrics = "chatmaild.metrics:main"
-delete_inactive_users = "chatmaild.delete_inactive_users:main"
+chatmail-expire = "chatmaild.expire:main"
+chatmail-fsreport = "chatmaild.fsreport:main"
 lastlogin = "chatmaild.lastlogin:main"
+turnserver = "chatmaild.turnserver:main"
 
 [project.entry-points.pytest11]
 "chatmaild.testplugin" = "chatmaild.tests.plugin"
@@ -70,5 +72,6 @@ commands =
 [testenv]
 deps = pytest 
        pdbpp 
+       pytest-localserver
 commands = pytest -v -rsXx {posargs}
 """

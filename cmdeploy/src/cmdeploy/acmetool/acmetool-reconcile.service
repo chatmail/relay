@@ -1,0 +1,8 @@
+[Unit]
+Description=Renew TLS certificates with acmetool
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/acmetool --batch reconcile
+

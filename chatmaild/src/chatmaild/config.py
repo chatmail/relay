@@ -33,6 +33,7 @@ class Config:
         self.password_min_length = int(params["password_min_length"])
         self.passthrough_senders = params["passthrough_senders"].split()
         self.passthrough_recipients = params["passthrough_recipients"].split()
+        self.www_folder = params.get("www_folder", "")
         self.filtermail_smtp_port = int(params["filtermail_smtp_port"])
         self.filtermail_smtp_port_incoming = int(
             params["filtermail_smtp_port_incoming"]
@@ -43,6 +44,7 @@ class Config:
         )
         self.mtail_address = params.get("mtail_address")
         self.disable_ipv6 = params.get("disable_ipv6", "false").lower() == "true"
+        self.acme_email = params.get("acme_email", "")
         self.imap_rawlog = params.get("imap_rawlog", "false").lower() == "true"
         if "iroh_relay" not in params:
             self.iroh_relay = "https://" + params["mail_domain"]

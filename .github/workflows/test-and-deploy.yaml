@@ -20,7 +20,7 @@ jobs:
       group: ci-${{ github.workflow }}-${{ github.ref }}
       cancel-in-progress: ${{ !contains(github.ref, '$GITHUB_REF') }}
     steps:
-      - uses: jsok/serialize-workflow-action@v1
+      - uses: jsok/serialize-workflow-action@515cd04c46d7ea7435c4a22a3b4419127afdefe9
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/checkout@v4
@@ -70,15 +70,12 @@ jobs:
           rsync -avz dkimkeys-restore/dkimkeys root@staging2.testrun.org:/etc/ || true
           ssh -o StrictHostKeyChecking=accept-new -v root@staging2.testrun.org chown root:root -R /var/lib/acme || true
 
-      - name: run formatting checks 
-        run: cmdeploy fmt -v 
-
       - name: run deploy-chatmail offline tests 
         run: pytest --pyargs cmdeploy 
 
       - run: cmdeploy init staging2.testrun.org
 
-      - run: cmdeploy run --verbose
+      - run: cmdeploy run --verbose --skip-dns-check
 
       - name: set DNS entries
         run: |

@@ -37,7 +37,7 @@ class TestDC:
 
     def test_ping_pong(self, benchmark, cmfactory):
         ac1, ac2 = cmfactory.get_online_accounts(2)
-        chat = cmfactory.get_protected_chat(ac1, ac2)
+        chat = cmfactory.get_accepted_chat(ac1, ac2)
 
         def dc_ping_pong():
             chat.send_text("ping")
@@ -49,7 +49,7 @@ class TestDC:
 
     def test_send_10_receive_10(self, benchmark, cmfactory, lp):
         ac1, ac2 = cmfactory.get_online_accounts(2)
-        chat = cmfactory.get_protected_chat(ac1, ac2)
+        chat = cmfactory.get_accepted_chat(ac1, ac2)
 
         def dc_send_10_receive_10():
             for i in range(10):

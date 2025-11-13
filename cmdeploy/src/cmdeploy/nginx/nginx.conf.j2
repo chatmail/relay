@@ -66,7 +66,7 @@ http {
 
 		index index.html index.htm;
 
-		server_name _;
+		server_name {{ config.domain_name }} www.{{ config.domain_name }} mta-sts.{{ config.domain_name }};
 
 		access_log syslog:server=unix:/dev/log,facility=local7;
 

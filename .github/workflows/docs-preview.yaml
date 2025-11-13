@@ -1,0 +1,80 @@
+name: documentation preview
+
+on:
+  pull_request:
+    paths:
+      - 'doc/**'
+      - 'scripts/build-docs.sh'
+      - '.github/workflows/docs-preview.yaml'
+
+jobs:
+  scripts:
+    name: build 
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: initenv 
+        run: scripts/initenv.sh
+
+      - name: append venv/bin to PATH
+        run: echo `pwd`/venv/bin >>$GITHUB_PATH
+
+      - name: build documentation 
+        working-directory: doc
+        run: sphinx-build source build
+
+      - name: build documentation second time (for TOC)
+        working-directory: doc
+        run: sphinx-build source build
+
+      - name: Get Pullrequest ID
+        id: prepare
+        run: |
+          export PULLREQUEST_ID=$(echo "${{ github.ref }}" | cut -d "/" -f3)
+          echo "prid=$PULLREQUEST_ID" >> $GITHUB_OUTPUT
+          if [ $(expr length "${{ secrets.USERNAME }}") -gt "1" ]; then echo "uploadtoserver=true" >> $GITHUB_OUTPUT; fi
+      - run: |
+          echo "baseurl: /${{ steps.prepare.outputs.prid }}" >> _config.yml
+
+      - name: Upload preview
+        run: |
+          mkdir -p "$HOME/.ssh"
+          echo "${{ secrets.CHATMAIL_STAGING_SSHKEY }}" > "$HOME/.ssh/key"
+          chmod 600 "$HOME/.ssh/key"
+          rsync -rILvh -e "ssh -i $HOME/.ssh/key -o StrictHostKeyChecking=no" $GITHUB_WORKSPACE/doc/build/ "${{ secrets.USERNAME }}@chatmail.at:/var/www/html/staging.chatmail.at/doc/relay/${{ steps.prepare.outputs.prid }}/"
+
+      - name: "Post links to details"
+        id: details
+        if: steps.prepare.outputs.uploadtoserver
+        run: |
+          # URLs for API connection and uploads
+          export GITHUB_API_URL="https://api.github.com/repos/chatmail/relay/statuses/${{ github.event.after }}"
+          export PREVIEW_LINK="https://staging.chatmail.at/doc/relay/${{ steps.prepare.outputs.prid }}/"
+          export STATUS_DATA="{\"state\": \"success\", \
+                               \"description\": \"Preview the changed documentation here:\", \
+                               \"context\": \"Documentation Preview\", \
+                               \"target_url\": \"${PREVIEW_LINK}\"}"
+          curl -X POST --header "Accept: application/vnd.github+json" --header "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" --url "$GITHUB_API_URL" --header "content-type: application/json" --data "$STATUS_DATA"
+
+          #check if comment already exists, if not post it
+          export GITHUB_API_URL="https://api.github.com/repos/chatmail/relay/issues/${{ steps.prepare.outputs.prid }}/comments"
+          export RESPONSE=$(curl -L --header "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" --url "$GITHUB_API_URL" --header "content-type: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28")
+          echo $RESPONSE > response
+          grep -v '"Check out the page preview at https://staging.chatmail.at/doc/relay' response && echo "comment=true" >> $GITHUB_OUTPUT || true
+      - name: "Post link to comments"
+        if: steps.details.outputs.comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: "Check out the page preview at https://staging.chatmail.at/doc/relay/${{ steps.prepare.outputs.prid }}/"
+            })
+
+      - name: check links 
+        working-directory: doc
+        run: sphinx-build --builder linkcheck source build
+
