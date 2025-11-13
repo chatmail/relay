@@ -203,6 +203,25 @@ Message between users on the same relay
         dovecot --> recipient;
         dovecot --> sender's_other_devices;
 
+Message to an external address
+------------------------------
+
+.. mermaid::
+    :caption: This diagram shows the path a federated message takes.
+
+    graph LR;
+        sender --> |465|smtps/smtpd;
+        sender --> |587|submission/smtpd;
+        smtps/smtpd --> |10080|filtermail;
+        submission/smtpd --> |10080|filtermail;
+        filtermail --> |10025|smtpd_reinject;
+        smtpd_reinject --> cleanup;
+        cleanup --> qmgr;
+        qmgr --> external_smtp_server;
+        qmgr --> |lmtp|dovecot;
+        external_smtp_server --> recipient;
+        dovecot --> senders_other_devices;
+
 Operational details of a chatmail relay
 ----------------------------------------
 
