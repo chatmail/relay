@@ -1,6 +1,11 @@
+import importlib.resources
 import os
 
 from pyinfra.operations import server
+
+
+def get_resource(arg, pkg=__package__):
+    return importlib.resources.files(pkg).joinpath(arg)
 
 
 class Deployment:

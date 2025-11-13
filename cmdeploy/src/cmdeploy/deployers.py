@@ -2,7 +2,6 @@
 Chat Mail pyinfra deploy.
 """
 
-import importlib.resources
 import io
 import shutil
 import subprocess
@@ -13,7 +12,7 @@ from pathlib import Path
 from chatmaild.config import Config, read_config
 from pyinfra import facts, host, logger
 from pyinfra.api import FactBase
-from pyinfra.facts.files import File, Sha256File
+from pyinfra.facts.files import Sha256File
 from pyinfra.facts.server import Sysctl
 from pyinfra.facts.systemd import SystemdEnabled
 from pyinfra.operations import apt, files, pip, server, systemd
@@ -21,7 +20,8 @@ from pyinfra.operations import apt, files, pip, server, systemd
 from cmdeploy.cmdeploy import Out
 
 from .acmetool import AcmetoolDeployer
-from .basedeploy import Deployer, Deployment
+from .basedeploy import Deployer, Deployment, get_resource
+from .opendkim.deployer import OpendkimDeployer
 from .www import build_webpages, find_merge_conflict, get_paths
 
 
@@ -38,10 +38,6 @@ class Port(FactBase):
 
     def process(self, output: [str]) -> str:
         return output[0]
-
-
-def get_resource(arg, pkg=__package__):
-    return importlib.resources.files(pkg).joinpath(arg)
 
 
 def _build_chatmaild(dist_dir) -> None:
@@ -182,122 +178,6 @@ def _activate_remote_units(units) -> None:
             restarted=enabled,
             daemon_reload=True,
         )
-
-
-def _configure_opendkim(domain: str, dkim_selector: str = "dkim") -> bool:
-    """Configures OpenDKIM"""
-    need_restart = False
-
-    main_config = files.template(
-        src=get_resource("opendkim/opendkim.conf"),
-        dest="/etc/opendkim.conf",
-        user="root",
-        group="root",
-        mode="644",
-        config={"domain_name": domain, "opendkim_selector": dkim_selector},
-    )
-    need_restart |= main_config.changed
-
-    screen_script = files.put(
-        src=get_resource("opendkim/screen.lua"),
-        dest="/etc/opendkim/screen.lua",
-        user="root",
-        group="root",
-        mode="644",
-    )
-    need_restart |= screen_script.changed
-
-    final_script = files.put(
-        src=get_resource("opendkim/final.lua"),
-        dest="/etc/opendkim/final.lua",
-        user="root",
-        group="root",
-        mode="644",
-    )
-    need_restart |= final_script.changed
-
-    files.directory(
-        name="Add opendkim directory to /etc",
-        path="/etc/opendkim",
-        user="opendkim",
-        group="opendkim",
-        mode="750",
-        present=True,
-    )
-
-    keytable = files.template(
-        src=get_resource("opendkim/KeyTable"),
-        dest="/etc/dkimkeys/KeyTable",
-        user="opendkim",
-        group="opendkim",
-        mode="644",
-        config={"domain_name": domain, "opendkim_selector": dkim_selector},
-    )
-    need_restart |= keytable.changed
-
-    signing_table = files.template(
-        src=get_resource("opendkim/SigningTable"),
-        dest="/etc/dkimkeys/SigningTable",
-        user="opendkim",
-        group="opendkim",
-        mode="644",
-        config={"domain_name": domain, "opendkim_selector": dkim_selector},
-    )
-    need_restart |= signing_table.changed
-    files.directory(
-        name="Add opendkim socket directory to /var/spool/postfix",
-        path="/var/spool/postfix/opendkim",
-        user="opendkim",
-        group="opendkim",
-        mode="750",
-        present=True,
-    )
-
-    if not host.get_fact(File, f"/etc/dkimkeys/{dkim_selector}.private"):
-        server.shell(
-            name="Generate OpenDKIM domain keys",
-            commands=[
-                f"/usr/sbin/opendkim-genkey -D /etc/dkimkeys -d {domain} -s {dkim_selector}"
-            ],
-            _use_su_login=True,
-            _su_user="opendkim",
-        )
-
-    service_file = files.put(
-        name="Configure opendkim to restart once a day",
-        src=get_resource("opendkim/systemd.conf"),
-        dest="/etc/systemd/system/opendkim.service.d/10-prevent-memory-leak.conf",
-    )
-    need_restart |= service_file.changed
-
-    return need_restart
-
-
-class OpendkimDeployer(Deployer):
-    required_users = [("opendkim", None, ["opendkim"])]
-
-    def __init__(self, mail_domain):
-        self.mail_domain = mail_domain
-
-    def install(self):
-        apt.packages(
-            name="apt install opendkim opendkim-tools",
-            packages=["opendkim", "opendkim-tools"],
-        )
-
-    def configure(self):
-        self.need_restart = _configure_opendkim(self.mail_domain, "opendkim")
-
-    def activate(self):
-        systemd.service(
-            name="Start and enable OpenDKIM",
-            service="opendkim.service",
-            running=True,
-            enabled=True,
-            daemon_reload=self.need_restart,
-            restarted=self.need_restart,
-        )
-        self.need_restart = False
 
 
 class UnboundDeployer(Deployer):
@@ -1132,4 +1012,3 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     ]
 
     Deployment().perform_stages(all_deployers)
-
