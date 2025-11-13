@@ -191,7 +191,7 @@ Message between users on the same relay
         qmgr --> smtpd_accepts_message;
         qmgr --> |lmtp|dovecot;
         dovecot --> recipient;
-        dovecot --> senders_other_devices;
+        dovecot --> sender's_other_devices;
 
 Operational details of a chatmail relay
 ----------------------------------------
