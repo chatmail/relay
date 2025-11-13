@@ -174,6 +174,24 @@ Component dependency diagram
         style nginx-external fill:#fc9;
         style nginx-right fill:#fc9;
 
+Message between users on the same relay
+---------------------------------------
+
+.. mermaid::
+    :caption: This diagram shows the path a non-federated message takes.
+
+    graph LR;
+        sender --> |465|smtps/smtpd;
+        sender --> |587|submission/smtpd;
+        smtps/smtpd --> |10080|filtermail;
+        submission/smtpd --> |10080|filtermail;
+        filtermail --> |10025|smtpd_reinject;
+        smtpd_reinject --> cleanup;
+        cleanup --> qmgr;
+        qmgr --> smtpd_accepts_message;
+        qmgr --> |lmtp|dovecot;
+        dovecot --> recipient;
+        dovecot --> senders_other_devices;
 
 Operational details of a chatmail relay
 ----------------------------------------
