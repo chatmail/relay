@@ -342,28 +342,3 @@ of building a general-purpose container image.
 Operations that start services for systemd-based deployments should
 only be called from the ``activate_impl()`` methods.  These methods
 will not be called in non-systemd container environments.
-
-Deployer objects
-~~~~~~~~~~~~~~~~
-
-One might ask why the deployers are implemented as object classes, as
-opposed to callable functions or the like.  There are various reasons
-why objects are a good fit for the deployment process.
-
-1. Objects provide a way to organize the install, configure, and
-deploy operations for each component that is installed, supporting a
-"driver" type of pattern.  This could be implemented in other ways
-without objects, such as function jump tables, but objects provide a
-clean and formalized way to do essentially the same thing.
-
-2. Class inheritance provides a natural way to define
-component-specific operations for the various stages of deployment, by
-overriding the no-op stub methods in the base class.  The base class
-handles policy decisions about which stages are to be executed,
-ensuring consistent handling of the stages in a central location.
-
-3. Some of the components track state between stages, basing decisions
-like whether to restart a service on whether the software or
-configuration of that service was changed in an earlier stage.
-Keeping track of state between method calls is an ideal use case for
-objects.
