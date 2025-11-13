@@ -126,14 +126,13 @@ web page. Edit them before deploying to make your chatmail relay
 stand out.
 
 
-Component dependency diagram
---------------------------------------
+Chaitmail relay dependency diagram
+-------------------------------------------
 
 .. mermaid::
    :caption: This diagram shows relay components and dependencies/communication paths.
 
     graph LR;
-        cmdeploy --- sshd;
         letsencrypt --- |80|acmetool-redirector;
         acmetool-redirector --- |443|nginx-right(["`nginx
         (external)`"]);
@@ -147,32 +146,43 @@ Component dependency diagram
         nginx-internal --- autoconfig.xml;
         certs-nginx[("`TLS certs
         /var/lib/acme`")] --> nginx-internal;
-        cron --- chatmail-metrics;
-        cron --- acmetool;
+        systemd-timer --- chatmail-metrics;
+        systemd-timer --- acmetool;
+        systemd-timer --- chatmail-expire-daily;
+        systemd-timer --- chatmail-fsreport-daily;
         chatmail-metrics --- website;
         acmetool --> certs[("`TLS certs
         /var/lib/acme`")];
         nginx-external --- |993|dovecot;
+        postfix --- |SASL|dovecot;
         autoconfig.xml --- postfix;
         autoconfig.xml --- dovecot;
-        postfix --- echobot;
-        postfix --- |10080,10081|filtermail;
-        postfix --- users["`User data
-        home/vmail/mail`"];
-        postfix --- |doveauth.socket|doveauth;
+        postfix --- |10080|filtermail-outgoing;
+        postfix --- |10081|filtermail-incoming;
+        filtermail-outgoing --- |10025 reinject|postfix;
+        filtermail-incoming --- |10026 reinject|postfix;
         dovecot --- |doveauth.socket|doveauth;
-        dovecot --- users;
-        dovecot --- |metadata.socket|chatmail-metadata;
-        doveauth --- users;
-        chatmail-expire-daily --- users;
-        chatmail-fsreport-daily --- users;
+        dovecot --- |message delivery|maildir["maildir
+        /home/vmail/.../user"];
+        dovecot --- |lastlogin.socket|lastlogin;
+        dovecot --- chatmail-metadata;
+        lastlogin --- maildir;
+        doveauth --- maildir;
+        chatmail-expire-daily --- maildir;
+        chatmail-fsreport-daily --- maildir;
         chatmail-metadata --- iroh-relay;
+        chatmail-metadata --- |encrypted device token| notification-proxy;
         certs-nginx --> postfix;
         certs-nginx --> dovecot;
         style certs fill:#ff6;
+        style website fill:#ff6;
+        style maildir fill:#ff6;
         style certs-nginx fill:#ff6;
-        style nginx-external fill:#fc9;
-        style nginx-right fill:#fc9;
+        style nginx-external fill:#f66;
+        style nginx-right fill:#f66;
+        style postfix fill:#f66;
+        style dovecot fill:#f66;
+        style notification-proxy fill:#f66;
 
 
 Operational details of a chatmail relay
