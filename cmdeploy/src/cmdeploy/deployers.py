@@ -22,6 +22,7 @@ from cmdeploy.cmdeploy import Out
 from .acmetool import AcmetoolDeployer
 from .basedeploy import Deployer, Deployment, get_resource
 from .opendkim.deployer import OpendkimDeployer
+from .postfix.deployer import PostfixDeployer
 from .www import build_webpages, find_merge_conflict, get_paths
 
 
@@ -249,85 +250,6 @@ class MtastsDeployer(Deployer):
             running=False,
             enabled=False,
         )
-
-
-def _configure_postfix(config: Config, debug: bool = False) -> bool:
-    """Configures Postfix SMTP server."""
-    need_restart = False
-
-    main_config = files.template(
-        src=get_resource("postfix/main.cf.j2"),
-        dest="/etc/postfix/main.cf",
-        user="root",
-        group="root",
-        mode="644",
-        config=config,
-        disable_ipv6=config.disable_ipv6,
-    )
-    need_restart |= main_config.changed
-
-    master_config = files.template(
-        src=get_resource("postfix/master.cf.j2"),
-        dest="/etc/postfix/master.cf",
-        user="root",
-        group="root",
-        mode="644",
-        debug=debug,
-        config=config,
-    )
-    need_restart |= master_config.changed
-
-    header_cleanup = files.put(
-        src=get_resource("postfix/submission_header_cleanup"),
-        dest="/etc/postfix/submission_header_cleanup",
-        user="root",
-        group="root",
-        mode="644",
-    )
-    need_restart |= header_cleanup.changed
-
-    # Login map that 1:1 maps email address to login.
-    login_map = files.put(
-        src=get_resource("postfix/login_map"),
-        dest="/etc/postfix/login_map",
-        user="root",
-        group="root",
-        mode="644",
-    )
-    need_restart |= login_map.changed
-
-    return need_restart
-
-
-class PostfixDeployer(Deployer):
-    required_users = [("postfix", None, ["opendkim"])]
-
-    def __init__(self, config, disable_mail):
-        self.config = config
-        self.disable_mail = disable_mail
-
-    def install(self):
-        apt.packages(
-            name="Install Postfix",
-            packages="postfix",
-        )
-
-    def configure(self):
-        self.need_restart = _configure_postfix(self.config)
-
-    def activate(self):
-        restart = False if self.disable_mail else self.need_restart
-
-        systemd.service(
-            name="disable postfix for now"
-            if self.disable_mail
-            else "Start and enable Postfix",
-            service="postfix.service",
-            running=False if self.disable_mail else True,
-            enabled=False if self.disable_mail else True,
-            restarted=restart,
-        )
-        self.need_restart = False
 
 
 def _install_dovecot_package(package: str, arch: str):
