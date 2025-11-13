@@ -20,7 +20,7 @@ from pyinfra.facts.systemd import SystemdEnabled
 from pyinfra.operations import apt, files, pip, server, systemd
 
 from .acmetool import AcmetoolDeployer
-from .deployer import Deployer, Deployment
+from .basedeploy import Deployer, Deployment
 from .www import build_webpages, find_merge_conflict, get_paths
 
 

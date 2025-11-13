@@ -2,7 +2,7 @@ import importlib.resources
 
 from pyinfra.operations import apt, files, server, systemd
 
-from ..deployer import Deployer
+from ..basedeploy import Deployer
 
 
 class AcmetoolDeployer(Deployer):
