@@ -47,11 +47,11 @@ monitor_certificates() {
 
 ### MAIN
 
-if [ "$DEBUG_COMMANDS_ENABLED" == "true" ]; then
+if [ "$DEBUG_COMMANDS_ENABLED" = true ]; then
     debug_commands
 fi
 
-if [ "$FORCE_REINIT_INI_FILE" == "true" ]; then 
+if [ "$FORCE_REINIT_INI_FILE" = true ]; then 
     INI_CMD_ARGS=--force
 fi
 
@@ -61,15 +61,15 @@ chown opendkim:opendkim /etc/dkimkeys/opendkim.txt
 
 # TODO: Move to debug_commands after git clone is moved to dockerfile. 
 git config --global --add safe.directory /opt/chatmail
-if [ "$RECREATE_VENV" == "true" ]; then
+if [ "$RECREATE_VENV" = true ]; then
     rm -rf venv
 fi
 ./scripts/initenv.sh
 
-./scripts/cmdeploy init --config "${INI_FILE}" $INI_CMD_ARGS $MAIL_DOMAIN
+./scripts/cmdeploy init --config "${INI_FILE}" $INI_CMD_ARGS $MAIL_DOMAIN || true
 bash /update_ini.sh
 
-./scripts/cmdeploy run --ssh-host docker
+./scripts/cmdeploy run --ssh-host @docker
 
 echo "ForwardToConsole=yes" >> /etc/systemd/journald.conf
 systemctl restart systemd-journald
