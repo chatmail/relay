@@ -30,16 +30,7 @@ services:
       ENABLE_CERTS_MONITORING: $ENABLE_CERTS_MONITORING
       CERTS_MONITORING_TIMEOUT: $CERTS MONITORING TIMEOUT
       IS_DEVELOPMENT_INSTANCE: $IS_DEVELOPMENT_INSTANCE
-    ports:
-      - "80:80"
-      - "443:443"
-      - "25:25"
-      - "587:587"
-      - "143:143"
-      - "465:465"
-      - "993:993"
-      - "3478:3478"
-      - "49152-65535:49152-65535/udp"
+    network_mode: "host"
     volumes:
       ## system
       - /sys/fs/cgroup:/sys/fs/cgroup:rw # required for systemd
