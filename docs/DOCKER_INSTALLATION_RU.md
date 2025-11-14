@@ -30,24 +30,21 @@ Please substitute it with your own domain.
 
 ## Installation
 
-1. Скопировать файл `./docker/docker-compose-default.yaml` в `docker-compose.yaml`. Это нужно потому что `docker-compose.yaml` находится в `.gitignore` и не будет создавать конфликты при обновлении гит репозитория.
-```shell
-cp ./docker/docker-compose-default.yaml docker-compose.yaml
-```
-2. Скопировать `./docker/example.env` и переименовать в `.env`. Здесь хранятся переменные, которые используются в `docker-compose.yaml`.
-```shell
-cp ./docker/example.env .env
-```\
-3. Настроить переменные окружения в `.env` файле. Эти переменные используются в `docker-compose.yaml` файле, чтобы передавать повторяющиеся значения.
-
-4. Настроить параметры ядра, потому что внутри контейнера их нельзя изменить, а конкретно `fs.inotify.max_user_instances` и `fs.inotify.max_user_watches`. Для этого выполнить следующее:
+1. Настроить параметры ядра, потому что внутри контейнера их нельзя изменить, а конкретно `fs.inotify.max_user_instances` и `fs.inotify.max_user_watches`. Для этого выполнить следующее:
 ```shell
 echo "fs.inotify.max_user_instances=65536" | sudo tee -a /etc/sysctl.d/99-inotify.conf
 echo "fs.inotify.max_user_watches=65536" | sudo tee -a /etc/sysctl.d/99-inotify.conf
 sudo sysctl --system
 ```
 
-5. Настроить переменные окружения контейнера. Ниже перечислен список переменных учавствующих при развертывании.
+2. Скопировать `./docker/example.env` и переименовать в `.env`. Здесь хранятся переменные, которые используются в `docker-compose.yaml`.
+```shell
+cp ./docker/example.env .env
+```
+
+3. Настроить переменные окружения в `.env` файле. Эти переменные используются в `docker-compose.yaml` файле, чтобы передавать повторяющиеся значения.
+   Ниже перечислен список переменных учавствующих при развертывании:
+
 - `MAIL_DOMAIN` - Доменное имя будущего сервера. (required)
 - `DEBUG_COMMANDS_ENABLED` - Выполнить debug команды перед установкой. (default: `false`)
 - `FORCE_REINIT_INI_FILE` - Пересоздавать ini файл конфигурации при запуске. (default: `false`)
@@ -60,21 +57,18 @@ sudo sysctl --system
 
 Также могут быть использованы все переменные из [ini файла конфигурации](https://github.com/chatmail/relay/blob/main/chatmaild/src/chatmaild/ini/chatmail.ini.f), они обязаны быть в uppercase формате. 
 
-Ниже перечислены переменные, которые обязательны быть выставлены при развертывании через docker:
-- `CHANGE_KERNEL_SETTINGS` - Менять настройки ядра (`fs.inotify.max_user_instances` и `fs.inotify.max_user_watches`) при запуске. При запуске в контейнере смена настроек ядра не может быть выполнена! (default: `False`)
-
-6. Собрать docker образ
+4. Собрать docker образ
 ```shell
 docker compose build chatmail
 ```
 
-7. Запустить docker compose и дождаться завершения установки
+5. Запустить docker compose и дождаться завершения установки
 ```shell
 docker compose up -d # запуск сервиса
 docker compose logs -f chatmail # просмотр логов контейнера. Для выхода нажать CTRL+C
 ```
 
-8. По окончанию установки можно открыть в браузер `https://<your_domain_name>`
+6. По окончанию установки можно открыть в браузер `https://<your_domain_name>`
 
 ## Использование кастомных файлов
 При использовании docker есть возможность использовать измененые файлы конфигурации, чтобы сделать установку более персонализированной. Обычно это требуется для секции `www/src`, чтобы ознакомительная страница Chatmail была сделана на ваш вкус. Но также это можно использовать и для любых других случаев.
