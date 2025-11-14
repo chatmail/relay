@@ -9,7 +9,7 @@ def get_resource(arg, pkg=__package__):
     return importlib.resources.files(pkg).joinpath(arg)
 
 
-def _configure_remote_units(mail_domain, units) -> None:
+def configure_remote_units(mail_domain, units) -> None:
     remote_base_dir = "/usr/local/lib/chatmaild"
     remote_venv_dir = f"{remote_base_dir}/venv"
     remote_chatmail_inipath = f"{remote_base_dir}/chatmail.ini"
@@ -38,7 +38,7 @@ def _configure_remote_units(mail_domain, units) -> None:
         )
 
 
-def _activate_remote_units(units) -> None:
+def activate_remote_units(units) -> None:
     # activate systemd units
     for fn in units:
         basename = fn if "." in fn else f"{fn}.service"

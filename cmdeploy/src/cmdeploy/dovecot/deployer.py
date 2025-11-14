@@ -6,8 +6,8 @@ from pyinfra.operations import apt, files, server, systemd
 
 from cmdeploy.basedeploy import (
     Deployer,
-    _activate_remote_units,
-    _configure_remote_units,
+    activate_remote_units,
+    configure_remote_units,
     get_resource,
 )
 
@@ -26,11 +26,11 @@ class DovecotDeployer(Deployer):
             _install_dovecot_package("lmtpd", arch)
 
     def configure(self):
-        _configure_remote_units(self.config.mail_domain, self.units)
+        configure_remote_units(self.config.mail_domain, self.units)
         self.need_restart = _configure_dovecot(self.config)
 
     def activate(self):
-        _activate_remote_units(self.units)
+        activate_remote_units(self.units)
 
         restart = False if self.disable_mail else self.need_restart
 

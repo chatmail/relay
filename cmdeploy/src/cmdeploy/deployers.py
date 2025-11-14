@@ -21,8 +21,8 @@ from .acmetool import AcmetoolDeployer
 from .basedeploy import (
     Deployer,
     Deployment,
-    _activate_remote_units,
-    _configure_remote_units,
+    activate_remote_units,
+    configure_remote_units,
     get_resource,
 )
 from .dovecot.deployer import DovecotDeployer
@@ -315,10 +315,10 @@ class TurnDeployer(Deployer):
             )
 
     def configure(self):
-        _configure_remote_units(self.mail_domain, self.units)
+        configure_remote_units(self.mail_domain, self.units)
 
     def activate(self):
-        _activate_remote_units(self.units)
+        activate_remote_units(self.units)
 
 
 class IrohDeployer(Deployer):
@@ -422,10 +422,10 @@ class EchobotDeployer(Deployer):
         )
 
     def configure(self):
-        _configure_remote_units(self.mail_domain, self.units)
+        configure_remote_units(self.mail_domain, self.units)
 
     def activate(self):
-        _activate_remote_units(self.units)
+        activate_remote_units(self.units)
 
 
 class ChatmailVenvDeployer(Deployer):
@@ -447,10 +447,10 @@ class ChatmailVenvDeployer(Deployer):
 
     def configure(self):
         _configure_remote_venv_with_chatmaild(self.config)
-        _configure_remote_units(self.config.mail_domain, self.units)
+        configure_remote_units(self.config.mail_domain, self.units)
 
     def activate(self):
-        _activate_remote_units(self.units)
+        activate_remote_units(self.units)
 
 
 class ChatmailDeployer(Deployer):
