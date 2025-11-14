@@ -516,20 +516,21 @@ def _configure_dovecot(config: Config, debug: bool = False) -> bool:
     )
     need_restart |= lua_push_notification_script.changed
 
-    # as per https://doc.dovecot.org/configuration_manual/os/
+    # as per https://doc.dovecot.org/2.3/configuration_manual/os/
     # it is recommended to set the following inotify limits
-    for name in ("max_user_instances", "max_user_watches"):
-        key = f"fs.inotify.{name}"
-        if host.get_fact(Sysctl)[key] > 65535:
-            # Skip updating limits if already sufficient
-            # (enables running in incus containers where sysctl readonly)
-            continue
-        server.sysctl(
-            name=f"Change {key}",
-            key=key,
-            value=65535,
-            persist=True,
-        )
+    if config.change_kernel_settings:
+        for name in ("max_user_instances", "max_user_watches"):
+            key = f"fs.inotify.{name}"
+            if host.get_fact(Sysctl)[key] > config.fs_inotify_max_user_instances_and_watchers:
+                # Skip updating limits if already sufficient
+                # (enables running in incus containers where sysctl readonly)
+                continue
+            server.sysctl(
+                name=f"Change {key}",
+                key=key,
+                value=config.fs_inotify_max_user_instances_and_watchers,
+                persist=True,
+            )
 
     timezone_env = files.line(
         name="Set TZ environment variable",
@@ -1062,11 +1063,12 @@ class GithashDeployer(Deployer):
         )
 
 
-def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
+def deploy_chatmail(config_path: Path, disable_mail: bool, docker: bool) -> None:
     """Deploy a chat-mail instance.
 
     :param config_path: path to chatmail.ini
     :param disable_mail: whether to disable postfix & dovecot
+    :param docker: whether it is running in a docker container
     """
     config = read_config(config_path)
     check_config(config)
@@ -1079,31 +1081,32 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
             line="nameserver 9.9.9.9",
         )
 
-    port_services = [
-        (["master", "smtpd"], 25),
-        ("unbound", 53),
-        ("acmetool", 80),
-        (["imap-login", "dovecot"], 143),
-        ("nginx", 443),
-        (["master", "smtpd"], 465),
-        (["master", "smtpd"], 587),
-        (["imap-login", "dovecot"], 993),
-        ("iroh-relay", 3340),
-        ("nginx", 8443),
-        (["master", "smtpd"], config.postfix_reinject_port),
-        (["master", "smtpd"], config.postfix_reinject_port_incoming),
-        ("filtermail", config.filtermail_smtp_port),
-        ("filtermail", config.filtermail_smtp_port_incoming),
-    ]
-    for service, port in port_services:
-        print(f"Checking if port {port} is available for {service}...")
-        running_service = host.get_fact(Port, port=port)
-        if running_service:
-            if running_service not in service:
-                Out().red(
-                    f"Deploy failed: port {port} is occupied by: {running_service}"
-                )
-                exit(1)
+    if not docker:
+        port_services = [
+            (["master", "smtpd"], 25),
+            ("unbound", 53),
+            ("acmetool", 80),
+            (["imap-login", "dovecot"], 143),
+            ("nginx", 443),
+            (["master", "smtpd"], 465),
+            (["master", "smtpd"], 587),
+            (["imap-login", "dovecot"], 993),
+            ("iroh-relay", 3340),
+            ("nginx", 8443),
+            (["master", "smtpd"], config.postfix_reinject_port),
+            (["master", "smtpd"], config.postfix_reinject_port_incoming),
+            ("filtermail", config.filtermail_smtp_port),
+            ("filtermail", config.filtermail_smtp_port_incoming),
+        ]
+        for service, port in port_services:
+            print(f"Checking if port {port} is available for {service}...")
+            running_service = host.get_fact(Port, port=port)
+            if running_service:
+                if running_service not in service:
+                    Out().red(
+                        f"Deploy failed: port {port} is occupied by: {running_service}"
+                    )
+                    exit(1)
 
     tls_domains = [mail_domain, f"mta-sts.{mail_domain}", f"www.{mail_domain}"]
 

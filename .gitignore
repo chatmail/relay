@@ -164,3 +164,8 @@ cython_debug/
 #.idea/
 
 chatmail.zone
+
+# docker
+/data/
+/custom/
+.env
