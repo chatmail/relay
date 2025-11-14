@@ -168,5 +168,4 @@ chatmail.zone
 # docker
 /data/
 /custom/
-docker-compose.yaml
 .env
