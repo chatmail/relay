@@ -33,20 +33,7 @@ Please substitute it with your own domain.
 
 ## Installation
 
-1. Copy the file `./docker/docker-compose-default.yaml` to `docker-compose.yaml`. This is necessary because `docker-compose.yaml` is in `.gitignore` and won’t cause conflicts when updating the git repository.
-
-```shell
-cp ./docker/docker-compose-default.yaml docker-compose.yaml
-```
-2. Copy `./docker/example.env` and rename it to `.env`. This file stores variables used in `docker-compose.yaml`.
-
-```shell
-cp ./docker/example.env .env
-```
-
-3. Configure environment variables in the `.env` file. These variables are used in the `docker-compose.yaml` file to pass repeated values.
-
-4. Configure kernel parameters because they cannot be changed inside the container, specifically `fs.inotify.max_user_instances` and `fs.inotify.max_user_watches`. Run the following:
+1. Configure kernel parameters because they cannot be changed inside the container, specifically `fs.inotify.max_user_instances` and `fs.inotify.max_user_watches`. Run the following:
 
 ```shell
 echo "fs.inotify.max_user_instances=65536" | sudo tee -a /etc/sysctl.d/99-inotify.conf
@@ -54,7 +41,14 @@ echo "fs.inotify.max_user_watches=65536" | sudo tee -a /etc/sysctl.d/99-inotify.
 sudo sysctl --system
 ```
 
-5. Configure container environment variables. Below is the list of variables used during deployment:
+2. Copy `./docker/example.env` and rename it to `.env`. This file stores variables used in `docker-compose.yaml`.
+
+```shell
+cp ./docker/example.env .env
+```
+
+3. Configure environment variables in the `.env` file. These variables are used in the `docker-compose.yaml` file to pass repeated values.
+   Below is the list of variables used during deployment:
 
 - `MAIL_DOMAIN` – The domain name of the future server. (required)
 - `DEBUG_COMMANDS_ENABLED` – Run debug commands before installation. (default: `false`)
@@ -68,24 +62,20 @@ sudo sysctl --system
 
 You can also use any variables from the [ini configuration file](https://github.com/chatmail/relay/blob/main/chatmaild/src/chatmaild/ini/chatmail.ini.f); they must be in uppercase.
 
-Mandatory variables for deployment via Docker:
-
-- `CHANGE_KERNEL_SETTINGS` – Change kernel settings (`fs.inotify.max_user_instances` and `fs.inotify.max_user_watches`) on startup. Changing kernel settings inside the container is not possible! (default: `False`)
-
-6. Build the Docker image:
+4. Build the Docker image:
 
 ```shell
 docker compose build chatmail
 ```
 
-7. Start docker compose and wait for the installation to finish:
+5. Start docker compose and wait for the installation to finish:
 
 ```shell
 docker compose up -d # start service
 docker compose logs -f chatmail # view container logs, press CTRL+C to exit
 ```
 
-8. After installation is complete, you can open `https://<your_domain_name>` in your browser.
+6. After installation is complete, you can open `https://<your_domain_name>` in your browser.
 
 ## Using custom files
 
