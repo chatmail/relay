@@ -21,10 +21,10 @@
   ([#689](https://github.com/chatmail/relay/pull/689))
 
 - Require TLS 1.2 for outgoing SMTP connections
-  ([#685](https://github.com/chatmail/relay/pull/685))
+  ([#685](https://github.com/chatmail/relay/pull/685), [#730](https://github.com/chatmail/relay/pull/730))
 
 - require STARTTLS for incoming port 25 connections
-  ([#684](https://github.com/chatmail/relay/pull/684))
+  ([#684](https://github.com/chatmail/relay/pull/684), [#730](https://github.com/chatmail/relay/pull/730))
 
 - filtermail: run CPU-intensive handle_DATA in a thread pool executor
   ([#676](https://github.com/chatmail/relay/pull/676))
