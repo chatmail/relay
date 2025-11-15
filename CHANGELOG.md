@@ -2,6 +2,9 @@
 
 ## untagged
 
+- acmetool: accept new Let's Encrypt ToS: https://letsencrypt.org/documents/LE-SA-v1.6-August-18-2025.pdf
+  ([#729](https://github.com/chatmail/relay/pull/729))
+
 - Organized cmdeploy into install, configure, and activate stages
   ([#695](https://github.com/chatmail/relay/pull/695))
 
