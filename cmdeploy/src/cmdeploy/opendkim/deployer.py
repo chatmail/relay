@@ -23,7 +23,7 @@ class OpendkimDeployer(Deployer):
 
     def configure(self):
         domain = self.mail_domain
-        dkim_selector = "dkim"
+        dkim_selector = "opendkim"
         """Configures OpenDKIM"""
         need_restart = False
 
