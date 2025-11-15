@@ -2,26 +2,34 @@
 Chat Mail pyinfra deploy.
 """
 
-import importlib.resources
-import io
 import shutil
 import subprocess
 import sys
 from io import StringIO
 from pathlib import Path
 
-from chatmaild.config import Config, read_config
+from chatmaild.config import read_config
 from pyinfra import facts, host, logger
 from pyinfra.api import FactBase
-from pyinfra.facts.files import File, Sha256File
-from pyinfra.facts.server import Sysctl
+from pyinfra.facts.files import Sha256File
 from pyinfra.facts.systemd import SystemdEnabled
 from pyinfra.operations import apt, files, pip, server, systemd
 
 from cmdeploy.cmdeploy import Out
 
 from .acmetool import AcmetoolDeployer
-from .basedeploy import Deployer, Deployment
+from .basedeploy import (
+    Deployer,
+    Deployment,
+    activate_remote_units,
+    configure_remote_units,
+    get_resource,
+)
+from .dovecot.deployer import DovecotDeployer
+from .mtail.deployer import MtailDeployer
+from .nginx.deployer import NginxDeployer
+from .opendkim.deployer import OpendkimDeployer
+from .postfix.deployer import PostfixDeployer
 from .www import build_webpages, find_merge_conflict, get_paths
 
 
@@ -38,10 +46,6 @@ class Port(FactBase):
 
     def process(self, output: [str]) -> str:
         return output[0]
-
-
-def get_resource(arg, pkg=__package__):
-    return importlib.resources.files(pkg).joinpath(arg)
 
 
 def _build_chatmaild(dist_dir) -> None:
@@ -135,171 +139,6 @@ def _configure_remote_venv_with_chatmaild(config) -> None:
     )
 
 
-def _configure_remote_units(mail_domain, units) -> None:
-    remote_base_dir = "/usr/local/lib/chatmaild"
-    remote_venv_dir = f"{remote_base_dir}/venv"
-    remote_chatmail_inipath = f"{remote_base_dir}/chatmail.ini"
-    root_owned = dict(user="root", group="root", mode="644")
-
-    # install systemd units
-    for fn in units:
-        execpath = fn if fn != "filtermail-incoming" else "filtermail"
-        params = dict(
-            execpath=f"{remote_venv_dir}/bin/{execpath}",
-            config_path=remote_chatmail_inipath,
-            remote_venv_dir=remote_venv_dir,
-            mail_domain=mail_domain,
-        )
-
-        basename = fn if "." in fn else f"{fn}.service"
-
-        source_path = get_resource(f"service/{basename}.f")
-        content = source_path.read_text().format(**params).encode()
-
-        files.put(
-            name=f"Upload {basename}",
-            src=io.BytesIO(content),
-            dest=f"/etc/systemd/system/{basename}",
-            **root_owned,
-        )
-
-
-def _activate_remote_units(units) -> None:
-    # activate systemd units
-    for fn in units:
-        basename = fn if "." in fn else f"{fn}.service"
-
-        if fn == "chatmail-expire" or fn == "chatmail-fsreport":
-            # don't auto-start but let the corresponding timer trigger execution
-            enabled = False
-        else:
-            enabled = True
-        systemd.service(
-            name=f"Setup {basename}",
-            service=basename,
-            running=enabled,
-            enabled=enabled,
-            restarted=enabled,
-            daemon_reload=True,
-        )
-
-
-def _configure_opendkim(domain: str, dkim_selector: str = "dkim") -> bool:
-    """Configures OpenDKIM"""
-    need_restart = False
-
-    main_config = files.template(
-        src=get_resource("opendkim/opendkim.conf"),
-        dest="/etc/opendkim.conf",
-        user="root",
-        group="root",
-        mode="644",
-        config={"domain_name": domain, "opendkim_selector": dkim_selector},
-    )
-    need_restart |= main_config.changed
-
-    screen_script = files.put(
-        src=get_resource("opendkim/screen.lua"),
-        dest="/etc/opendkim/screen.lua",
-        user="root",
-        group="root",
-        mode="644",
-    )
-    need_restart |= screen_script.changed
-
-    final_script = files.put(
-        src=get_resource("opendkim/final.lua"),
-        dest="/etc/opendkim/final.lua",
-        user="root",
-        group="root",
-        mode="644",
-    )
-    need_restart |= final_script.changed
-
-    files.directory(
-        name="Add opendkim directory to /etc",
-        path="/etc/opendkim",
-        user="opendkim",
-        group="opendkim",
-        mode="750",
-        present=True,
-    )
-
-    keytable = files.template(
-        src=get_resource("opendkim/KeyTable"),
-        dest="/etc/dkimkeys/KeyTable",
-        user="opendkim",
-        group="opendkim",
-        mode="644",
-        config={"domain_name": domain, "opendkim_selector": dkim_selector},
-    )
-    need_restart |= keytable.changed
-
-    signing_table = files.template(
-        src=get_resource("opendkim/SigningTable"),
-        dest="/etc/dkimkeys/SigningTable",
-        user="opendkim",
-        group="opendkim",
-        mode="644",
-        config={"domain_name": domain, "opendkim_selector": dkim_selector},
-    )
-    need_restart |= signing_table.changed
-    files.directory(
-        name="Add opendkim socket directory to /var/spool/postfix",
-        path="/var/spool/postfix/opendkim",
-        user="opendkim",
-        group="opendkim",
-        mode="750",
-        present=True,
-    )
-
-    if not host.get_fact(File, f"/etc/dkimkeys/{dkim_selector}.private"):
-        server.shell(
-            name="Generate OpenDKIM domain keys",
-            commands=[
-                f"/usr/sbin/opendkim-genkey -D /etc/dkimkeys -d {domain} -s {dkim_selector}"
-            ],
-            _use_su_login=True,
-            _su_user="opendkim",
-        )
-
-    service_file = files.put(
-        name="Configure opendkim to restart once a day",
-        src=get_resource("opendkim/systemd.conf"),
-        dest="/etc/systemd/system/opendkim.service.d/10-prevent-memory-leak.conf",
-    )
-    need_restart |= service_file.changed
-
-    return need_restart
-
-
-class OpendkimDeployer(Deployer):
-    required_users = [("opendkim", None, ["opendkim"])]
-
-    def __init__(self, mail_domain):
-        self.mail_domain = mail_domain
-
-    def install(self):
-        apt.packages(
-            name="apt install opendkim opendkim-tools",
-            packages=["opendkim", "opendkim-tools"],
-        )
-
-    def configure(self):
-        self.need_restart = _configure_opendkim(self.mail_domain, "opendkim")
-
-    def activate(self):
-        systemd.service(
-            name="Start and enable OpenDKIM",
-            service="opendkim.service",
-            running=True,
-            enabled=True,
-            daemon_reload=self.need_restart,
-            restarted=self.need_restart,
-        )
-        self.need_restart = False
-
-
 class UnboundDeployer(Deployer):
     def install(self):
         # Run local DNS resolver `unbound`.
@@ -369,320 +208,6 @@ class MtastsDeployer(Deployer):
             running=False,
             enabled=False,
         )
-
-
-def _configure_postfix(config: Config, debug: bool = False) -> bool:
-    """Configures Postfix SMTP server."""
-    need_restart = False
-
-    main_config = files.template(
-        src=get_resource("postfix/main.cf.j2"),
-        dest="/etc/postfix/main.cf",
-        user="root",
-        group="root",
-        mode="644",
-        config=config,
-        disable_ipv6=config.disable_ipv6,
-    )
-    need_restart |= main_config.changed
-
-    master_config = files.template(
-        src=get_resource("postfix/master.cf.j2"),
-        dest="/etc/postfix/master.cf",
-        user="root",
-        group="root",
-        mode="644",
-        debug=debug,
-        config=config,
-    )
-    need_restart |= master_config.changed
-
-    header_cleanup = files.put(
-        src=get_resource("postfix/submission_header_cleanup"),
-        dest="/etc/postfix/submission_header_cleanup",
-        user="root",
-        group="root",
-        mode="644",
-    )
-    need_restart |= header_cleanup.changed
-
-    # Login map that 1:1 maps email address to login.
-    login_map = files.put(
-        src=get_resource("postfix/login_map"),
-        dest="/etc/postfix/login_map",
-        user="root",
-        group="root",
-        mode="644",
-    )
-    need_restart |= login_map.changed
-
-    return need_restart
-
-
-class PostfixDeployer(Deployer):
-    required_users = [("postfix", None, ["opendkim"])]
-
-    def __init__(self, config, disable_mail):
-        self.config = config
-        self.disable_mail = disable_mail
-
-    def install(self):
-        apt.packages(
-            name="Install Postfix",
-            packages="postfix",
-        )
-
-    def configure(self):
-        self.need_restart = _configure_postfix(self.config)
-
-    def activate(self):
-        restart = False if self.disable_mail else self.need_restart
-
-        systemd.service(
-            name="disable postfix for now"
-            if self.disable_mail
-            else "Start and enable Postfix",
-            service="postfix.service",
-            running=False if self.disable_mail else True,
-            enabled=False if self.disable_mail else True,
-            restarted=restart,
-        )
-        self.need_restart = False
-
-
-def _install_dovecot_package(package: str, arch: str):
-    arch = "amd64" if arch == "x86_64" else arch
-    arch = "arm64" if arch == "aarch64" else arch
-    url = f"https://download.delta.chat/dovecot/dovecot-{package}_2.3.21%2Bdfsg1-3_{arch}.deb"
-    deb_filename = "/root/" + url.split("/")[-1]
-
-    match (package, arch):
-        case ("core", "amd64"):
-            sha256 = "dd060706f52a306fa863d874717210b9fe10536c824afe1790eec247ded5b27d"
-        case ("core", "arm64"):
-            sha256 = "e7548e8a82929722e973629ecc40fcfa886894cef3db88f23535149e7f730dc9"
-        case ("imapd", "amd64"):
-            sha256 = "8d8dc6fc00bbb6cdb25d345844f41ce2f1c53f764b79a838eb2a03103eebfa86"
-        case ("imapd", "arm64"):
-            sha256 = "178fa877ddd5df9930e8308b518f4b07df10e759050725f8217a0c1fb3fd707f"
-        case ("lmtpd", "amd64"):
-            sha256 = "2f69ba5e35363de50962d42cccbfe4ed8495265044e244007d7ccddad77513ab"
-        case ("lmtpd", "arm64"):
-            sha256 = "89f52fb36524f5877a177dff4a713ba771fd3f91f22ed0af7238d495e143b38f"
-        case _:
-            apt.packages(packages=[f"dovecot-{package}"])
-            return
-
-    files.download(
-        name=f"Download dovecot-{package}",
-        src=url,
-        dest=deb_filename,
-        sha256sum=sha256,
-        cache_time=60 * 60 * 24 * 365 * 10,  # never redownload the package
-    )
-
-    apt.deb(name=f"Install dovecot-{package}", src=deb_filename)
-
-
-def _configure_dovecot(config: Config, debug: bool = False) -> bool:
-    """Configures Dovecot IMAP server."""
-    need_restart = False
-
-    main_config = files.template(
-        src=get_resource("dovecot/dovecot.conf.j2"),
-        dest="/etc/dovecot/dovecot.conf",
-        user="root",
-        group="root",
-        mode="644",
-        config=config,
-        debug=debug,
-        disable_ipv6=config.disable_ipv6,
-    )
-    need_restart |= main_config.changed
-    auth_config = files.put(
-        src=get_resource("dovecot/auth.conf"),
-        dest="/etc/dovecot/auth.conf",
-        user="root",
-        group="root",
-        mode="644",
-    )
-    need_restart |= auth_config.changed
-    lua_push_notification_script = files.put(
-        src=get_resource("dovecot/push_notification.lua"),
-        dest="/etc/dovecot/push_notification.lua",
-        user="root",
-        group="root",
-        mode="644",
-    )
-    need_restart |= lua_push_notification_script.changed
-
-    # as per https://doc.dovecot.org/configuration_manual/os/
-    # it is recommended to set the following inotify limits
-    for name in ("max_user_instances", "max_user_watches"):
-        key = f"fs.inotify.{name}"
-        if host.get_fact(Sysctl)[key] > 65535:
-            # Skip updating limits if already sufficient
-            # (enables running in incus containers where sysctl readonly)
-            continue
-        server.sysctl(
-            name=f"Change {key}",
-            key=key,
-            value=65535,
-            persist=True,
-        )
-
-    timezone_env = files.line(
-        name="Set TZ environment variable",
-        path="/etc/environment",
-        line="TZ=:/etc/localtime",
-    )
-    need_restart |= timezone_env.changed
-
-    return need_restart
-
-
-class DovecotDeployer(Deployer):
-    def __init__(self, config, disable_mail):
-        self.config = config
-        self.disable_mail = disable_mail
-        self.units = ["doveauth"]
-
-    def install(self):
-        arch = host.get_fact(facts.server.Arch)
-        if not "dovecot.service" in host.get_fact(SystemdEnabled):
-            _install_dovecot_package("core", arch)
-            _install_dovecot_package("imapd", arch)
-            _install_dovecot_package("lmtpd", arch)
-
-    def configure(self):
-        _configure_remote_units(self.config.mail_domain, self.units)
-        self.need_restart = _configure_dovecot(self.config)
-
-    def activate(self):
-        _activate_remote_units(self.units)
-
-        restart = False if self.disable_mail else self.need_restart
-
-        systemd.service(
-            name="disable dovecot for now"
-            if self.disable_mail
-            else "Start and enable Dovecot",
-            service="dovecot.service",
-            running=False if self.disable_mail else True,
-            enabled=False if self.disable_mail else True,
-            restarted=restart,
-        )
-        self.need_restart = False
-
-
-def _configure_nginx(config: Config, debug: bool = False) -> bool:
-    """Configures nginx HTTP server."""
-    need_restart = False
-
-    main_config = files.template(
-        src=get_resource("nginx/nginx.conf.j2"),
-        dest="/etc/nginx/nginx.conf",
-        user="root",
-        group="root",
-        mode="644",
-        config={"domain_name": config.mail_domain},
-        disable_ipv6=config.disable_ipv6,
-    )
-    need_restart |= main_config.changed
-
-    autoconfig = files.template(
-        src=get_resource("nginx/autoconfig.xml.j2"),
-        dest="/var/www/html/.well-known/autoconfig/mail/config-v1.1.xml",
-        user="root",
-        group="root",
-        mode="644",
-        config={"domain_name": config.mail_domain},
-    )
-    need_restart |= autoconfig.changed
-
-    mta_sts_config = files.template(
-        src=get_resource("nginx/mta-sts.txt.j2"),
-        dest="/var/www/html/.well-known/mta-sts.txt",
-        user="root",
-        group="root",
-        mode="644",
-        config={"domain_name": config.mail_domain},
-    )
-    need_restart |= mta_sts_config.changed
-
-    # install CGI newemail script
-    #
-    cgi_dir = "/usr/lib/cgi-bin"
-    files.directory(
-        name=f"Ensure {cgi_dir} exists",
-        path=cgi_dir,
-        user="root",
-        group="root",
-    )
-
-    files.put(
-        name="Upload cgi newemail.py script",
-        src=get_resource("newemail.py", pkg="chatmaild").open("rb"),
-        dest=f"{cgi_dir}/newemail.py",
-        user="root",
-        group="root",
-        mode="755",
-    )
-
-    return need_restart
-
-
-class NginxDeployer(Deployer):
-    def __init__(self, config):
-        self.config = config
-
-    def install(self):
-        #
-        # If we allow nginx to start up on install, it will grab port
-        # 80, which then will block acmetool from listening on the port.
-        # That in turn prevents getting certificates, which then causes
-        # an error when we try to start nginx on the custom config
-        # that leaves port 80 open but also requires certificates to
-        # be present.  To avoid getting into that interlocking mess,
-        # we use policy-rc.d to prevent nginx from starting up when it
-        # is installed.
-        #
-        # This approach allows us to avoid performing any explicit
-        # systemd operations during the install stage (as opposed to
-        # allowing it to start and then forcing it to stop), which allows
-        # the install stage to run in non-systemd environments like a
-        # container image build.
-        #
-        # For documentation about policy-rc.d, see:
-        # https://people.debian.org/~hmh/invokerc.d-policyrc.d-specification.txt
-        #
-        files.put(
-            src=get_resource("policy-rc.d"),
-            dest="/usr/sbin/policy-rc.d",
-            user="root",
-            group="root",
-            mode="755",
-        )
-
-        apt.packages(
-            name="Install nginx",
-            packages=["nginx", "libnginx-mod-stream"],
-        )
-
-        files.file("/usr/sbin/policy-rc.d", present=False)
-
-    def configure(self):
-        self.need_restart = _configure_nginx(self.config)
-
-    def activate(self):
-        systemd.service(
-            name="Start and enable nginx",
-            service="nginx.service",
-            running=True,
-            enabled=True,
-            restarted=self.need_restart,
-        )
-        self.need_restart = False
 
 
 class WebsiteDeployer(Deployer):
@@ -790,71 +315,10 @@ class TurnDeployer(Deployer):
             )
 
     def configure(self):
-        _configure_remote_units(self.mail_domain, self.units)
+        configure_remote_units(self.mail_domain, self.units)
 
     def activate(self):
-        _activate_remote_units(self.units)
-
-
-class MtailDeployer(Deployer):
-    def __init__(self, mtail_address):
-        self.mtail_address = mtail_address
-
-    def install(self):
-        # Uninstall mtail package to install a static binary.
-        apt.packages(name="Uninstall mtail", packages=["mtail"], present=False)
-
-        (url, sha256sum) = {
-            "x86_64": (
-                "https://github.com/google/mtail/releases/download/v3.0.8/mtail_3.0.8_linux_amd64.tar.gz",
-                "123c2ee5f48c3eff12ebccee38befd2233d715da736000ccde49e3d5607724e4",
-            ),
-            "aarch64": (
-                "https://github.com/google/mtail/releases/download/v3.0.8/mtail_3.0.8_linux_arm64.tar.gz",
-                "aa04811c0929b6754408676de520e050c45dddeb3401881888a092c9aea89cae",
-            ),
-        }[host.get_fact(facts.server.Arch)]
-
-        server.shell(
-            name="Download mtail",
-            commands=[
-                f"(echo '{sha256sum} /usr/local/bin/mtail' | sha256sum -c) || (curl -L {url} | gunzip | tar -x -f - mtail -O >/usr/local/bin/mtail.new && mv /usr/local/bin/mtail.new /usr/local/bin/mtail)",
-                "chmod 755 /usr/local/bin/mtail",
-            ],
-        )
-
-    def configure(self):
-        # Using our own systemd unit instead of `/usr/lib/systemd/system/mtail.service`.
-        # This allows to read from journalctl instead of log files.
-        files.template(
-            src=get_resource("mtail/mtail.service.j2"),
-            dest="/etc/systemd/system/mtail.service",
-            user="root",
-            group="root",
-            mode="644",
-            address=self.mtail_address or "127.0.0.1",
-            port=3903,
-        )
-
-        mtail_conf = files.put(
-            name="Mtail configuration",
-            src=get_resource("mtail/delivered_mail.mtail"),
-            dest="/etc/mtail/delivered_mail.mtail",
-            user="root",
-            group="root",
-            mode="644",
-        )
-        self.need_restart = mtail_conf.changed
-
-    def activate(self):
-        systemd.service(
-            name="Start and enable mtail",
-            service="mtail.service",
-            running=bool(self.mtail_address),
-            enabled=bool(self.mtail_address),
-            restarted=self.need_restart,
-        )
-        self.need_restart = False
+        activate_remote_units(self.units)
 
 
 class IrohDeployer(Deployer):
@@ -958,10 +422,10 @@ class EchobotDeployer(Deployer):
         )
 
     def configure(self):
-        _configure_remote_units(self.mail_domain, self.units)
+        configure_remote_units(self.mail_domain, self.units)
 
     def activate(self):
-        _activate_remote_units(self.units)
+        activate_remote_units(self.units)
 
 
 class ChatmailVenvDeployer(Deployer):
@@ -983,10 +447,10 @@ class ChatmailVenvDeployer(Deployer):
 
     def configure(self):
         _configure_remote_venv_with_chatmaild(self.config)
-        _configure_remote_units(self.config.mail_domain, self.units)
+        configure_remote_units(self.config.mail_domain, self.units)
 
     def activate(self):
-        _activate_remote_units(self.units)
+        activate_remote_units(self.units)
 
 
 class ChatmailDeployer(Deployer):
@@ -1132,4 +596,3 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     ]
 
     Deployment().perform_stages(all_deployers)
-
