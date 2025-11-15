@@ -15,6 +15,7 @@ smtp      inet  n       -       y       -       -       smtpd -v
 smtp      inet  n       -       y       -       -       smtpd 
 {%- endif %}
   -o smtpd_tls_security_level=encrypt
+  -o smtpd_tls_mandatory_protocols=>=TLSv1.2
   -o smtpd_proxy_filter=127.0.0.1:{{ config.filtermail_smtp_port_incoming }}
 submission inet n       -       y       -       5000    smtpd
   -o syslog_name=postfix/submission
