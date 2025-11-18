@@ -20,6 +20,7 @@ services:
         max-size: "10m"
         max-file: "3"
     environment:
+      CHANGE_KERNEL_SETTINGS: "False"
       MAIL_DOMAIN: $MAIL_DOMAIN
       ACME_EMAIL: $ACME_EMAIL
       RECREATE_VENV: $RECREATE_VENV

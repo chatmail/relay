@@ -124,6 +124,11 @@
 - Add installation via docker compose (MVP 1). The instructions, known issues and limitations are located in `/docs` 
   ([#614](https://github.com/chatmail/relay/pull/614))
 
+- Add configuration parameters
+  ([#614](https://github.com/chatmail/relay/pull/614)):
+  - `change_kernel_settings` - Whether to change kernel parameters during installation (default: `True`)
+  - `fs_inotify_max_user_instances_and_watchers` - Value for kernel parameters `fs.inotify.max_user_instances` and `fs.inotify.max_user_watches` (default: `65535`)
+
 ## 1.7.0 2025-09-11
 
 - Make www upload path configurable
