@@ -22,7 +22,12 @@ Note that your chatmail relay still needs to be able to make outgoing
 connections on port 25 to send messages outside.
 
 To setup a reverse proxy (or rather Destination NAT, DNAT) for your
-chatmail relay, put the following configuration in
+chatmail relay, follow these instructions:
+
+Linux
+^^^^^
+
+Put the following configuration in
 ``/etc/nftables.conf``:
 
 ::
@@ -110,5 +115,61 @@ Uncomment in ``/etc/sysctl.conf`` the following two lines:
 Then reboot the relay or do ``sysctl -p`` and
 ``nft -f /etc/nftables.conf``.
 
-Once proxy relay is set up, you can add its IP address to the DNS.
+FreeBSD / pf
+^^^^^^^^^^^^
 
+Put the following configuration in
+``/etc/pf.conf``:
+
+::
+
+    ext_if = "em0"
+    forward_ports = "{ 25, 80, 143, 443, 465, 587, 993 }"
+    chatmail_ipv4 = "AAA.BBB.CCC.DDD"
+    icmp_types = "{ echoreq, echorep, unreach, timex }"
+    chatmail_ipv6 = "XXX::1"
+    icmp6_types = "{ echorep, echoreq, neighbradv, neighbrsol, routeradv, routersol, unreach, toobig, timex }"
+
+    set skip on lo0
+
+    nat on $ext_if inet from any to any -> ($ext_if:0)
+    nat on $ext_if inet6 from any to any -> ($ext_if:0)
+
+    # Define the redirect rules
+    rdr on $ext_if inet proto tcp from any to ($ext_if:0) port $forward_ports -> $chatmail_ipv4
+    rdr pass on $ext_if inet6 proto tcp from any to ($ext_if) port $forward_ports -> $chatmail_ipv6
+
+    # Accept the incoming traffic to the specified ports we will NAT redirect
+    pass in quick on $ext_if inet proto tcp from any to any port $forward_ports flags S/SA modulate state
+    pass in quick on $ext_if inet6 proto tcp from any to any port $forward_ports flags S/SA modulate state
+
+    # Allow incoming SSH for host mgmt
+    pass in quick on $ext_if proto tcp from any to ($ext_if) port 22 flags S/SA modulate state
+
+    # Allow ICMP
+    pass in quick on $ext_if inet proto icmp all icmp-type $icmp_types keep state
+    pass in quick on $ext_if inet6 proto ipv6-icmp all icmp6-type $icmp6_types keep state
+
+    # Allow traffic from anyone to go through the NAT
+    pass on $ext_if inet proto tcp from any to $chatmail_ipv4 flags S/SA modulate state
+    pass on $ext_if inet6 proto tcp from any to $chatmail_ipv6 flags S/SA modulate state
+
+    # Default allow out
+    pass out quick on $ext_if from any to any
+
+    # Default block
+    block drop in log all
+
+Insert into ``/etc/sysctl.conf.local`` the following two lines:
+
+::
+
+    net.inet.ip.forwarding=1
+    net.inet6.ip6.forwarding=1
+
+Activate the sysctls with ``service sysctl onestart``.
+Enable the pf firewall with ``service pf enable``.
+Apply the firewall rules with ``service pf start`` or ``pfctl -f /etc/pf.conf``.
+Note, enabling the firewall may interrupt your SSH session, but you can reconnect.
+
+Once proxy relay is set up, you can add its IP address to the DNS.
