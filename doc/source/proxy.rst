@@ -137,7 +137,7 @@ Put the following configuration in
 
     # Define the redirect rules
     rdr on $ext_if inet proto tcp from any to ($ext_if:0) port $forward_ports -> $chatmail_ipv4
-    rdr pass on $ext_if inet6 proto tcp from any to ($ext_if) port $forward_ports -> $chatmail_ipv6
+    rdr on $ext_if inet6 proto tcp from any to ($ext_if:0) port $forward_ports -> $chatmail_ipv6
 
     # Accept the incoming traffic to the specified ports we will NAT redirect
     pass in quick on $ext_if inet proto tcp from any to any port $forward_ports flags S/SA modulate state
