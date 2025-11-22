@@ -109,15 +109,24 @@ def run_cmd(args, out):
     try:
         retcode = out.check_call(cmd, env=env)
         if retcode == 0:
-            if not args.disable_mail:
+            if not args.disable_mail and not args.dry_run:
                 print("\nYou can try out the relay by talking to this echo bot: ")
-                sshexec = SSHExec(args.config.mail_domain, verbose=args.verbose)
-                print(
-                    sshexec(
-                        call=remote.rshell.shell,
-                        kwargs=dict(command="cat /var/lib/echobot/invite-link.txt"),
+                echobot_cmd = "cat /var/lib/echobot/invite-link.txt"
+                if ssh_host in ["localhost", "@local", "@docker"]:
+                    result = (
+                        subprocess.check_output(echobot_cmd, shell=True)
+                        .decode()
+                        .strip()
                     )
-                )
+                    print(result)
+                else:
+                    echo_sshexec = get_sshexec(ssh_host, verbose=args.verbose)
+                    print(
+                        echo_sshexec(
+                            call=remote.rshell.shell,
+                            kwargs=dict(command=echobot_cmd),
+                        )
+                    )
             out.green("Deploy completed, call `cmdeploy dns` next.")
         elif not remote_data["acme_account_url"]:
             out.red("Deploy completed but letsencrypt not configured")
