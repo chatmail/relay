@@ -97,10 +97,16 @@ steps. Please substitute it with your own domain.
 
        scripts/cmdeploy run
 
-   This script will also check that you have all necessary DNS records.
+   This script will also check that you have most necessary DNS records.
    If DNS records are missing, it will recommend which you should
    configure at your DNS provider (it can take some time until they are
    public).
+
+6. It is highly recommended you run this post-setup to ensure **all needed** DNS records are there.
+   ::
+
+       scripts/cmdeploy dns
+
 
 Other helpful commands
 ----------------------
