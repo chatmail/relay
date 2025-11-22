@@ -16,6 +16,8 @@ You will need the following:
 
 -  Control over a domain through a DNS provider of your choice.
 
+-  A compatible client machine to launch this from. 
+
 -  A Debian 12 server with reachable SMTP/SUBMISSIONS/IMAPS/HTTPS ports.
    IPv6 is encouraged if available. Chatmail relay servers only require
    1GB RAM, one CPU, and perhaps 10GB storage for a few thousand active
@@ -27,6 +29,28 @@ You will need the following:
    key is required due to an `upstream bug in
    paramiko <https://github.com/paramiko/paramiko/issues/2191>`_)
 
+Required dependencies for smooth install
+----------------------------------------
+
+On a Debian 12 cloud server
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For the instructions below to work on a fresh Debian 12 server this needs to run ahead of setup.
+
+1. Update package sources. 
+   ::
+       apt update
+
+2. Install minium required packages
+   ::
+      apt install python3-venv gcc git python3-dev libunwind8 libexttextcat-2.0-0  liblua5.4-0 liblua5.4-0  libstemmer0d libexttextcat-data 
+
+When launching from a Nixos client
+^^^^^^^^^^^^^^^^^^^
+1. From the project directory run 
+   ::
+
+       nix-shell
 
 Setup with ``scripts/cmdeploy``
 -------------------------------------
@@ -158,12 +182,16 @@ Disable automatic address creation
 --------------------------------------------------------
 
 If you need to stop address creation, e.g. because some script is wildly
-creating addresses, login with ssh and run:
+creating addresses you can do so modifying this in chatmail.ini 
 
 ::
 
-       touch /etc/chatmail-nocreate
+       allow_registrations = no
+Then run again 
+:: 
+       scripts/cmdeploy run
 
-Chatmail address creation will be denied while this file is present.
+
+Chatmail address creation will be denied while this file is present and the QR won't show either in the website
 
 

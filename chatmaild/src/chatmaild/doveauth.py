@@ -12,8 +12,6 @@ from .config import Config, read_config
 from .dictproxy import DictProxy
 from .migrate_db import migrate_from_db_to_maildir
 
-NOCREATE_FILE = "/etc/chatmail-nocreate"
-
 
 def encrypt_password(password: str):
     # https://doc.dovecot.org/configuration_manual/authentication/password_schemes/
@@ -23,8 +21,8 @@ def encrypt_password(password: str):
 
 def is_allowed_to_create(config: Config, user, cleartext_password) -> bool:
     """Return True if user and password are admissable."""
-    if os.path.exists(NOCREATE_FILE):
-        logging.warning(f"blocked account creation because {NOCREATE_FILE!r} exists.")
+    if config.allow_registrations != "yes":
+        logging.warning(f"blocked account creation because allow_registrations in chatmail.ini is not 'yes'.")
         return False
 
     if len(cleartext_password) < config.password_min_length:
