@@ -114,18 +114,19 @@ def _configure_dovecot(config: Config, debug: bool = False) -> bool:
 
     # as per https://doc.dovecot.org/configuration_manual/os/
     # it is recommended to set the following inotify limits
-    for name in ("max_user_instances", "max_user_watches"):
-        key = f"fs.inotify.{name}"
-        if host.get_fact(Sysctl)[key] > 65535:
-            # Skip updating limits if already sufficient
-            # (enables running in incus containers where sysctl readonly)
-            continue
-        server.sysctl(
-            name=f"Change {key}",
-            key=key,
-            value=65535,
-            persist=True,
-        )
+    if config.change_kernel_settings:
+        for name in ("max_user_instances", "max_user_watches"):
+            key = f"fs.inotify.{name}"
+            if host.get_fact(Sysctl)[key] > 65535:
+                # Skip updating limits if already sufficient
+                # (enables running in incus containers where sysctl readonly)
+                continue
+            server.sysctl(
+                name=f"Change {key}",
+                key=key,
+                value=65535,
+                persist=True,
+            )
 
     timezone_env = files.line(
         name="Set TZ environment variable",
