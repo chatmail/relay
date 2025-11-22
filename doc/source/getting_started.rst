@@ -27,6 +27,18 @@ You will need the following:
    key is required due to an `upstream bug in
    paramiko <https://github.com/paramiko/paramiko/issues/2191>`_)
 
+Required dependencies for smooth install
+----------------------------------------
+For the instructions below to work on a fresh Debian 12 this needs to run ahead of setup.
+
+1. Update package sources. 
+   ::
+
+       apt update
+
+2. Install minium required packages
+   ::
+       apt install python3-venv gcc git python3-dev libunwind8 libexttextcat-2.0-0  liblua5.4-0 liblua5.4-0  libstemmer0d libexttextcat-data 
 
 Setup with ``scripts/cmdeploy``
 -------------------------------------
