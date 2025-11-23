@@ -140,34 +140,34 @@ def main():
     config.webdev = True
     assert config.mail_domain
 
-    # start web page generation, open a browser and wait for changes
     www_path, src_path, build_dir = get_paths(config)
     build_dir = build_webpages(src_path, build_dir, config)
     index_path = build_dir.joinpath("index.html")
     webbrowser.open(str(index_path))
-    stats = snapshot_dir_stats(src_path)
+
     print(f"\nOpened URL: file://{index_path.resolve()}\n")
-    print(f"watching {src_path} directory for changes")
+    print(f"Watching {src_path} directory for changes...")
 
+    stats = snapshot_dir_stats(src_path)
     changenum = 0
-    count = 0
+    debounce_time = 0.5  # wait 0.5s after detecting a change
+
     while True:
+        time.sleep(1)
         newstats = snapshot_dir_stats(src_path)
-        if newstats == stats and count % 60 != 0:
-            count += 1
-            time.sleep(1.0)
-            continue
 
-        for key in newstats:
-            if stats[key] != newstats[key]:
-                print(f"*** CHANGED: {key}")
-                changenum += 1
+        if newstats != stats:
+            changed_files = [f for f in newstats if stats.get(f) != newstats[f]]
+            for f in changed_files:
+                print(f"*** CHANGED: {f}")
 
-        stats = newstats
-        build_webpages(src_path, build_dir, config)
-        print(f"[{changenum}] regenerated web pages at: {index_path}")
-        print(f"URL: file://{index_path.resolve()}\n\n")
-        count = 0
+            stats = newstats
+            changenum += 1
+            build_webpages(src_path, build_dir, config)
+            print(f"[{changenum}] regenerated web pages at: {index_path}")
+            print(f"URL: file://{index_path.resolve()}\n\n")
+            
+            time.sleep(debounce_time)  # simple debounce
 
 
 if __name__ == "__main__":
