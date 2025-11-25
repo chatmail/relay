@@ -1,3 +1,5 @@
+import os
+
 from chatmaild.config import Config
 from pyinfra import host
 from pyinfra.facts.server import Arch, Sysctl
@@ -114,7 +116,7 @@ def _configure_dovecot(config: Config, debug: bool = False) -> bool:
 
     # as per https://doc.dovecot.org/configuration_manual/os/
     # it is recommended to set the following inotify limits
-    if config.change_kernel_settings:
+    if not os.environ.get("CHATMAIL_DOCKER"):
         for name in ("max_user_instances", "max_user_watches"):
             key = f"fs.inotify.{name}"
             if host.get_fact(Sysctl)[key] > 65535:
