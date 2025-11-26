@@ -100,6 +100,8 @@ def run_cmd(args, out):
 
     cmd = f"{pyinf} --ssh-user root {ssh_host} {deploy_path} -y"
     if ssh_host in ["localhost", "@docker"]:
+        if ssh_host == "@docker":
+            env["CHATMAIL_DOCKER"] = "True"
         cmd = f"{pyinf} @local {deploy_path} -y"
 
     if version.parse(pyinfra.__version__) < version.parse("3"):
@@ -118,6 +120,9 @@ def run_cmd(args, out):
                         kwargs=dict(command="cat /var/lib/echobot/invite-link.txt"),
                     )
                 )
+            server_deployed_message = f"Chatmail server started: https://{args.config.mail_domain}/"
+            delimiter_line = "=" * len(server_deployed_message)
+            out.green(f"{delimiter_line}\n{server_deployed_message}\n{delimiter_line}")
             out.green("Deploy completed, call `cmdeploy dns` next.")
         elif not remote_data["acme_account_url"]:
             out.red("Deploy completed but letsencrypt not configured")

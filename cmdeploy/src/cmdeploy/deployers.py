@@ -526,11 +526,12 @@ class GithashDeployer(Deployer):
         )
 
 
-def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
+def deploy_chatmail(config_path: Path, disable_mail: bool, docker: bool) -> None:
     """Deploy a chat-mail instance.
 
     :param config_path: path to chatmail.ini
     :param disable_mail: whether to disable postfix & dovecot
+    :param docker: whether it is running in a docker container
     """
     config = read_config(config_path)
     check_config(config)
@@ -543,31 +544,32 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
             line="nameserver 9.9.9.9",
         )
 
-    port_services = [
-        (["master", "smtpd"], 25),
-        ("unbound", 53),
-        ("acmetool", 80),
-        (["imap-login", "dovecot"], 143),
-        ("nginx", 443),
-        (["master", "smtpd"], 465),
-        (["master", "smtpd"], 587),
-        (["imap-login", "dovecot"], 993),
-        ("iroh-relay", 3340),
-        ("nginx", 8443),
-        (["master", "smtpd"], config.postfix_reinject_port),
-        (["master", "smtpd"], config.postfix_reinject_port_incoming),
-        ("filtermail", config.filtermail_smtp_port),
-        ("filtermail", config.filtermail_smtp_port_incoming),
-    ]
-    for service, port in port_services:
-        print(f"Checking if port {port} is available for {service}...")
-        running_service = host.get_fact(Port, port=port)
-        if running_service:
-            if running_service not in service:
-                Out().red(
-                    f"Deploy failed: port {port} is occupied by: {running_service}"
-                )
-                exit(1)
+    if not docker:
+        port_services = [
+            (["master", "smtpd"], 25),
+            ("unbound", 53),
+            ("acmetool", 80),
+            (["imap-login", "dovecot"], 143),
+            ("nginx", 443),
+            (["master", "smtpd"], 465),
+            (["master", "smtpd"], 587),
+            (["imap-login", "dovecot"], 993),
+            ("iroh-relay", 3340),
+            ("nginx", 8443),
+            (["master", "smtpd"], config.postfix_reinject_port),
+            (["master", "smtpd"], config.postfix_reinject_port_incoming),
+            ("filtermail", config.filtermail_smtp_port),
+            ("filtermail", config.filtermail_smtp_port_incoming),
+        ]
+        for service, port in port_services:
+            print(f"Checking if port {port} is available for {service}...")
+            running_service = host.get_fact(Port, port=port)
+            if running_service:
+                if running_service not in service:
+                    Out().red(
+                        f"Deploy failed: port {port} is occupied by: {running_service}"
+                    )
+                    exit(1)
 
     tls_domains = [mail_domain, f"mta-sts.{mail_domain}", f"www.{mail_domain}"]
 

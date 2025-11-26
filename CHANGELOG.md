@@ -86,6 +86,8 @@
   Provide an "fsreport" CLI for more fine grained analysis of message files. 
   ([#637](https://github.com/chatmail/relay/pull/637))
 
+- Add installation via docker compose (MVP 1). The instructions, known issues and limitations are located in `/docs` 
+  ([#614](https://github.com/chatmail/relay/pull/614))
 
 ## 1.7.0 2025-09-11
 
