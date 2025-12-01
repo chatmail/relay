@@ -1,5 +1,6 @@
 [Unit]
 Description=Chatmail echo bot for testing it works
+Requires=dovecot.service
 
 [Service]
 ExecStart={execpath} {config_path}
