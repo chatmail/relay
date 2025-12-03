@@ -273,9 +273,11 @@ Incoming emails must have a valid DKIM signature with
 Signing Domain Identifier (SDID, ``d=`` parameter in the DKIM-Signature
 header) equal to the ``From:`` header domain. This property is checked
 by OpenDKIM screen policy script before validating the signatures. This
-correpsonds to strict :rfc:`DMARC <7489>` alignment (``adkim=s``).
+corresponds to strict :rfc:`DMARC <7489>` alignment (``adkim=s``).
 If there is no valid DKIM signature on the incoming email, the
 sender receives a “5.7.1 No valid DKIM signature found” error.
+After validating the DKIM signature, OpenDKIM strips all ``OpenDKIM:`` headers to
+reduce message size.
 
 Note that chatmail relays
 
