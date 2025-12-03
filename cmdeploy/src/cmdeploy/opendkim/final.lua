@@ -28,8 +28,8 @@ for i = 1, nsigs do
 	end
 end
 
-if valid then
-	-- Strip all DKIM-Signature headers after successful validation
+if not valid then
+	odkim.set_reply(ctx, "554", "5.7.1", "No valid DKIM signature found")
 	-- Delete in reverse order to avoid index shifting.
 	for i = nsigs, 1, -1 do
 		odkim.del_header(ctx, "DKIM-Signature", i)
@@ -37,6 +37,13 @@ if valid then
 else
 	odkim.set_reply(ctx, "554", "5.7.1", error_msg)
 	odkim.set_result(ctx, SMFIS_REJECT)
+	return nil
+end
+
+-- Valid signature found. Strip all DKIM-Signature headers
+-- Delete in reverse order to avoid index shifting.
+for i = nsigs, 1, -1 do
+	odkim.del_header(ctx, "DKIM-Signature", i)
 end
 
 return nil
