@@ -37,7 +37,10 @@ def perform_initial_checks(mail_domain, pre_command=""):
         return res
 
     # parse out sts-id if exists, example: "v=STSv1; id=2090123"
-    parts = query_dns("TXT", f"_mta-sts.{mail_domain}").split("id=")
+    mta_sts_txt = query_dns("TXT", f"_mta-sts.{mail_domain}")
+    if not mta_sts_txt:
+        return res
+    parts = mta_sts_txt.split("id=")
     res["sts_id"] = parts[1].rstrip('"') if len(parts) == 2 else ""
     return res
 
