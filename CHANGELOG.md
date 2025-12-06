@@ -11,6 +11,9 @@
 - Organized cmdeploy into install, configure, and activate stages
   ([#695](https://github.com/chatmail/relay/pull/695))
 
+- echobot: print invite-link also if it's deployed locally
+  ([#751](https://github.com/chatmail/relay/pull/751))
+
 - docs: move readme.md docs to sphinx documentation rendered at https://chatmail.at/doc/relay 
   ([#711](https://github.com/chatmail/relay/pull/711))
 
