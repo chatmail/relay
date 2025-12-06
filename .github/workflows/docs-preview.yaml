@@ -11,6 +11,9 @@ jobs:
   scripts:
     name: build 
     runs-on: ubuntu-latest
+    environment:
+      name: 'staging.chatmail.at/doc/relay/'
+      url: https://staging.chatmail.at/doc/relay/${{ steps.prepare.outputs.prid }}
     steps:
       - uses: actions/checkout@v4
 
@@ -43,36 +46,6 @@ jobs:
           echo "${{ secrets.CHATMAIL_STAGING_SSHKEY }}" > "$HOME/.ssh/key"
           chmod 600 "$HOME/.ssh/key"
           rsync -rILvh -e "ssh -i $HOME/.ssh/key -o StrictHostKeyChecking=no" $GITHUB_WORKSPACE/doc/build/ "${{ secrets.USERNAME }}@chatmail.at:/var/www/html/staging.chatmail.at/doc/relay/${{ steps.prepare.outputs.prid }}/"
-
-      - name: "Post links to details"
-        id: details
-        if: steps.prepare.outputs.uploadtoserver
-        run: |
-          # URLs for API connection and uploads
-          export GITHUB_API_URL="https://api.github.com/repos/chatmail/relay/statuses/${{ github.event.after }}"
-          export PREVIEW_LINK="https://staging.chatmail.at/doc/relay/${{ steps.prepare.outputs.prid }}/"
-          export STATUS_DATA="{\"state\": \"success\", \
-                               \"description\": \"Preview the changed documentation here:\", \
-                               \"context\": \"Documentation Preview\", \
-                               \"target_url\": \"${PREVIEW_LINK}\"}"
-          curl -X POST --header "Accept: application/vnd.github+json" --header "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" --url "$GITHUB_API_URL" --header "content-type: application/json" --data "$STATUS_DATA"
-
-          #check if comment already exists, if not post it
-          export GITHUB_API_URL="https://api.github.com/repos/chatmail/relay/issues/${{ steps.prepare.outputs.prid }}/comments"
-          export RESPONSE=$(curl -L --header "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" --url "$GITHUB_API_URL" --header "content-type: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28")
-          echo $RESPONSE > response
-          grep -v '"Check out the page preview at https://staging.chatmail.at/doc/relay' response && echo "comment=true" >> $GITHUB_OUTPUT || true
-      - name: "Post link to comments"
-        if: steps.details.outputs.comment
-        uses: actions/github-script@v7
-        with:
-          script: |
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: "Check out the page preview at https://staging.chatmail.at/doc/relay/${{ steps.prepare.outputs.prid }}/"
-            })
 
       - name: check links 
         working-directory: doc

@@ -14,6 +14,9 @@ jobs:
   scripts:
     name: build 
     runs-on: ubuntu-latest
+    environment: 
+      name: 'chatmail.at/doc/relay/'
+      url: https://chatmail.at/doc/relay/
     steps:
       - uses: actions/checkout@v4
 
