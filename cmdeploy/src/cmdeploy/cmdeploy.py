@@ -11,6 +11,7 @@ import pathlib
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 import pyinfra
@@ -111,20 +112,18 @@ def run_cmd(args, out):
         if retcode == 0:
             if not args.disable_mail and not args.dry_run:
                 print("\nYou can try out the relay by talking to this echo bot: ")
-                echobot_cmd = "cat /var/lib/echobot/invite-link.txt"
+                invite_path = Path("/var/lib/echobot/invite-link.txt")
                 if ssh_host in ["localhost", "@local", "@docker"]:
-                    result = (
-                        subprocess.check_output(echobot_cmd, shell=True)
-                        .decode()
-                        .strip()
-                    )
-                    print(result)
+                    while not invite_path.exists():
+                        time.sleep(0.1)
+                    with invite_path.open() as f:
+                        print(f.readline())
                 else:
                     echo_sshexec = get_sshexec(ssh_host, verbose=args.verbose)
                     print(
                         echo_sshexec(
                             call=remote.rshell.shell,
-                            kwargs=dict(command=echobot_cmd),
+                            kwargs=dict(command=f"cat {invite_path}"),
                         )
                     )
             out.green("Deploy completed, call `cmdeploy dns` next.")
