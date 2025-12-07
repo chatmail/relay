@@ -40,10 +40,6 @@ def is_allowed_to_create(config: Config, user, cleartext_password) -> bool:
         return False
     localpart, domain = parts
 
-    if localpart == "echo":
-        # echobot account should not be created in the database
-        return False
-
     if (
         len(localpart) > config.username_max_length
         or len(localpart) < config.username_min_length

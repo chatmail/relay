@@ -81,7 +81,6 @@ def test_status_cmd(chatmail_config, capsys, request):
         "chatmail-metadata",
         "doveauth",
         "dovecot",
-        "echobot",
         "fcgiwrap",
         "filtermail-incoming",
         "filtermail",

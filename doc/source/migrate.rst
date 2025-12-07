@@ -26,7 +26,7 @@ this case, just run ``ssh-keygen -R "mail.example.org"`` as recommended.
    or receive messages until the migration is completed.
 
 2. Now we want to copy ``/home/vmail``, ``/var/lib/acme``,
-   ``/etc/dkimkeys``, ``/run/echobot``, and ``/var/spool/postfix`` to
+   ``/etc/dkimkeys``, and ``/var/spool/postfix`` to
    the new site. Login to the old site while forwarding your SSH agent
    so you can copy directly from the old to the new site with your SSH
    key:
@@ -34,11 +34,11 @@ this case, just run ``ssh-keygen -R "mail.example.org"`` as recommended.
    ::
 
        ssh -A root@13.37.13.37
-       tar c - /home/vmail/mail /var/lib/acme /etc/dkimkeys /run/echobot /var/spool/postfix | ssh root@13.12.23.42 "tar x -C /"
+       tar c - /home/vmail/mail /var/lib/acme /etc/dkimkeys /var/spool/postfix | ssh root@13.12.23.42 "tar x -C /"
 
-   This transfers all addresses, the TLS certificate, DKIM keys (so DKIM
-   DNS record remains valid), and the echobot’s password so it continues
-   to function. It also preserves the Postfix mail spool so any messages
+   This transfers all addresses, the TLS certificate,
+   and DKIM keys (so DKIM DNS record remains valid).
+   It also preserves the Postfix mail spool so any messages
    pending delivery will still be delivered.
 
 3. Install chatmail on the new machine:
@@ -58,7 +58,6 @@ this case, just run ``ssh-keygen -R "mail.example.org"`` as recommended.
        chown root: -R /var/lib/acme
        chown opendkim: -R /etc/dkimkeys
        chown vmail: -R /home/vmail/mail
-       chown echobot: -R /run/echobot
 
 5. Now, update DNS entries.
 

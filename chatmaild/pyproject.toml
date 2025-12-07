@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "chatmaild"
-version = "0.2"
+version = "0.3"
 dependencies = [
   "aiosmtpd",
   "iniconfig",
@@ -25,7 +25,6 @@ where = ['src']
 doveauth = "chatmaild.doveauth:main"
 chatmail-metadata = "chatmaild.metadata:main"
 filtermail = "chatmaild.filtermail:main"
-echobot = "chatmaild.echo:main"
 chatmail-metrics = "chatmaild.metrics:main"
 chatmail-expire = "chatmaild.expire:main"
 chatmail-fsreport = "chatmaild.fsreport:main"

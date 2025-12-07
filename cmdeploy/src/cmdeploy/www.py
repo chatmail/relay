@@ -166,7 +166,7 @@ def main():
             build_webpages(src_path, build_dir, config)
             print(f"[{changenum}] regenerated web pages at: {index_path}")
             print(f"URL: file://{index_path.resolve()}\n\n")
-            
+
             time.sleep(debounce_time)  # simple debounce
 
 

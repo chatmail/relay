@@ -109,10 +109,6 @@ short overview of ``chatmaild`` services:
    is contacted by Dovecot when a user logs in and stores the date of
    the login.
 
--  `echobot <https://github.com/chatmail/relay/blob/main/chatmaild/src/chatmaild/echo.py>`_
-   is a small bot for test purposes. It simply echoes back messages from
-   users.
-
 -  `metrics <https://github.com/chatmail/relay/blob/main/chatmaild/src/chatmaild/metrics.py>`_
    collects some metrics and displays them at
    ``https://example.org/metrics``.
@@ -276,8 +272,8 @@ by OpenDKIM screen policy script before validating the signatures. This
 corresponds to strict :rfc:`DMARC <7489>` alignment (``adkim=s``).
 If there is no valid DKIM signature on the incoming email, the
 sender receives a “5.7.1 No valid DKIM signature found” error.
-After validating the DKIM signature, 
-the `final.lua` script strips all ``OpenDKIM:`` headers to reduce message size on disc. 
+After validating the DKIM signature,
+the `final.lua` script strips all ``OpenDKIM:`` headers to reduce message size on disc.
 
 Note that chatmail relays
 

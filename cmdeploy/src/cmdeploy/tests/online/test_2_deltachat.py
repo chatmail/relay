@@ -160,22 +160,3 @@ def test_hide_senders_ip_address(cmfactory):
     user2.direct_imap.select_folder("Inbox")
     msg = user2.direct_imap.get_all_messages()[0]
     assert public_ip not in msg.obj.as_string()
-
-
-def test_echobot(cmfactory, chatmail_config, lp, sshdomain):
-    ac = cmfactory.get_online_accounts(1)[0]
-
-    # establish contact with echobot
-    sshexec = SSHExec(sshdomain)
-    command = "cat /var/lib/echobot/invite-link.txt"
-    echo_invite_link = sshexec(call=rshell.shell, kwargs=dict(command=command))
-    chat = ac.qr_setup_contact(echo_invite_link)
-    ac._evtracker.wait_securejoin_joiner_progress(1000)
-
-    # send message and check it gets replied back
-    lp.sec("Send message to echobot")
-    text = "hi, I hope you text me back"
-    chat.send_text(text)
-    lp.sec("Wait for reply from echobot")
-    reply = ac._evtracker.wait_next_incoming_message()
-    assert reply.text == text

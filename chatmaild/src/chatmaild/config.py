@@ -4,8 +4,6 @@ import iniconfig
 
 from chatmaild.user import User
 
-echobot_password_path = Path("/run/echobot/password")
-
 
 def read_config(inipath):
     assert Path(inipath).exists(), inipath
@@ -72,10 +70,7 @@ class Config:
             raise ValueError(f"invalid address {addr!r}")
 
         maildir = self.mailboxes_dir.joinpath(addr)
-        if addr.startswith("echo@"):
-            password_path = echobot_password_path
-        else:
-            password_path = maildir.joinpath("password")
+        password_path = maildir.joinpath("password")
 
         return User(maildir, addr, password_path, uid="vmail", gid="vmail")
 

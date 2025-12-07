@@ -270,6 +270,14 @@ class LegacyRemoveDeployer(Deployer):
             path="/var/log/journal/",
             present=False,
         )
+        # remove echobot if it is still running
+        if host.get_fact(SystemdEnabled).get("echobot.service"):
+            systemd.service(
+                name="Disable echobot.service",
+                service="echobot.service",
+                running=False,
+                enabled=False,
+            )
 
 
 def check_config(config):
@@ -402,30 +410,6 @@ class JournaldDeployer(Deployer):
             restarted=self.need_restart,
         )
         self.need_restart = False
-
-
-class EchobotDeployer(Deployer):
-    #
-    # This deployer depends on the dovecot and postfix deployers because
-    # it needs to base its decision of whether to restart the service on
-    # whether those two services were restarted.
-    #
-    def __init__(self, mail_domain):
-        self.mail_domain = mail_domain
-        self.units = ["echobot"]
-
-    def install(self):
-        apt.packages(
-            # required for setfacl for echobot
-            name="Install acl",
-            packages="acl",
-        )
-
-    def configure(self):
-        configure_remote_units(self.mail_domain, self.units)
-
-    def activate(self):
-        activate_remote_units(self.units)
 
 
 class ChatmailVenvDeployer(Deployer):
@@ -590,7 +574,6 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
         PostfixDeployer(config, disable_mail),
         FcgiwrapDeployer(),
         NginxDeployer(config),
-        EchobotDeployer(mail_domain),
         MtailDeployer(config.mtail_address),
         GithashDeployer(),
     ]

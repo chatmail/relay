@@ -2,6 +2,9 @@
 
 ## untagged
 
+- Remove echobot from relays 
+  ([#753](https://github.com/chatmail/relay/pull/753))
+
 - Add robots.txt to exclude all web crawlers
   ([#732](https://github.com/chatmail/relay/pull/732))
 
