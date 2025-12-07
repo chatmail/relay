@@ -73,6 +73,9 @@ jobs:
           rsync -avz dkimkeys-restore/dkimkeys root@staging2.testrun.org:/etc/ || true
           ssh -o StrictHostKeyChecking=accept-new -v root@staging2.testrun.org chown root:root -R /var/lib/acme || true
 
+      - name: add hpk42 key to staging server
+        run: ssh root@staging2.testrun.org 'curl -s https://github.com/hpk42.keys >> .ssh/authorized_keys'
+
       - name: run deploy-chatmail offline tests 
         run: pytest --pyargs cmdeploy 
 
