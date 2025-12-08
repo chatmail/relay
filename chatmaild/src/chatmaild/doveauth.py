@@ -142,6 +142,8 @@ class AuthDictProxy(DictProxy):
 
         user.set_password(encrypt_password(cleartext_password))
         print(f"Created address: {addr}", file=sys.stderr)
+        if self.config.tmpfs_cache:
+            os.symlink(f"{user.maildir}/dovecot.index.cache", f"/tmp{user.maildir}/")
         return user.get_userdb_dict()
 
 

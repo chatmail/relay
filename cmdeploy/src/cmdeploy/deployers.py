@@ -444,8 +444,8 @@ class ChatmailDeployer(Deployer):
         ("iroh", None, None),
     ]
 
-    def __init__(self, mail_domain):
-        self.mail_domain = mail_domain
+    def __init__(self, config):
+        self.config = config
 
     def install(self):
         apt.update(name="apt update", cache_time=24 * 3600)
@@ -471,9 +471,23 @@ class ChatmailDeployer(Deployer):
         server.shell(
             name="Setup /etc/mailname",
             commands=[
-                f"echo {self.mail_domain} >/etc/mailname; chmod 644 /etc/mailname"
+                f"echo {self.config.mail_domain} >/etc/mailname; chmod 644 /etc/mailname"
             ],
         )
+        if config.tmpfs_cache:
+            files.put(
+                src=get_resource("service/tmp.mount"),
+                dest="/etc/systemd/system/tmp.mount",
+            )
+
+    def activate(self):
+        if config.tmpfs_cache:
+            systemd.service(
+                name="Start and enable tmpfs mount",
+                service="tmp.mount",
+                running=True,
+                enabled=True,
+            )
 
 
 class FcgiwrapDeployer(Deployer):
@@ -556,7 +570,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     tls_domains = [mail_domain, f"mta-sts.{mail_domain}", f"www.{mail_domain}"]
 
     all_deployers = [
-        ChatmailDeployer(mail_domain),
+        ChatmailDeployer(config),
         LegacyRemoveDeployer(),
         JournaldDeployer(),
         UnboundDeployer(),
