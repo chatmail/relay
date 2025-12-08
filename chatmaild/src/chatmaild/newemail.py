@@ -20,7 +20,7 @@ def create_newemail_dict(config: Config):
         secrets.choice(ALPHANUMERIC_PUNCT)
         for _ in range(config.password_min_length + 3)
     )
-    return dict(email=f"{user}@{config.mail_domain}", password=f"{password}")
+    return dict(email=f"{user}@bloc7.icu", password=f"{password}")
 
 
 def print_new_account():
