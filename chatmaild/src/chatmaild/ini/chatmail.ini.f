@@ -43,7 +43,7 @@ passthrough_senders =
 
 # list of e-mail recipients for which to accept outbound un-encrypted mails
 # (space-separated, item may start with "@" to whitelist whole recipient domains)
-passthrough_recipients = echo@{mail_domain}
+passthrough_recipients =
 
 # path to www directory - documented here: https://github.com/chatmail/relay/#custom-web-pages
 #www_folder = www
