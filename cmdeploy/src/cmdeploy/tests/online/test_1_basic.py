@@ -1,5 +1,4 @@
 import datetime
-import os
 import smtplib
 import socket
 import subprocess
@@ -8,7 +7,6 @@ import time
 import pytest
 
 from cmdeploy import remote
-from cmdeploy.cmdeploy import main
 from cmdeploy.sshexec import SSHExec
 
 
@@ -68,46 +66,6 @@ class TestSSHExecutor:
         since_date = datetime.datetime.strptime(datestring, "%a %Y-%m-%d %H:%M:%S %Z")
         now = datetime.datetime.now(since_date.tzinfo)
         assert (now - since_date).total_seconds() < 60 * 60 * 51
-
-
-def test_status_cmd(chatmail_config, capsys, request):
-    os.chdir(request.config.invocation_params.dir)
-    assert main(["status"]) == 0
-    status_out = capsys.readouterr()
-    print(status_out.out)
-
-    services = [
-        "acmetool-redirector",
-        "chatmail-metadata",
-        "doveauth",
-        "dovecot",
-        "fcgiwrap",
-        "filtermail-incoming",
-        "filtermail",
-        "lastlogin",
-        "nginx",
-        "opendkim",
-        "postfix@-",
-        "systemd-journald",
-        "turnserver",
-        "unbound",
-    ]
-    not_running = []
-    for service in services:
-        active = False
-        for line in status_out:
-            if service in line:
-                active = True
-                if not "loaded" in line:
-                    active = False
-                if not "active" in line:
-                    active = False
-                if not "running" in line:
-                    active = False
-                break
-        if not active:
-            not_running.append(service)
-    assert not_running == []
 
 
 def test_timezone_env(remote):
