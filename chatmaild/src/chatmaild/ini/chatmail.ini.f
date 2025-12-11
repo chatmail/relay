@@ -45,7 +45,7 @@ passthrough_senders =
 # (space-separated, item may start with "@" to whitelist whole recipient domains)
 passthrough_recipients = echo@{mail_domain}
 
-# path to www directory - documented here: https://github.com/chatmail/relay/#custom-web-pages
+# path to www directory - documented here: https://chatmail.at/doc/relay/getting_started.html#custom-web-pages
 #www_folder = www
 
 #
