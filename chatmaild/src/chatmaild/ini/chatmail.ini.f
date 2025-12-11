@@ -99,6 +99,12 @@ acme_email =
 # so use this option with caution on production servers. 
 imap_rawlog = false 
 
+# set to true if you want to enable the IMAP COMPRESS Extension,
+# which allows IMAP connections to be efficiently compressed.
+# WARNING: Enabling this makes it impossible to hibernate IMAP
+# processes which will result in much higher memory/RAM usage.
+imap_compress = false
+
 
 #
 # Privacy Policy

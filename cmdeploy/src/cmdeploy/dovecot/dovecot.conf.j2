@@ -113,7 +113,7 @@ mail_attribute_dict = proxy:/run/chatmail-metadata/metadata.socket:metadata
 # `imap_zlib` enables IMAP COMPRESS (RFC 4978).
 # <https://datatracker.ietf.org/doc/html/rfc4978.html>
 protocol imap {
-  mail_plugins = $mail_plugins imap_zlib imap_quota last_login
+  mail_plugins = $mail_plugins imap_quota last_login {% if config.imap_compress %}imap_zlib{% endif %}
   imap_metadata = yes
 }
 
@@ -251,4 +251,29 @@ protocol imap {
 
   rawlog_dir = %h 
 } 
+{% endif %}
+
+{% if not config.imap_compress %}
+# Hibernate IDLE users to save memory and CPU resources
+# NOTE: this will have no effect if imap_zlib plugin is used
+imap_hibernate_timeout = 30s
+service imap {
+  # Note that this change will allow any process running as
+  # $default_internal_user (dovecot) to access mails as any other user.
+  # This may be insecure in some installations, which is why this isn't
+  # done by default.
+  unix_listener imap-master {
+    user = $default_internal_user
+  }
+}
+# The following is the default already in v2.3.1+:
+service imap {
+  extra_groups = $default_internal_group
+}
+service imap-hibernate {
+  unix_listener imap-hibernate {
+    mode = 0660
+    group = $default_internal_group
+  }
+}
 {% endif %}
