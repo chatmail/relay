@@ -35,11 +35,11 @@ jobs:
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan staging2.testrun.org > ~/.ssh/known_hosts
           # save previous acme & dkim state
-          rsync -avz root@staging2.testrun.org:/var/lib/acme . || true
-          rsync -avz root@staging2.testrun.org:/etc/dkimkeys . || true
+          rsync -avz --delete root@staging2.testrun.org:/var/lib/acme .
+          rsync -avz --delete root@staging2.testrun.org:/etc/dkimkeys .
           # store previous acme & dkim state on ns.testrun.org, if it contains useful certs
-          if [ -f dkimkeys/opendkim.private ]; then rsync -avz -e "ssh -o StrictHostKeyChecking=accept-new" dkimkeys root@ns.testrun.org:/tmp/ || true; fi
-          if [ "$(ls -A acme/certs)" ]; then rsync -avz -e "ssh -o StrictHostKeyChecking=accept-new" acme root@ns.testrun.org:/tmp/ || true; fi
+          test -f dkimkeys/opendkim.private && rsync -avz --delete -e "ssh -o StrictHostKeyChecking=accept-new" dkimkeys root@ns.testrun.org:/tmp/
+          test -n "$(ls -A acme/certs)" && rsync -avz --delete -e "ssh -o StrictHostKeyChecking=accept-new" acme root@ns.testrun.org:/tmp/
           # make sure CAA record isn't set
           scp -o StrictHostKeyChecking=accept-new .github/workflows/staging.testrun.org-default.zone root@ns.testrun.org:/etc/nsd/staging2.testrun.org.zone
           ssh root@ns.testrun.org sed -i '/CAA/d' /etc/nsd/staging2.testrun.org.zone

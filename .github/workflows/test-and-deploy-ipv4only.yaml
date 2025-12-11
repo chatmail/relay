@@ -35,11 +35,11 @@ jobs:
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan staging-ipv4.testrun.org > ~/.ssh/known_hosts
           # save previous acme & dkim state
-          rsync -avz root@staging-ipv4.testrun.org:/var/lib/acme acme-ipv4 || true
-          rsync -avz root@staging-ipv4.testrun.org:/etc/dkimkeys dkimkeys-ipv4 || true
+          rsync -avz --delete root@staging-ipv4.testrun.org:/var/lib/acme acme-ipv4
+          rsync -avz --delete root@staging-ipv4.testrun.org:/etc/dkimkeys dkimkeys-ipv4
           # store previous acme & dkim state on ns.testrun.org, if it contains useful certs
-          if [ -f dkimkeys-ipv4/dkimkeys/opendkim.private ]; then rsync -avz -e "ssh -o StrictHostKeyChecking=accept-new" dkimkeys-ipv4 root@ns.testrun.org:/tmp/ || true; fi
-          if [ "$(ls -A acme-ipv4/acme/certs)" ]; then rsync -avz -e "ssh -o StrictHostKeyChecking=accept-new" acme-ipv4 root@ns.testrun.org:/tmp/ || true; fi
+          test -f dkimkeys-ipv4/dkimkeys/opendkim.private && rsync -avz --delete -e "ssh -o StrictHostKeyChecking=accept-new" dkimkeys-ipv4 root@ns.testrun.org:/tmp/
+          test -n "$(ls -A acme-ipv4/acme/certs)" && rsync -avz --delete -e "ssh -o StrictHostKeyChecking=accept-new" acme-ipv4 root@ns.testrun.org:/tmp/
           # make sure CAA record isn't set
           scp -o StrictHostKeyChecking=accept-new .github/workflows/staging-ipv4.testrun.org-default.zone root@ns.testrun.org:/etc/nsd/staging-ipv4.testrun.org.zone
           ssh root@ns.testrun.org sed -i '/CAA/d' /etc/nsd/staging-ipv4.testrun.org.zone
