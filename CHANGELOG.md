@@ -2,6 +2,8 @@
 
 ## untagged
 
+- add `--website-only` option to `run` subcommand (#768)
+
 - Add imap_compress option to chatmail.ini (#760)
 
 - Remove echobot from relays 
