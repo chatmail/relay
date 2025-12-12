@@ -2,10 +2,14 @@
 
 ## untagged
 
-- Add imap_compress option to chatmail.ini (#760)
+- Add imap_compress option to chatmail.ini
+  ([#760](https://github.com/chatmail/relay/pull/760))
 
 - Remove echobot from relays 
   ([#753](https://github.com/chatmail/relay/pull/753))
+
+- Fix `cmdeploy webdev`
+  ([#743](https://github.com/chatmail/relay/pull/743))
 
 - Add robots.txt to exclude all web crawlers
   ([#732](https://github.com/chatmail/relay/pull/732))
