@@ -23,7 +23,3 @@ you can also **scan this QR code** with Delta Chat:
 🐣 **Choose** your Avatar and Name
 
 💬 **Start** chatting with any Delta Chat contacts using [QR invite codes](https://delta.chat/en/help#howtoe2ee)
-
-{% if config.mail_domain != "nine.testrun.org" %}
-<div class="experimental">Note: this is only a temporary development chatmail service</div>
-{% endif %}
