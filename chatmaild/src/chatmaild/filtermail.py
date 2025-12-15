@@ -312,7 +312,7 @@ class IncomingBeforeQueueHandler:
         client = SMTPClient(
             "localhost",
             self.config.postfix_reinject_port_incoming,
-            source_address=("127.0.0.2", 0),
+            source_address=("127.0.0.1", 0),
         )
         client.sendmail(
             envelope.mail_from, envelope.rcpt_tos, envelope.original_content
