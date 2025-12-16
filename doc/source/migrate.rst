@@ -8,7 +8,7 @@ you might need to adjust some of the steps to your environment.
 
 Let’s assume that your ``mail_domain`` is ``mail.example.org``, all
 involved machines run Debian 12, your old site’s IP address is
-``13.37.13.37``, and your new site’s IP address is ``13.12.23.42``.
+``13.12.13.12``, and your new site’s IP address is ``45.54.45.54``.
 
 Note, you should lower the TTLs of your DNS records to a value such as
 300 (5 minutes) so the migration happens as smoothly as possible.
@@ -16,57 +16,78 @@ Note, you should lower the TTLs of your DNS records to a value such as
 During the guide you might get a warning about changed SSH Host keys; in
 this case, just run ``ssh-keygen -R "mail.example.org"`` as recommended.
 
-1. First, disable mail services on the old site.
-
-   ::
-
-       cmdeploy run --disable-mail --ssh-host 13.37.13.37
-
-   Now your users will notice the migration and will not be able to send
-   or receive messages until the migration is completed.
-
-2. Now we want to copy ``/home/vmail``, ``/var/lib/acme``,
-   ``/etc/dkimkeys``, and ``/var/spool/postfix`` to
-   the new site. Login to the old site while forwarding your SSH agent
+1. First, to make the downtime during the migration shorter,
+   let's transfer the current state of the mailboxes.
+   Login to your old machine (while forwarding your ssh-agent with ``ssh -A``)
    so you can copy directly from the old to the new site with your SSH
    key:
 
    ::
 
-       ssh -A root@13.37.13.37
-       tar c - /home/vmail/mail /var/lib/acme /etc/dkimkeys /var/spool/postfix | ssh root@13.12.23.42 "tar x -C /"
+       ssh -A root@13.12.13.12
+       tar c - /home/vmail/mail | ssh root@45.54.45.54 "tar x -C /"
 
-   This transfers all addresses, the TLS certificate,
+   This saves us time during the downtime,
+   at least the mailboxes are there already.
+   They contain user passwords, encrypted push notification tokens,
+   messages which might not have been fetched by all devices of the user yet,
+   and dovecot indexes which track the state of the mailbox.
+
+2. Then, from your local machine, install chatmail on the new machine, but don't activate it yet:
+
+   ::
+
+       CMDEPLOY_STAGES=install,configure cmdeploy run --ssh-host 45.54.45.54
+
+   The services are disabled for now; we will enable them later.
+   We first need to make the new site fully operational.
+
+3. Now it's getting serious: disable the mail services on the old site.
+
+   ::
+
+       cmdeploy run --disable-mail --ssh-host 13.12.13.12
+
+   Your users will start to notice the migration and will not be able to send
+   or receive messages until the migration is completed.
+   Other relays and mail servers will wait with delivering messages
+   until your relay is reachable again.
+
+4. Now we want to copy ``/home/vmail``, ``/var/lib/acme``,
+   ``/etc/dkimkeys``, and ``/var/spool/postfix`` to
+   the new site. Let's forward the SSH agent again to copy the files directly.
+   This time, we copy ``/home/vmail/mail`` with rsync to only copy the recent changes:
+
+   ::
+
+       ssh -A root@13.12.13.12
+       tar c - /var/lib/acme /etc/dkimkeys /var/spool/postfix | ssh root@45.54.45.54 "tar x -C /"
+       rsync -azH /home/vmail/mail root@45.54.45.54:/home/vmail/
+
+   This transfers all addresses, messages which have not been fetched yet, the TLS certificate,
    and DKIM keys (so DKIM DNS record remains valid).
    It also preserves the Postfix mail spool so any messages
    pending delivery will still be delivered.
 
-3. Install chatmail on the new machine:
-
-   ::
-
-       cmdeploy run --disable-mail --ssh-host 13.12.23.42
-
-   Postfix and Dovecot are disabled for now; we will enable them later.
-   We first need to make the new site fully operational.
-
-4. On the new site, run the following to ensure the ownership is correct
+5. Now login to the new site and run the following to ensure the ownership is correct
    in case UIDs/GIDs changed:
 
    ::
 
+       ssh root@45.54.45.54
        chown root: -R /var/lib/acme
        chown opendkim: -R /etc/dkimkeys
        chown vmail: -R /home/vmail/mail
 
-5. Now, update DNS entries.
+6. Now, update the DNS entries.
+   You only need to change the ``A`` and ``AAAA`` records, for example:
 
-   If other MTAs try to deliver messages to your chatmail domain they
-   may fail intermittently, as DNS catches up with the new site settings
-   but normally will retry delivering messages for at least a week, so
-   messages will not be lost.
+   ::
 
-6. Finally, you can execute ``cmdeploy run --ssh-host 13.12.23.42`` to
+       mail.example.org.    IN A    45.54.45.54
+       mail.example.org.    IN AAAA 45:ac:1312:ab::1
+
+7. Finally, you can execute ``CMDEPLOY_STAGES=activate cmdeploy run --ssh-host 45.54.45.54`` to
    turn on chatmail on the new relay. Your users will be able to use the
    chatmail relay as soon as the DNS changes have propagated. Voilà!
 
