@@ -13,6 +13,8 @@ from cmdeploy.basedeploy import (
 
 
 class DovecotDeployer(Deployer):
+    daemon_reload = False
+
     def __init__(self, config, disable_mail):
         self.config = config
         self.disable_mail = disable_mail
