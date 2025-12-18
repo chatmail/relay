@@ -94,7 +94,7 @@ jobs:
           ssh root@ns.testrun.org systemctl reload nsd
 
       - name: cmdeploy test
-        run: CHATMAIL_DOMAIN2=nine.testrun.org cmdeploy test --slow
+        run: CHATMAIL_DOMAIN2=ci-chatmail.testrun.org cmdeploy test --slow
 
       - name: cmdeploy dns
         run: cmdeploy dns -v
