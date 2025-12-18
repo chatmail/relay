@@ -17,16 +17,17 @@ from chatmaild.expire import main as expiry_main
 from chatmaild.fsreport import main as report_main
 
 
-def fill_mbox(basedir1):
-    password = basedir1.joinpath("password")
+def fill_mbox(folderdir):
+    password = folderdir.joinpath("password")
     password.write_text("xxx")
-    basedir1.joinpath("maildirsize").write_text("xxx")
+    folderdir.joinpath("maildirsize").write_text("xxx")
 
-    garbagedir = basedir1.joinpath("garbagedir")
+    garbagedir = folderdir.joinpath("garbagedir")
     garbagedir.mkdir()
+    garbagedir.joinpath("bimbum").write_text("hello")
 
-    create_new_messages(basedir1, ["cur/msg1"], size=500)
-    create_new_messages(basedir1, ["new/msg2"], size=600)
+    create_new_messages(folderdir, ["cur/msg1"], size=500)
+    create_new_messages(folderdir, ["new/msg2"], size=600)
 
 
 def create_new_messages(basedir, relpaths, size=1000, days=0):
@@ -86,7 +87,7 @@ def test_stats_mailbox(mbox1):
     create_new_messages(mbox1.basedir, ["large-extra"], size=1000)
     create_new_messages(mbox1.basedir, ["index-something"], size=3)
     mbox2 = MailboxStat(mbox1.basedir)
-    assert len(mbox2.extrafiles) == 4
+    assert len(mbox2.extrafiles) == 5
     assert mbox2.extrafiles[0].size == 1000
 
     # cope well with mailbox dirs that have no password (for whatever reason)
