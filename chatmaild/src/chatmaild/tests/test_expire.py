@@ -17,9 +17,7 @@ from chatmaild.expire import main as expiry_main
 from chatmaild.fsreport import main as report_main
 
 
-def fill_mbox(basedir):
-    basedir1 = basedir.joinpath("mailbox1@example.org")
-    basedir1.mkdir()
+def fill_mbox(basedir1):
     password = basedir1.joinpath("password")
     password.write_text("xxx")
     basedir1.joinpath("maildirsize").write_text("xxx")
@@ -29,7 +27,6 @@ def fill_mbox(basedir):
 
     create_new_messages(basedir1, ["cur/msg1"], size=500)
     create_new_messages(basedir1, ["new/msg2"], size=600)
-    return basedir1
 
 
 def create_new_messages(basedir, relpaths, size=1000, days=0):
@@ -45,8 +42,21 @@ def create_new_messages(basedir, relpaths, size=1000, days=0):
 
 @pytest.fixture
 def mbox1(example_config):
-    basedir1 = fill_mbox(example_config.mailboxes_dir)
-    return MailboxStat(basedir1)
+    mboxdir = example_config.mailboxes_dir.joinpath("mailbox1@example.org")
+    mboxdir.mkdir()
+    fill_mbox(mboxdir)
+    return MailboxStat(mboxdir)
+
+
+def test_deltachat_folder(example_config):
+    """Test old setups that might have a .DeltaChat folder where messages also need to get removed."""
+    mboxdir = example_config.mailboxes_dir.joinpath("mailbox1@example.org")
+    mboxdir.mkdir()
+    mbox2dir = mboxdir.joinpath(".DeltaChat")
+    mbox2dir.mkdir()
+    fill_mbox(mbox2dir)
+    mb = MailboxStat(mboxdir)
+    assert len(mb.messages) == 2
 
 
 def test_filentry_ordering(tmp_path):

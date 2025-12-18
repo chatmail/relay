@@ -63,21 +63,28 @@ class MailboxStat:
             os.chdir(self.basedir)
         except FileNotFoundError:
             return
-        for name in os_listdir_if_exists("."):
+        try:
+            self.scandir(".")
+        finally:
+            os.chdir(old_cwd)
+
+    def scandir(self, dirname):
+        for name in os_listdir_if_exists(dirname):
+            relpath = f"{dirname}/{name}"
             if name in ("cur", "new", "tmp"):
-                for msg_name in os_listdir_if_exists(name):
-                    entry = get_file_entry(f"{name}/{msg_name}")
+                for msg_name in os_listdir_if_exists(relpath):
+                    entry = get_file_entry(f"{relpath}/{msg_name}")
                     if entry is not None:
                         self.messages.append(entry)
-
+            elif relpath == "./.DeltaChat":
+                self.scandir(name)
             else:
-                entry = get_file_entry(name)
+                entry = get_file_entry(relpath)
                 if entry is not None:
                     self.extrafiles.append(entry)
                     if name == "password":
                         self.last_login = entry.mtime
         self.extrafiles.sort(key=lambda x: -x.size)
-        os.chdir(old_cwd)
 
 
 def print_info(msg):
@@ -150,7 +157,7 @@ class Expiry:
                 self.remove_file(message.relpath, mtime=message.mtime)
             elif message.size > 200000 and message.mtime < cutoff_large_mails:
                 # we only remove noticed large files (not unnoticed ones in new/)
-                if message.relpath.startswith("cur/"):
+                if "cur" in message.relpath.split("/"):
                     self.remove_file(message.relpath, mtime=message.mtime)
             else:
                 continue
