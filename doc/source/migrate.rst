@@ -26,7 +26,7 @@ this case, just run ``ssh-keygen -R "mail.example.org"`` as recommended.
    ::
 
        ssh -A root@$OLD_IP4
-       tar c - /home/vmail/mail | ssh root@$NEW_IP4 "tar x -C /"
+       tar c /home/vmail/mail | ssh root@$NEW_IP4 "tar x -C /"
 
    This saves us time during the downtime,
    at least the mailboxes are there already.
@@ -62,10 +62,10 @@ this case, just run ``ssh-keygen -R "mail.example.org"`` as recommended.
    ::
 
        ssh -A root@$OLD_IP4
-       tar c - /var/lib/acme /etc/dkimkeys /var/spool/postfix | ssh root@$NEW_IP4 "tar x -C /"
+       tar c /var/lib/acme /etc/dkimkeys /var/spool/postfix | ssh root@$NEW_IP4 "tar x -C /"
        rsync -azH /home/vmail/mail root@$NEW_IP4:/home/vmail/
 
-   This transfers all addresses, messages which have not been fetched yet, the TLS certificate,
+   This transfers all messages which have not been fetched yet, the TLS certificate,
    and DKIM keys (so DKIM DNS record remains valid).
    It also preserves the Postfix mail spool so any messages
    pending delivery will still be delivered.
