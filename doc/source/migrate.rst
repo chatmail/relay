@@ -7,11 +7,12 @@ machine, you can use these steps. They were tested with a Linux laptop;
 you might need to adjust some of the steps to your environment.
 
 Let’s assume that your ``mail_domain`` is ``mail.example.org``, all
-involved machines run Debian 12, your old site’s IP address is
-``13.12.13.12``, and your new site’s IP address is ``45.54.45.54``.
+involved machines run Debian 12, your old site’s IP version 4 address is
+``$OLD_IP4``, and your new site’s IP4 address is ``$NEW_IP4``.
 
-Note, you should lower the TTLs of your DNS records to a value such as
-300 (5 minutes) so the migration happens as smoothly as possible.
+First of all, you should lower the Time To Live (TTL) of your DNS records
+to a value such as 300 (5 minutes).
+Short TTL values allow to change DNS records during the migration more timely.
 
 During the guide you might get a warning about changed SSH Host keys; in
 this case, just run ``ssh-keygen -R "mail.example.org"`` as recommended.
@@ -24,8 +25,8 @@ this case, just run ``ssh-keygen -R "mail.example.org"`` as recommended.
 
    ::
 
-       ssh -A root@13.12.13.12
-       tar c - /home/vmail/mail | ssh root@45.54.45.54 "tar x -C /"
+       ssh -A root@$OLD_IP4
+       tar c - /home/vmail/mail | ssh root@$NEW_IP4 "tar x -C /"
 
    This saves us time during the downtime,
    at least the mailboxes are there already.
@@ -37,7 +38,7 @@ this case, just run ``ssh-keygen -R "mail.example.org"`` as recommended.
 
    ::
 
-       CMDEPLOY_STAGES=install,configure cmdeploy run --ssh-host 45.54.45.54
+       CMDEPLOY_STAGES=install,configure cmdeploy run --ssh-host $NEW_IP4
 
    The services are disabled for now; we will enable them later.
    We first need to make the new site fully operational.
@@ -46,7 +47,7 @@ this case, just run ``ssh-keygen -R "mail.example.org"`` as recommended.
 
    ::
 
-       cmdeploy run --disable-mail --ssh-host 13.12.13.12
+       cmdeploy run --disable-mail --ssh-host $OLD_IP4
 
    Your users will start to notice the migration and will not be able to send
    or receive messages until the migration is completed.
@@ -60,9 +61,9 @@ this case, just run ``ssh-keygen -R "mail.example.org"`` as recommended.
 
    ::
 
-       ssh -A root@13.12.13.12
-       tar c - /var/lib/acme /etc/dkimkeys /var/spool/postfix | ssh root@45.54.45.54 "tar x -C /"
-       rsync -azH /home/vmail/mail root@45.54.45.54:/home/vmail/
+       ssh -A root@$OLD_IP4
+       tar c - /var/lib/acme /etc/dkimkeys /var/spool/postfix | ssh root@$NEW_IP4 "tar x -C /"
+       rsync -azH /home/vmail/mail root@$NEW_IP4:/home/vmail/
 
    This transfers all addresses, messages which have not been fetched yet, the TLS certificate,
    and DKIM keys (so DKIM DNS record remains valid).
@@ -74,7 +75,7 @@ this case, just run ``ssh-keygen -R "mail.example.org"`` as recommended.
 
    ::
 
-       ssh root@45.54.45.54
+       ssh root@$NEW_IP4
        chown root: -R /var/lib/acme
        chown opendkim: -R /etc/dkimkeys
        chown vmail: -R /home/vmail/mail
@@ -84,10 +85,10 @@ this case, just run ``ssh-keygen -R "mail.example.org"`` as recommended.
 
    ::
 
-       mail.example.org.    IN A    45.54.45.54
-       mail.example.org.    IN AAAA 45:ac:1312:ab::1
+       mail.example.org.    IN A    $NEW_IP4
+       mail.example.org.    IN AAAA $NEW_IP6
 
-7. Finally, you can execute ``CMDEPLOY_STAGES=activate cmdeploy run --ssh-host 45.54.45.54`` to
+7. Finally, you can execute ``CMDEPLOY_STAGES=activate cmdeploy run --ssh-host $NEW_IP4`` to
    turn on chatmail on the new relay. Your users will be able to use the
    chatmail relay as soon as the DNS changes have propagated. Voilà!
 
