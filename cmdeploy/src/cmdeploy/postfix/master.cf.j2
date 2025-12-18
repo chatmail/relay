@@ -31,7 +31,6 @@ submission inet n       -       y       -       5000    smtpd
   -o smtpd_sender_restrictions=$mua_sender_restrictions
   -o smtpd_recipient_restrictions=
   -o smtpd_relay_restrictions=permit_sasl_authenticated,reject
-  -o milter_macro_daemon_name=ORIGINATING
   -o smtpd_client_connection_count_limit=1000
   -o smtpd_proxy_filter=127.0.0.1:{{ config.filtermail_smtp_port }}
 smtps     inet  n       -       y       -       5000    smtpd
@@ -49,7 +48,6 @@ smtps     inet  n       -       y       -       5000    smtpd
   -o smtpd_recipient_restrictions=
   -o smtpd_relay_restrictions=permit_sasl_authenticated,reject
   -o smtpd_client_connection_count_limit=1000
-  -o milter_macro_daemon_name=ORIGINATING
   -o smtpd_proxy_filter=127.0.0.1:{{ config.filtermail_smtp_port }}
 #628       inet  n       -       y       -       -       qmqpd
 pickup    unix  n       -       y       60      1       pickup
@@ -81,6 +79,7 @@ filter    unix -        n       n       -       -       lmtp
 # Local SMTP server for reinjecting outgoing filtered mail.
 127.0.0.1:{{ config.postfix_reinject_port }} inet  n       -       n       -       100      smtpd
   -o syslog_name=postfix/reinject
+  -o milter_macro_daemon_name=ORIGINATING
   -o smtpd_milters=unix:opendkim/opendkim.sock
   -o cleanup_service_name=authclean
 

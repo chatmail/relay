@@ -1,4 +1,5 @@
-if odkim.internal_ip(ctx) == 1 then
+mtaname = odkim.get_mtasymbol(ctx, "{daemon_name}")
+if mtaname == "ORIGINATING" then
 	-- Outgoing message will be signed,
 	-- no need to look for signatures.
 	return nil
