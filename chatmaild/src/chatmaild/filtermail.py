@@ -307,12 +307,9 @@ class IncomingBeforeQueueHandler:
             return error
         log_info("re-injecting the mail that passed checks")
 
-        # the smtp daemon on reinject_port_incoming gives it to dkim milter
-        # which looks at source address to determine whether to verify or sign
         client = SMTPClient(
             "localhost",
             self.config.postfix_reinject_port_incoming,
-            source_address=("127.0.0.2", 0),
         )
         client.sendmail(
             envelope.mail_from, envelope.rcpt_tos, envelope.original_content
