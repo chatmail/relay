@@ -1,77 +1,72 @@
 
-Migrating to a new host
------------------------
+Migrating to a new machine
+===========================
 
-If you want to migrate chatmail relay from an old machine to a new
-machine, you can use these steps. They were tested with a Linux laptop;
-you might need to adjust some of the steps to your environment.
+This migration tutorial provides a step-wise approach
+to safely migrate a chatmail relay from one remote machine to another.
 
-Let’s assume that your ``mail_domain`` is ``mail.example.org``, all
-involved machines run Debian 12, your old site’s IP version 4 address is
-``$OLD_IP4``, and your new site’s IP4 address is ``$NEW_IP4``.
+Preliminary notes and assumptions
+---------------------------------
 
-First of all, you should lower the Time To Live (TTL) of your DNS records
-to a value such as 300 (5 minutes).
-Short TTL values allow to change DNS records during the migration more timely.
+- If the migration is a planned move,
+  it's recommended to lower the Time To Live (TTL) of your DNS records to a value such as 300 (5 minutes),
+  at best much earlier than the actual planned migration.
+  This speeds up propagation of DNS changes in the Internet after the migration is complete.
 
-During the guide you might get a warning about changed SSH Host keys; in
-this case, just run ``ssh-keygen -R "mail.example.org"`` as recommended.
+- The migration steps were tested with a Linux laptop; you might need to adjust some of the steps to your local environment.
 
-1. First, to make the downtime during the migration shorter,
-   let's transfer the current state of the mailboxes.
-   Login to your old machine (while forwarding your ssh-agent with ``ssh -A``)
-   so you can copy directly from the old to the new site with your SSH
-   key:
+- Your ``mail_domain`` is ``mail.example.org``.
 
+- All remote machines run Debian 12.
+
+- The old site’s IP version 4 address is ``$OLD_IP4``.
+
+- The new site’s IP addresses are ``$NEW_IP4`` and ``$NEW_IPV6``.
+
+
+The six steps to migrate
+------------------------
+
+Note that during some of the following steps you might get a warning about changed SSH Host keys;
+in this case, just run ``ssh-keygen -R "mail.example.org"`` as recommended.
+
+
+1. **Initially transfer mailboxes from old to new site.**
+
+   Login to old site, forwarding your ssh-agent with ``ssh -A``
+   to allow using ssh to directly copy files from old to new site.
    ::
 
        ssh -A root@$OLD_IP4
        tar c /home/vmail/mail | ssh root@$NEW_IP4 "tar x -C /"
 
-   This saves us time during the downtime,
-   at least the mailboxes are there already.
-   They contain user passwords, encrypted push notification tokens,
-   messages which might not have been fetched by all devices of the user yet,
-   and dovecot indexes which track the state of the mailbox.
 
-2. Then, from your local machine, install chatmail on the new machine, but don't activate it yet:
-
+2. **Pre-configure the new site but keep it inactive until step 6**
    ::
 
        CMDEPLOY_STAGES=install,configure cmdeploy run --ssh-host $NEW_IP4
 
-   The services are disabled for now; we will enable them later.
-   We first need to make the new site fully operational.
 
-3. Now it's getting serious: disable the mail services on the old site.
+3. **It's getting serious: disable mail services on the old site.**
+   Users will not be able to send or receive messages until all steps are completed.
+   Other relays and mail servers will retry delivering messages from time to time,
+   so nothing is lost for users.
 
    ::
 
        cmdeploy run --disable-mail --ssh-host $OLD_IP4
 
-   Your users will start to notice the migration and will not be able to send
-   or receive messages until the migration is completed.
-   Other relays and mail servers will wait with delivering messages
-   until your relay is reachable again.
 
-4. Now we want to copy ``/home/vmail``, ``/var/lib/acme``,
-   ``/etc/dkimkeys``, and ``/var/spool/postfix`` to
-   the new site. Let's forward the SSH agent again to copy the files directly.
-   This time, we copy ``/home/vmail/mail`` with rsync to only copy the recent changes:
-
+4. **Final synchronization of TLS/DKIM secrets, mail queues and mailboxes.**
+   Again we use ssh-agent forwarding (``-A``) to allow transfering all important data directly
+   from the old to the new site.
    ::
 
        ssh -A root@$OLD_IP4
        tar c /var/lib/acme /etc/dkimkeys /var/spool/postfix | ssh root@$NEW_IP4 "tar x -C /"
        rsync -azH /home/vmail/mail root@$NEW_IP4:/home/vmail/
 
-   This transfers all messages which have not been fetched yet, the TLS certificate,
-   and DKIM keys (so DKIM DNS record remains valid).
-   It also preserves the Postfix mail spool so any messages
-   pending delivery will still be delivered.
-
-5. Now login to the new site and run the following to ensure the ownership is correct
-   in case UIDs/GIDs changed:
+   Login to the new site and ensure file ownerships are correctly set:
 
    ::
 
@@ -80,7 +75,8 @@ this case, just run ``ssh-keygen -R "mail.example.org"`` as recommended.
        chown opendkim: -R /etc/dkimkeys
        chown vmail: -R /home/vmail/mail
 
-6. Now, update the DNS entries.
+
+5. **Update the DNS entries to point to the new site.**
    You only need to change the ``A`` and ``AAAA`` records, for example:
 
    ::
@@ -88,7 +84,15 @@ this case, just run ``ssh-keygen -R "mail.example.org"`` as recommended.
        mail.example.org.    IN A    $NEW_IP4
        mail.example.org.    IN AAAA $NEW_IP6
 
-7. Finally, you can execute ``CMDEPLOY_STAGES=activate cmdeploy run --ssh-host $NEW_IP4`` to
-   turn on chatmail on the new relay. Your users will be able to use the
-   chatmail relay as soon as the DNS changes have propagated. Voilà!
+
+6. **Activate chatmail relay on new site.**
+
+   ::
+
+        CMDEPLOY_STAGES=activate cmdeploy run --ssh-host $NEW_IP4
+
+   Voilà!
+   Users will be able to use the relay as soon as the DNS changes have propagated.
+   If you have lowered the Time-to-Live for DNS records,
+   better use a higher value again once you are sure everything works.
 
