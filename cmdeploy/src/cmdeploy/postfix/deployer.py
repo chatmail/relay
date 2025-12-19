@@ -5,6 +5,7 @@ from cmdeploy.basedeploy import Deployer, get_resource
 
 class PostfixDeployer(Deployer):
     required_users = [("postfix", None, ["opendkim"])]
+    daemon_reload = False
 
     def __init__(self, config, disable_mail):
         self.config = config
@@ -60,6 +61,13 @@ class PostfixDeployer(Deployer):
             mode="644",
         )
         need_restart |= login_map.changed
+
+        restart_conf = files.put(
+            name="postfix: restart automatically on failure",
+            src=get_resource("service/10_restart.conf"),
+            dest="/etc/systemd/system/dovecot.service.d/10_restart.conf",
+        )
+        self.daemon_reload = restart_conf.changed
         self.need_restart = need_restart
 
     def activate(self):
@@ -73,5 +81,6 @@ class PostfixDeployer(Deployer):
             running=False if self.disable_mail else True,
             enabled=False if self.disable_mail else True,
             restarted=restart,
+            daemon_reload=self.daemon_reload,
         )
         self.need_restart = False

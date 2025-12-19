@@ -61,6 +61,19 @@ class AcmetoolDeployer(Deployer):
             mode="644",
         )
 
+        server.shell(
+            name=f"Remove old acmetool desired files for {self.domains[0]}",
+            commands=[f"rm -f /var/lib/acme/desired/{self.domains[0]}-*"],
+        )
+        files.template(
+            src=importlib.resources.files(__package__).joinpath("desired.yaml.j2"),
+            dest=f"/var/lib/acme/desired/{self.domains[0]}", # 0 is mailhost TLD
+            user="root",
+            group="root",
+            mode="644",
+            domains=self.domains,
+        )
+
         service_file = files.put(
             src=importlib.resources.files(__package__).joinpath(
                 "acmetool-redirector.service"
@@ -123,6 +136,6 @@ class AcmetoolDeployer(Deployer):
         self.need_restart_reconcile_timer = False
 
         server.shell(
-            name=f"Request certificate for: {', '.join(self.domains)}",
-            commands=[f"acmetool want --xlog.severity=debug {' '.join(self.domains)}"],
+            name=f"Reconcile certificates for: {', '.join(self.domains)}",
+            commands=["acmetool --batch --xlog.severity=debug reconcile"],
         )

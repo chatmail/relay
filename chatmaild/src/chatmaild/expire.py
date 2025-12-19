@@ -14,7 +14,7 @@ from stat import S_ISREG
 
 from chatmaild.config import read_config
 
-FileEntry = namedtuple("FileEntry", ("relpath", "mtime", "size"))
+FileEntry = namedtuple("FileEntry", ("path", "mtime", "size"))
 
 
 def iter_mailboxes(basedir, maxnum):
@@ -51,33 +51,27 @@ class MailboxStat:
 
     def __init__(self, basedir):
         self.basedir = str(basedir)
-        # all detected messages in cur/new/tmp folders
         self.messages = []
-
-        # all detected files in mailbox top dir
         self.extrafiles = []
+        self.scandir(self.basedir)
 
-        # scan all relevant files (without recursion)
-        old_cwd = os.getcwd()
-        try:
-            os.chdir(self.basedir)
-        except FileNotFoundError:
-            return
-        for name in os_listdir_if_exists("."):
+    def scandir(self, folderdir):
+        for name in os_listdir_if_exists(folderdir):
+            path = f"{folderdir}/{name}"
             if name in ("cur", "new", "tmp"):
-                for msg_name in os_listdir_if_exists(name):
-                    entry = get_file_entry(f"{name}/{msg_name}")
+                for msg_name in os_listdir_if_exists(path):
+                    entry = get_file_entry(f"{path}/{msg_name}")
                     if entry is not None:
                         self.messages.append(entry)
-
+            elif os.path.isdir(path):
+                self.scandir(path)
             else:
-                entry = get_file_entry(name)
+                entry = get_file_entry(path)
                 if entry is not None:
                     self.extrafiles.append(entry)
                     if name == "password":
                         self.last_login = entry.mtime
         self.extrafiles.sort(key=lambda x: -x.size)
-        os.chdir(old_cwd)
 
 
 def print_info(msg):
@@ -130,13 +124,6 @@ class Expiry:
             self.remove_mailbox(mbox.basedir)
             return
 
-        # all to-be-removed files are relative to the mailbox basedir
-        try:
-            os.chdir(mbox.basedir)
-        except FileNotFoundError:
-            print_info(f"mailbox not found/vanished {mbox.basedir}")
-            return
-
         mboxname = os.path.basename(mbox.basedir)
         if self.verbose:
             date = datetime.fromtimestamp(mbox.last_login) if mbox.last_login else None
@@ -147,11 +134,12 @@ class Expiry:
         self.all_files += len(mbox.messages)
         for message in mbox.messages:
             if message.mtime < cutoff_mails:
-                self.remove_file(message.relpath, mtime=message.mtime)
+                self.remove_file(message.path, mtime=message.mtime)
             elif message.size > 200000 and message.mtime < cutoff_large_mails:
                 # we only remove noticed large files (not unnoticed ones in new/)
-                if message.relpath.startswith("cur/"):
-                    self.remove_file(message.relpath, mtime=message.mtime)
+                parts = message.path.split("/")
+                if len(parts) >= 2 and parts[-2] == "cur":
+                    self.remove_file(message.path, mtime=message.mtime)
             else:
                 continue
             changed = True

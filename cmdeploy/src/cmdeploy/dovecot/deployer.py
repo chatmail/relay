@@ -13,6 +13,8 @@ from cmdeploy.basedeploy import (
 
 
 class DovecotDeployer(Deployer):
+    daemon_reload = False
+
     def __init__(self, config, disable_mail):
         self.config = config
         self.disable_mail = disable_mail
@@ -27,7 +29,7 @@ class DovecotDeployer(Deployer):
 
     def configure(self):
         configure_remote_units(self.config.mail_domain, self.units)
-        self.need_restart = _configure_dovecot(self.config)
+        self.need_restart, self.daemon_reload = _configure_dovecot(self.config)
 
     def activate(self):
         activate_remote_units(self.units)
@@ -42,6 +44,7 @@ class DovecotDeployer(Deployer):
             running=False if self.disable_mail else True,
             enabled=False if self.disable_mail else True,
             restarted=restart,
+            daemon_reload=self.daemon_reload,
         )
         self.need_restart = False
 
@@ -80,9 +83,10 @@ def _install_dovecot_package(package: str, arch: str):
     apt.deb(name=f"Install dovecot-{package}", src=deb_filename)
 
 
-def _configure_dovecot(config: Config, debug: bool = False) -> bool:
+def _configure_dovecot(config: Config, debug: bool = False) -> (bool, bool):
     """Configures Dovecot IMAP server."""
     need_restart = False
+    daemon_reload = False
 
     main_config = files.template(
         src=get_resource("dovecot/dovecot.conf.j2"),
@@ -134,4 +138,11 @@ def _configure_dovecot(config: Config, debug: bool = False) -> bool:
     )
     need_restart |= timezone_env.changed
 
-    return need_restart
+    restart_conf = files.put(
+        name="dovecot: restart automatically on failure",
+        src=get_resource("service/10_restart.conf"),
+        dest="/etc/systemd/system/dovecot.service.d/10_restart.conf",
+    )
+    daemon_reload |= restart_conf.changed
+
+    return need_restart, daemon_reload

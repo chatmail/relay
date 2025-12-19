@@ -7,7 +7,7 @@ Active development takes place in the `chatmail/relay github repository <https:/
 You can check out the `'chatmail' tag in the support.delta.chat forum <https://support.delta.chat/tag/chatmail>`_
 and ask to get added to a non-public support chat for debugging issues.
 
-We know of two work-in-progress alternative implementation efforts:
+We know of three work-in-progress alternative implementation efforts:
 
 -  `Mox <https://github.com/mjl-/mox>`_: A Golang email server. `Work
    is in progress <https://github.com/mjl-/mox/issues/251>`_ to modify
@@ -18,3 +18,10 @@ We know of two work-in-progress alternative implementation efforts:
    plugin for the `Maddy email server <https://maddy.email/>`_ which
    aims to implement the chatmail relay features and configuration
    options.
+
+-  `Chatmail Cookbook <https://github.com/feld/chatmail-cookbook>`_:
+   A Chef Cookbook implementing a relay server. The project follows the
+   official relay server software and configurations converted to a Chef
+   Cookbook with only minor differences. The cookbook uses DNS-01 for
+   certificate validation and additionally supports FreeBSD. It does not
+   require a Chef server to use.

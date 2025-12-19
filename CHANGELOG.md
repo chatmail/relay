@@ -1,13 +1,41 @@
 # Changelog for chatmail deployment 
 
-## untagged
+## 1.9.0 2025-12-18
 
-- add `--website-only` option to `run` subcommand (#768)
+### Documentation
 
-- Add imap_compress option to chatmail.ini (#760)
+- Add RELEASE.md and CONTRIBUTING.md
+- README update, mention Chatmail Cookbook project
+
+### Bug Fixes
+
+- Expire messages also from IMAP subfolders
+- Use absolute path instead of relative path in message expiration script
+- Restart Postfix and Dovecot automatically on failure
+- acmetool: Use a fixed name and `reconcile` instead of `want`
+
+### Features
+
+- Report DKIM error code in SMTP response
+- Remove development notice from the web pages
+
+### Miscellaneous Tasks
+
+- Update the heading in the CHANGELOG.md
+- Setup git-cliff
+- Run tests against ci-chatmail.testrun.org instead of nine.testrun.org
+- Cleanup remaining echobot code, remove echobot user from deployment and passthrough recipients
+
+## 1.8.0 2025-12-12
+
+- Add imap_compress option to chatmail.ini
+  ([#760](https://github.com/chatmail/relay/pull/760))
 
 - Remove echobot from relays 
   ([#753](https://github.com/chatmail/relay/pull/753))
+
+- Fix `cmdeploy webdev`
+  ([#743](https://github.com/chatmail/relay/pull/743))
 
 - Add robots.txt to exclude all web crawlers
   ([#732](https://github.com/chatmail/relay/pull/732))
