@@ -140,6 +140,10 @@ def _configure_remote_venv_with_chatmaild(config) -> None:
 
 
 class UnboundDeployer(Deployer):
+    def __init__(self, config):
+        self.config = config
+        self.need_restart = False
+
     def install(self):
         # Run local DNS resolver `unbound`.
         # `resolvconf` takes care of setting up /etc/resolv.conf
@@ -177,6 +181,25 @@ class UnboundDeployer(Deployer):
             ],
         )
 
+        files.directory(
+            name="Ensure unbound.conf.d exists",
+            path="/etc/unbound/unbound.conf.d",
+            user="root",
+            group="root",
+            mode="755",
+        )
+
+        listener_conf = files.template(
+            name="Configure unbound listeners",
+            src=get_resource("unbound/chatmail.conf.j2"),
+            dest="/etc/unbound/unbound.conf.d/chatmail.conf",
+            user="root",
+            group="root",
+            mode="644",
+            disable_ipv6=self.config.disable_ipv6,
+        )
+        self.need_restart |= listener_conf.changed
+
     def activate(self):
         server.shell(
             name="Generate root keys for validating DNSSEC",
@@ -190,7 +213,9 @@ class UnboundDeployer(Deployer):
             service="unbound.service",
             running=True,
             enabled=True,
+            restarted=self.need_restart,
         )
+        self.need_restart = False
 
 
 class MtastsDeployer(Deployer):
@@ -558,7 +583,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
         ChatmailDeployer(mail_domain),
         LegacyRemoveDeployer(),
         JournaldDeployer(),
-        UnboundDeployer(),
+        UnboundDeployer(config),
         TurnDeployer(mail_domain),
         IrohDeployer(config.enable_iroh_relay),
         AcmetoolDeployer(config.acme_email, tls_domains),
