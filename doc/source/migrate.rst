@@ -93,6 +93,6 @@ in this case, just run ``ssh-keygen -R "mail.example.org"`` as recommended.
 
    Voilà!
    Users will be able to use the relay as soon as the DNS changes have propagated.
-   If you have lowered the Time-to-Live for DNS records,
-   better use a higher value again once you are sure everything works.
+   If you have lowered the Time-to-Live for DNS records in step 1,
+   better use a higher value again (between 14400 and 86400 seconds) once you are sure everything works.
 
