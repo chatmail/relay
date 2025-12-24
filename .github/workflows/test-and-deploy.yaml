@@ -19,13 +19,8 @@ jobs:
     environment:
       name: staging2.testrun.org
       url: https://staging2.testrun.org/
-    concurrency:
-      group: ci-${{ github.workflow }}-${{ github.ref }}
-      cancel-in-progress: ${{ !contains(github.ref, '$GITHUB_REF') }}
+    concurrency: staging2.testrun.org
     steps:
-      - uses: jsok/serialize-workflow-action@515cd04c46d7ea7435c4a22a3b4419127afdefe9
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/checkout@v4
 
       - name: prepare SSH
