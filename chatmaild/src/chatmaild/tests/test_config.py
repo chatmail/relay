@@ -33,7 +33,7 @@ def test_read_config_testrun(make_config):
     assert config.filtermail_smtp_port == 10080
     assert config.postfix_reinject_port == 10025
     assert config.max_user_send_per_minute == 60
-    assert config.max_mailbox_size == "100M"
+    assert config.max_mailbox_size == "500M"
     assert config.delete_mails_after == "20"
     assert config.delete_large_after == "7"
     assert config.username_min_length == 9
