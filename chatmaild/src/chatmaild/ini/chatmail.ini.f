@@ -15,7 +15,7 @@ mail_domain = {mail_domain}
 max_user_send_per_minute = 60
 
 # maximum mailbox size of a chatmail address
-max_mailbox_size = 100M
+max_mailbox_size = 500M
 
 # maximum message size for an e-mail in bytes
 max_message_size = 31457280
