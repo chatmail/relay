@@ -54,7 +54,7 @@ in this case, just run ``ssh-keygen -R "mail.example.org"`` as recommended.
 
    ::
 
-       cmdeploy run --disable-mail --ssh-host $OLD_IP4
+       scripts/cmdeploy run --disable-mail --ssh-host $OLD_IP4
 
 
 4. **Final synchronization of TLS/DKIM secrets, mail queues and mailboxes.**
