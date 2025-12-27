@@ -44,7 +44,7 @@ in this case, just run ``ssh-keygen -R "mail.example.org"`` as recommended.
 2. **Pre-configure the new site but keep it inactive until step 6**
    ::
 
-       CMDEPLOY_STAGES=install,configure cmdeploy run --ssh-host $NEW_IP4
+       CMDEPLOY_STAGES=install,configure scripts/cmdeploy run --ssh-host $NEW_IP4
 
 
 3. **It's getting serious: disable mail services on the old site.**
@@ -89,7 +89,7 @@ in this case, just run ``ssh-keygen -R "mail.example.org"`` as recommended.
 
    ::
 
-        CMDEPLOY_STAGES=activate cmdeploy run --ssh-host $NEW_IP4
+        CMDEPLOY_STAGES=activate scripts/cmdeploy run --ssh-host $NEW_IP4
 
    Voilà!
    Users will be able to use the relay as soon as the DNS changes have propagated.
