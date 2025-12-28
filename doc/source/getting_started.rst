@@ -40,10 +40,10 @@ steps. Please substitute it with your own domain.
 
    ::
 
-       chat.example.com. 3600 IN A 198.51.100.5
-       chat.example.com. 3600 IN AAAA 2001:db8::5
-       www.chat.example.com. 3600 IN CNAME chat.example.com.
-       mta-sts.chat.example.com. 3600 IN CNAME chat.example.com.
+       chat.example.org. 3600 IN A 198.51.100.5
+       chat.example.org. 3600 IN AAAA 2001:db8::5
+       www.chat.example.org. 3600 IN CNAME chat.example.org.
+       mta-sts.chat.example.org. 3600 IN CNAME chat.example.org.
 
 2. On your local PC, clone the repository and bootstrap the Python
    virtualenv.
