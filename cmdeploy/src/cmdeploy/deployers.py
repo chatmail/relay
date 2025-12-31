@@ -552,7 +552,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
                 )
                 exit(1)
 
-    tls_domains = [mail_domain, f"mta-sts.{mail_domain}", f"www.{mail_domain}"]
+    tls_domains = [mail_domain]
 
     all_deployers = [
         ChatmailDeployer(mail_domain),

@@ -77,7 +77,7 @@ def query_dns(typ, domain):
     ns = soa[0][4]
 
     # Query authoritative nameserver directly to bypass DNS cache.
-    res = shell(f"dig @{ns} -r -q {domain} -t {typ} +short", print=log_progress)
+    res = shell(f"dig -r -q {domain} -t {typ} +short", print=log_progress)
     return next((line for line in res.split("\n") if not line.startswith(";")), "")
 
 
