@@ -199,7 +199,7 @@ def test_cmd(args, out):
 
     x = importlib.util.find_spec("deltachat")
     if x is None:
-        out.check_call(f"{sys.executable} -m pip install deltachat")
+        out.check_call("uv pip install deltachat")
 
     pytest_path = shutil.which("pytest")
     pytest_args = [

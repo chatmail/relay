@@ -54,7 +54,7 @@ def _build_chatmaild(dist_dir) -> None:
         shutil.rmtree(dist_dir)
     dist_dir.mkdir()
     subprocess.check_output(
-        [sys.executable, "-m", "build", "-n"]
+        ["uv", "run", "python", "-m", "build", "-n"]
         + ["--sdist", "chatmaild", "--outdir", str(dist_dir)]
     )
     entries = list(dist_dir.iterdir())
@@ -81,9 +81,11 @@ def _install_remote_venv_with_chatmaild() -> None:
     remote_venv_dir = f"{remote_base_dir}/venv"
     root_owned = dict(user="root", group="root", mode="644")
 
-    apt.packages(
-        name="apt install python3-virtualenv",
-        packages=["python3-virtualenv"],
+    server.shell(
+        name="Install uv",
+        commands=[
+            "curl -LsSf https://astral.sh/uv/install.sh | INSTALLER_NO_MODIFY_PATH=1 sh",
+        ],
     )
 
     files.put(
@@ -94,10 +96,9 @@ def _install_remote_venv_with_chatmaild() -> None:
         **root_owned,
     )
 
-    pip.virtualenv(
+    server.shell(
         name=f"chatmaild virtualenv {remote_venv_dir}",
-        path=remote_venv_dir,
-        always_copy=True,
+        commands=[f"/root/.local/bin/uv venv {remote_venv_dir} --allow-existing"],
     )
 
     apt.packages(
@@ -106,9 +107,9 @@ def _install_remote_venv_with_chatmaild() -> None:
     )
 
     server.shell(
-        name=f"forced pip-install {dist_file.name}",
+        name=f"forced uv-pip-install {dist_file.name}",
         commands=[
-            f"{remote_venv_dir}/bin/pip install --force-reinstall {remote_dist_file}"
+            f"/root/.local/bin/uv pip install --python {remote_venv_dir}/bin/python --force-reinstall {remote_dist_file}"
         ],
     )
 

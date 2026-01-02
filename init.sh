@@ -4,7 +4,15 @@ set -e
 # 1. Update and install dependencies
 echo "--- Installing dependencies ---"
 sudo apt update
-sudo apt install -y git curl wget python3-dev gcc python3 python3.11-venv nano sed
+sudo apt install -y git curl wget python3-dev gcc python3 nano sed
+
+# 1.1 Install uv
+if ! command -v uv &> /dev/null; then
+    echo "--- Installing uv ---"
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    # Ensure uv is in PATH for the current script
+    export PATH="$HOME/.local/bin:$PATH"
+fi
 
 # 2. Clone the repository if not already in it
 if [ ! -d "relay-ir" ]; then

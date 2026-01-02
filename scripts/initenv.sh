@@ -18,8 +18,16 @@ if command -v lsb_release 2>&1 >/dev/null; then
   esac
 fi
 
-python3 -m venv --upgrade-deps venv
+# Ensure uv is in PATH
+export PATH="$HOME/.local/bin:$PATH"
 
-venv/bin/pip install -e chatmaild 
-venv/bin/pip install -e cmdeploy
-venv/bin/pip install sphinx sphinxcontrib-mermaid sphinx-autobuild furo  # for building the docs
+if ! command -v uv &> /dev/null; then
+    echo "uv not found. Please install it first or run init.sh"
+    exit 1
+fi
+
+uv venv venv
+
+uv pip install -e chatmaild 
+uv pip install -e cmdeploy
+uv pip install sphinx sphinxcontrib-mermaid sphinx-autobuild furo  # for building the docs

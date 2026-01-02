@@ -2,6 +2,8 @@
 #
 # Wrapper for building the docs
 set -e
-. venv/bin/activate
+# Ensure uv is in PATH
+export PATH="$HOME/.local/bin:$PATH"
+
 cd doc/
-make html
+uv run make html
