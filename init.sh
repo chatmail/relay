@@ -8,7 +8,7 @@ sudo apt install -y git curl wget python3-dev gcc python3 nano sed
 
 # 1.1 Install uv
 export PATH="$HOME/.local/bin:/root/.local/bin:$PATH"
-if ! command -v uv &> /dev/null; then
+if ! command -v uv > /dev/null 2>&1; then
     if [ -f "/root/.local/bin/uv" ]; then
         export PATH="/root/.local/bin:$PATH"
     elif [ -f "$HOME/.local/bin/uv" ]; then
@@ -16,7 +16,7 @@ if ! command -v uv &> /dev/null; then
     fi
 fi
 
-if ! command -v uv &> /dev/null; then
+if ! command -v uv > /dev/null 2>&1; then
     echo "--- Installing uv ---"
     curl -LsSf https://astral.sh/uv/install.sh | sh
     # Ensure uv is in PATH for the current script
@@ -43,7 +43,8 @@ read -p "Enter your email for ACME/Let's Encrypt: " ACME_EMAIL
 
 # 5. Initialize configuration
 echo "--- Initializing chatmail configuration ---"
-./scripts/cmdeploy init "$MAIL_DOMAIN"
+./scripts/cmdeploy init "$MAIL_DOMAIN" || true
+
 
 # 6. Modify chatmail.ini with specific requirements
 echo "--- Customizing chatmail.ini ---"

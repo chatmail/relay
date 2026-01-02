@@ -10,17 +10,15 @@
 #               (yes)   (yes)   (no)    (never) (100)
 # ==========================================================================
 {% if debug == true %}
-smtp      inet  n       -       y       -       -       smtpd -v
-{%- else %}
-smtp      inet  n       -       y       -       -       smtpd 
+smtp      inet  n       -       n       -       -       smtpd 
 {%- endif %}
   -o smtpd_tls_security_level=encrypt
-  -o smtpd_tls_mandatory_protocols=>=TLSv1.2
+  -o smtpd_tls_mandatory_protocols=!SSLv2,!SSLv3,!TLSv1,!TLSv1.1
   -o smtpd_proxy_filter=127.0.0.1:{{ config.filtermail_smtp_port_incoming }}
-submission inet n       -       y       -       5000    smtpd
+submission inet n       -       n       -       5000    smtpd
   -o syslog_name=postfix/submission
   -o smtpd_tls_security_level=encrypt
-  -o smtpd_tls_mandatory_protocols=>=TLSv1.3
+  -o smtpd_tls_mandatory_protocols=!SSLv2,!SSLv3,!TLSv1,!TLSv1.1
   -o smtpd_sasl_auth_enable=yes
   -o smtpd_sasl_type=dovecot
   -o smtpd_sasl_path=private/auth
@@ -33,11 +31,11 @@ submission inet n       -       y       -       5000    smtpd
   -o smtpd_relay_restrictions=permit_sasl_authenticated,reject
   -o smtpd_client_connection_count_limit=1000
   -o smtpd_proxy_filter=127.0.0.1:{{ config.filtermail_smtp_port }}
-smtps     inet  n       -       y       -       5000    smtpd
+smtps     inet  n       -       n       -       5000    smtpd
   -o syslog_name=postfix/smtps
   -o smtpd_tls_wrappermode=yes
   -o smtpd_tls_security_level=encrypt
-  -o smtpd_tls_mandatory_protocols=>=TLSv1.3
+  -o smtpd_tls_mandatory_protocols=!SSLv2,!SSLv3,!TLSv1,!TLSv1.1
   -o smtpd_sasl_auth_enable=yes
   -o smtpd_sasl_type=dovecot
   -o smtpd_sasl_path=private/auth

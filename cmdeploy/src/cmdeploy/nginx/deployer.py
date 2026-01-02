@@ -1,5 +1,5 @@
 from chatmaild.config import Config
-from pyinfra.operations import apt, files, systemd
+from pyinfra.operations import apt, files, server, systemd
 
 from cmdeploy.basedeploy import (
     Deployer,
@@ -42,6 +42,13 @@ class NginxDeployer(Deployer):
         apt.packages(
             name="Install nginx",
             packages=["nginx", "libnginx-mod-stream"],
+        )
+        server.shell(
+            name="Remove default nginx configuration",
+            commands=[
+                "rm -f /etc/nginx/sites-enabled/default",
+                "rm -f /etc/nginx/conf.d/default.conf",
+            ],
         )
 
         files.file("/usr/sbin/policy-rc.d", present=False)

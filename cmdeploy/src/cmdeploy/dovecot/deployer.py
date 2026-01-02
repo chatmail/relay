@@ -1,6 +1,6 @@
 from chatmaild.config import Config
 from pyinfra import host
-from pyinfra.facts.server import Arch, Sysctl
+from pyinfra.facts.server import Arch, LinuxDistribution, Sysctl
 from pyinfra.facts.systemd import SystemdEnabled
 from pyinfra.operations import apt, files, server, systemd
 
@@ -50,6 +50,33 @@ class DovecotDeployer(Deployer):
 
 
 def _install_dovecot_package(package: str, arch: str):
+    distro = host.get_fact(LinuxDistribution)
+    is_old_debian = False
+    if distro:
+        distro_id = str(distro.get("id", "")).lower()
+        distro_name = str(distro.get("name", "")).lower()
+        major_version = str(distro.get("major_version", "0"))
+        
+        if "debian" in distro_id or "debian" in distro_name:
+            try:
+                # Handle cases where major_version might be '11.13'
+                m_ver = major_version.split(".")[0]
+                if m_ver.isdigit() and 0 < int(m_ver) < 12:
+                    is_old_debian = True
+            except (ValueError, TypeError, IndexError):
+                pass
+        # Fallback for systems where major_version might not be parsed correctly but name contains 'bullseye'
+        if "bullseye" in distro_name or "buster" in distro_name:
+            is_old_debian = True
+
+    if is_old_debian:
+        apt.packages(
+            name=f"Install system dovecot-{package}",
+            packages=[f"dovecot-{package}"],
+            update=True,
+        )
+        return
+
     arch = "amd64" if arch == "x86_64" else arch
     arch = "arm64" if arch == "aarch64" else arch
     url = f"https://download.delta.chat/dovecot/dovecot-{package}_2.3.21%2Bdfsg1-3_{arch}.deb"
@@ -80,7 +107,18 @@ def _install_dovecot_package(package: str, arch: str):
         cache_time=60 * 60 * 24 * 365 * 10,  # never redownload the package
     )
 
-    apt.deb(name=f"Install dovecot-{package}", src=deb_filename)
+    # Use a shell command to try installing the custom .deb and fallback if it fails.
+    # This prevents the whole deployment from failing if custom dovecot is not compatible.
+    server.shell(
+        name=f"Install dovecot-{package} (custom or system fallback)",
+        commands=[
+            f"if ! dpkg -i {deb_filename}; then "
+            f"echo 'HEY: dovecot the custom is not installed, we install your os main one' >&2; "
+            f"DEBIAN_FRONTEND=noninteractive apt-get install -f -y; "
+            f"DEBIAN_FRONTEND=noninteractive apt-get install -y dovecot-{package}; "
+            f"fi"
+        ],
+    )
 
 
 def _configure_dovecot(config: Config, debug: bool = False) -> (bool, bool):

@@ -1,0 +1,29 @@
+[project]
+name = "relay-ir"
+version = "0.1.0"
+description = "Chatmail relay workspace"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "chatmaild",
+    "cmdeploy",
+    "sphinx",
+    "sphinxcontrib-mermaid",
+    "sphinx-autobuild",
+    "furo",
+]
+
+[tool.uv]
+managed = true
+package = false
+
+[tool.uv.workspace]
+members = ["chatmaild", "cmdeploy"]
+
+[tool.uv.sources]
+chatmaild = { workspace = true }
+cmdeploy = { workspace = true }
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"

@@ -21,7 +21,7 @@ fi
 # Ensure uv is in PATH
 export PATH="$HOME/.local/bin:/root/.local/bin:$PATH"
 
-if ! command -v uv &> /dev/null; then
+if ! command -v uv > /dev/null 2>&1; then
     if [ -f "/root/.local/bin/uv" ]; then
         export PATH="/root/.local/bin:$PATH"
     elif [ -f "$HOME/.local/bin/uv" ]; then
@@ -29,13 +29,9 @@ if ! command -v uv &> /dev/null; then
     fi
 fi
 
-if ! command -v uv &> /dev/null; then
+if ! command -v uv > /dev/null 2>&1; then
     echo "uv not found. Please install it first or run init.sh"
     exit 1
 fi
 
-uv venv venv
-
-uv pip install -e chatmaild 
-uv pip install -e cmdeploy
-uv pip install sphinx sphinxcontrib-mermaid sphinx-autobuild furo  # for building the docs
+uv sync --python 3.11

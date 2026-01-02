@@ -80,12 +80,20 @@ def _install_remote_venv_with_chatmaild() -> None:
     remote_dist_file = f"{remote_base_dir}/dist/{dist_file.name}"
     remote_venv_dir = f"{remote_base_dir}/venv"
     root_owned = dict(user="root", group="root", mode="644")
+    root_owned_dir = dict(user="root", group="root", mode="755")
+    uv_prefix = "UV_PYTHON_INSTALL_DIR=/usr/local/share/uv/python"
 
     server.shell(
-        name="Install uv",
+        name="Install uv globally if not present",
         commands=[
-            "curl -LsSf https://astral.sh/uv/install.sh | INSTALLER_NO_MODIFY_PATH=1 sh",
+            "command -v uv >/dev/null 2>&1 || (curl -LsSf https://astral.sh/uv/install.sh | INSTALLER_NO_MODIFY_PATH=1 sudo sh -s -- --install-dir /usr/local/bin)",
         ],
+    )
+
+    files.directory(
+        name="Ensure shared uv python directory exists",
+        path="/usr/local/share/uv/python",
+        **root_owned_dir,
     )
 
     files.put(
@@ -95,10 +103,30 @@ def _install_remote_venv_with_chatmaild() -> None:
         create_remote_dir=True,
         **root_owned,
     )
+    # Ensure parent directory is accessible
+    files.directory(
+        name=f"Ensure {remote_base_dir} is accessible",
+        path=remote_base_dir,
+        **root_owned_dir,
+    )
+    files.directory(
+        name=f"Ensure {remote_base_dir}/dist is accessible",
+        path=f"{remote_base_dir}/dist",
+        **root_owned_dir,
+    )
 
     server.shell(
         name=f"chatmaild virtualenv {remote_venv_dir}",
-        commands=[f"/root/.local/bin/uv venv {remote_venv_dir} --allow-existing"],
+        commands=[f"{uv_prefix} uv venv {remote_venv_dir} --python 3.11 --allow-existing"],
+    )
+
+    # Ensure venv and managed pythons are accessible by other users (like www-data)
+    server.shell(
+        name="Make venv and managed pythons accessible",
+        commands=[
+            f"chmod -R a+rX {remote_venv_dir}",
+            "chmod -R a+rX /usr/local/share/uv/python || true",
+        ],
     )
 
     apt.packages(
@@ -109,7 +137,7 @@ def _install_remote_venv_with_chatmaild() -> None:
     server.shell(
         name=f"forced uv-pip-install {dist_file.name}",
         commands=[
-            f"/root/.local/bin/uv pip install --python {remote_venv_dir}/bin/python --force-reinstall {remote_dist_file}"
+            f"{uv_prefix} uv pip install --python {remote_venv_dir}/bin/python --force-reinstall {remote_dist_file}"
         ],
     )
 
@@ -448,6 +476,10 @@ class ChatmailDeployer(Deployer):
         self.mail_domain = mail_domain
 
     def install(self):
+        server.shell(
+            name="Fix broken packages",
+            commands=["apt-get install -f -y"],
+        )
         apt.update(name="apt update", cache_time=24 * 3600)
         apt.upgrade(name="upgrade apt packages", auto_remove=True)
 

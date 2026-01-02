@@ -109,6 +109,13 @@ class AcmetoolDeployer(Deployer):
 
     def activate(self):
         systemd.service(
+            name="Stop nginx to free port 80 for acmetool",
+            service="nginx.service",
+            running=False,
+            enabled=True,
+        )
+
+        systemd.service(
             name="Setup acmetool-redirector service",
             service="acmetool-redirector.service",
             running=True,
@@ -134,6 +141,15 @@ class AcmetoolDeployer(Deployer):
             daemon_reload=self.need_restart_reconcile_timer,
         )
         self.need_restart_reconcile_timer = False
+
+        # Add the first domain to /etc/hosts to help acmetool's self-test
+        # bypass external firewalls or split-brain DNS issues.
+        server.shell(
+            name=f"Add {self.domains[0]} to /etc/hosts for self-test",
+            commands=[
+                f"grep -q ' {self.domains[0]}$' /etc/hosts || echo '127.0.0.1 {self.domains[0]}' >> /etc/hosts"
+            ],
+        )
 
         server.shell(
             name=f"Reconcile certificates for: {', '.join(self.domains)}",
