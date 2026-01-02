@@ -1,20 +1,43 @@
+# سرور رله چت‌میل (Chatmail Relay)
 
-# Chatmail relays for end-to-end encrypted email
+این پروژه برای راه‌اندازی سریع و آسان سرورهای رله **Chatmail** طراحی شده است. چت‌میل یک سیستم ایمیل امن و بهینه برای پیام‌رسان **Delta Chat** است که بر حفظ حریم خصوصی و سرعت بالا تمرکز دارد.
 
-Chatmail relay servers are interoperable Mail Transport Agents (MTAs) designed for: 
+### ویژگی‌های کلیدی:
+- **بدون ذخیره‌سازی داده (Zero State):** پیام‌ها پس از تحویل حذف می‌شوند و هیچ متادیتای خصوصی ذخیره نخواهد شد.
+- **سرعت لحظه‌ای (Realtime):** تحویل پیام در کمتر از یک ثانیه و پشتیبانی از پوش‌نوتیفیکیشن‌های امن.
+- **امنیت سخت‌گیرانه:** استفاده اجباری از TLS، DKIM و OpenPGP.
+- **غیرمتمرکز و استاندارد:** بر اساس پروتکل‌های استاندارد IETF بدون نیاز به چک کردن IP یا اسپم.
 
--  **Zero State:** no private data or metadata collected, messages are auto-deleted, low disk usage
+---
 
--  **Instant/Realtime:** sub-second message delivery, realtime P2P
-   streaming, privacy-preserving Push Notifications for Apple, Google, and Huawei;
+### شیوه‌ی نصب
 
--  **Security Enforcement**: only strict TLS, DKIM and OpenPGP with minimized metadata accepted
+برای نصب سریع روی سرور لینوکس (توصیه شده: Debian یا Ubuntu)، می‌توانید از دستور زیر استفاده کنید:
 
--  **Reliable Federation and Decentralization:** No spam or IP reputation checks, federating
-   depends on established IETF standards and protocols.
+```bash
+curl https://raw.githubusercontent.com/omidz4t/relay-ir/refs/heads/main/init.sh | sudo bash
+```
 
-This repository contains everything needed to setup a ready-to-use chatmail relay on an ssh-reachable host. 
-For getting started and more information please refer to the web version of this repositories' documentation at
+**روش جایگزین (دانلود و اجرای دستی):**
+اگر مایل هستید فایل را ابتدا دانلود و سپس اجرا کنید:
 
-[https://chatmail.at/doc/relay](https://chatmail.at/doc/relay)
+```bash
+wget https://raw.githubusercontent.com/omidz4t/relay-ir/refs/heads/main/init.sh
+chmod +x init.sh
+sudo ./init.sh
+```
 
+---
+
+### اسکریپت `init.sh` چه کاری انجام می‌دهد؟
+
+اسکریپت `init.sh` تمام مراحل لازم برای آماده‌سازی سرور را به صورت خودکار انجام می‌دهد:
+
+1. **نصب وابستگی‌ها:** ابزارهای مورد نیاز مانند `git`, `curl`, `python3`, `gcc` و غیره را نصب می‌کند.
+2. **مدیریت محیط پایتون:** ابزار مدرن `uv` را برای مدیریت سریع و بهینه بسته‌ها و محیط مجازی (venv) نصب و پیکربندی می‌کند.
+3. **دریافت سورس‌کد:** آخرین نسخه پروژه را از گیت‌هاب دریافت می‌کند.
+4. **تنظیمات خودکار:** از شما نام دامنه و ایمیل (برای گواهی SSL) را می‌پرسد و فایل تنظیمات `chatmail.ini` را بر اساس استانداردهای بهینه ویرایش می‌کند (تنظیم حجم صندوق پستی، مدت زمان نگهداری پیام‌ها و غیره).
+5. **استقرار (Deployment):** در نهایت تمام سرویس‌های لازم (Postfix, Dovecot, Nginx و غیره) را به صورت خودکار نصب و فعال می‌کند.
+
+---
+برای اطلاعات بیشتر و مستندات فنی دقیق‌تر به [مستندات اصلی](https://chatmail.at/doc/relay) مراجعه کنید.

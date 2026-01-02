@@ -10,6 +10,8 @@
 #               (yes)   (yes)   (no)    (never) (100)
 # ==========================================================================
 {% if debug == true %}
+smtp      inet  n       -       n       -       -       smtpd -v
+{%- else %}
 smtp      inet  n       -       n       -       -       smtpd 
 {%- endif %}
   -o smtpd_tls_security_level=encrypt
@@ -78,7 +80,7 @@ filter    unix -        n       n       -       -       lmtp
 127.0.0.1:{{ config.postfix_reinject_port }} inet  n       -       n       -       100      smtpd
   -o syslog_name=postfix/reinject
   -o milter_macro_daemon_name=ORIGINATING
-  -o smtpd_milters=unix:opendkim/opendkim.sock
+  -o smtpd_milters=unix:/run/opendkim/opendkim.sock
   -o cleanup_service_name=authclean
 
 # Local SMTP server for reinjecting incoming filtered mail 
