@@ -15,7 +15,7 @@ Contributions and feedback welcome through the https://github.com/chatmail/relay
     getting_started
     proxy
     migrate
-    migrate_control
+    migrate_control_machine
     overview
     related
     faq
