@@ -194,7 +194,7 @@ def test_cmd_options(parser):
 def test_cmd(args, out):
     """Run local and online tests for chatmail deployment.
 
-    This will automatically pip-install 'deltachat' if it's not available.
+    This will automatically uv-pip-install 'deltachat' if it's not available.
     """
 
     x = importlib.util.find_spec("deltachat")

@@ -19,7 +19,15 @@ if command -v lsb_release 2>&1 >/dev/null; then
 fi
 
 # Ensure uv is in PATH
-export PATH="$HOME/.local/bin:$PATH"
+export PATH="$HOME/.local/bin:/root/.local/bin:$PATH"
+
+if ! command -v uv &> /dev/null; then
+    if [ -f "/root/.local/bin/uv" ]; then
+        export PATH="/root/.local/bin:$PATH"
+    elif [ -f "$HOME/.local/bin/uv" ]; then
+        export PATH="$HOME/.local/bin:$PATH"
+    fi
+fi
 
 if ! command -v uv &> /dev/null; then
     echo "uv not found. Please install it first or run init.sh"

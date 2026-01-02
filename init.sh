@@ -7,11 +7,20 @@ sudo apt update
 sudo apt install -y git curl wget python3-dev gcc python3 nano sed
 
 # 1.1 Install uv
+export PATH="$HOME/.local/bin:/root/.local/bin:$PATH"
+if ! command -v uv &> /dev/null; then
+    if [ -f "/root/.local/bin/uv" ]; then
+        export PATH="/root/.local/bin:$PATH"
+    elif [ -f "$HOME/.local/bin/uv" ]; then
+        export PATH="$HOME/.local/bin:$PATH"
+    fi
+fi
+
 if ! command -v uv &> /dev/null; then
     echo "--- Installing uv ---"
     curl -LsSf https://astral.sh/uv/install.sh | sh
     # Ensure uv is in PATH for the current script
-    export PATH="$HOME/.local/bin:$PATH"
+    export PATH="$HOME/.local/bin:/root/.local/bin:$PATH"
 fi
 
 # 2. Clone the repository if not already in it

@@ -46,7 +46,7 @@ steps. Please substitute it with your own domain.
        mta-sts.chat.example.org. 3600 IN CNAME chat.example.org.
 
 2. On your local PC, clone the repository and bootstrap the Python
-   virtualenv.
+    environment using ``uv``.
 
    ::
 

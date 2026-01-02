@@ -13,7 +13,7 @@ from pyinfra import facts, host, logger
 from pyinfra.api import FactBase
 from pyinfra.facts.files import Sha256File
 from pyinfra.facts.systemd import SystemdEnabled
-from pyinfra.operations import apt, files, pip, server, systemd
+from pyinfra.operations import apt, files, server, systemd
 
 from cmdeploy.cmdeploy import Out
 

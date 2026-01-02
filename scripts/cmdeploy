@@ -3,6 +3,6 @@
 # Wrapper for cmdelpoy to run it in activated virtualenv.
 set -e
 # Ensure uv is in PATH
-export PATH="$HOME/.local/bin:$PATH"
+export PATH="$HOME/.local/bin:/root/.local/bin:$PATH"
 
 uv run cmdeploy "$@"
