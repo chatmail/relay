@@ -6,7 +6,7 @@ You can use the `make` command and `make html` to build web pages.
 
 You need a Python environment where the following install was excuted: 
 
-    pip install furo sphinx-autobuild
+    uv pip install furo sphinx-autobuild
 
 To develop/change documentation, you can then do: 
 

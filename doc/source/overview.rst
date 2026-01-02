@@ -15,11 +15,11 @@ has four main directories.
 `scripts <https://github.com/chatmail/relay/tree/main/scripts>`_
 offers two convenience tools for beginners:
 
-- ``initenv.sh`` installs a local virtualenv Python environment and
-  installs necessary dependencies
+- ``initenv.sh`` installs a local Python environment using ``uv`` and
+  installs necessary dependencies.
 
 - ``scripts/cmdeploy`` script enables you to run the ``cmdeploy``
-  command line tool in the local Python virtual environment.
+  command line tool using ``uv run``.
 
 
 ``cmdeploy/``
