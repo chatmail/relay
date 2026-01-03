@@ -1,6 +1,6 @@
 
 Migrating to a new control machine
-===========================
+==================================
 
 This tutorial demonstrates how to move your control machine safely or have multiple control machines.
 
@@ -14,7 +14,7 @@ Preliminary notes and assumptions
 - You have a copy of your working `chatmail.ini` from the other machine
 
 The steps to migrate control machines
-------------------------
+-------------------------------------
 
 1. **Save a copy of the working chatmail.ini**
 
