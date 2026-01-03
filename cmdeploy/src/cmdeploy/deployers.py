@@ -457,6 +457,8 @@ class ChatmailVenvDeployer(Deployer):
 
     def install(self):
         _install_remote_venv_with_chatmaild()
+
+    def configure(self):
         # Ensure postfix can read certificates
         server.shell(
             name="Add postfix to ssl-cert group and fix acme permissions",
@@ -464,14 +466,14 @@ class ChatmailVenvDeployer(Deployer):
                 "groupadd -f ssl-cert",
                 "usermod -a -G ssl-cert postfix",
                 "usermod -a -G ssl-cert dovecot",
-                "chown -R root:ssl-cert /var/lib/acme/live",
-                "chmod 750 /var/lib/acme/live",
-                "chmod 640 /var/lib/acme/live/*/privkey",
-                "chmod 644 /var/lib/acme/live/*/fullchain",
+                "if [ -d /var/lib/acme/live ]; then "
+                "chown -R root:ssl-cert /var/lib/acme/live && "
+                "chmod 750 /var/lib/acme/live && "
+                "chmod 640 /var/lib/acme/live/*/privkey && "
+                "chmod 644 /var/lib/acme/live/*/fullchain; "
+                "fi",
             ],
         )
-
-    def configure(self):
         _configure_remote_venv_with_chatmaild(self.config)
         configure_remote_units(self.config.mail_domain, self.units)
 
