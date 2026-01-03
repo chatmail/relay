@@ -63,7 +63,7 @@ class AcmetoolDeployer(Deployer):
 
         server.shell(
             name=f"Remove old acmetool desired files for {self.domains[0]}",
-            commands=[f"rm -f /var/lib/acme/desired/'{self.domains[0]}'-*"],
+            commands=[f'rm -f /var/lib/acme/desired/"{self.domains[0]}"-*'],
         )
         files.template(
             src=importlib.resources.files(__package__).joinpath("desired.yaml.j2"),
