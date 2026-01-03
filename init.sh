@@ -38,8 +38,12 @@ echo "--- Initializing environment ---"
 ./scripts/initenv.sh
 
 # 4. Ask for domain and email
-read -p "Enter your mail domain (e.g. example.com): " MAIL_DOMAIN
-read -p "Enter your email for ACME/Let's Encrypt: " ACME_EMAIL
+if [ -z "$MAIL_DOMAIN" ]; then
+    read -p "Enter your mail domain (e.g. example.com): " MAIL_DOMAIN < /dev/tty
+fi
+if [ -z "$ACME_EMAIL" ]; then
+    read -p "Enter your email for ACME/Let's Encrypt: " ACME_EMAIL < /dev/tty
+fi
 
 # 5. Initialize configuration
 echo "--- Initializing chatmail configuration ---"

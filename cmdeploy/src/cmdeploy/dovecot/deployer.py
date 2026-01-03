@@ -173,6 +173,7 @@ def _configure_dovecot(config: Config, debug: bool = False) -> (bool, bool):
                 key=key,
                 value=65535,
                 persist=True,
+                _ignore_errors=True,
             )
 
     timezone_env = files.line(
