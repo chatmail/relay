@@ -166,4 +166,23 @@ creating addresses, login with ssh and run:
 
 Chatmail address creation will be denied while this file is present.
 
+Migrating to a new deployment machine
+----------------------------------
 
+To move or add a deployment machine, keep a copy of a working ``chatmail.ini``,
+clone the relay repo on the new machine, and recreate ``chatmail.ini`` there.
+Make sure ``rsync`` is installed, then initialize the environment:
+
+::
+
+   ./scripts/initenv.sh
+
+Run safety checks before a new deployment:
+
+::
+
+   ./scripts/cmdeploy dns
+   ./scripts/cmdeploy status
+
+If you keep multiple deployment machines (ie laptop and desktop), keep ``chatmail.ini`` in sync between
+them.
