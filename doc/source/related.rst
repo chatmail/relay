@@ -14,6 +14,10 @@ We know of three work-in-progress alternative implementation efforts:
    it to support all of the features and configuration settings required
    to operate as a chatmail relay.
 
+-  `Madmail <https://github.com/omidz4t/madmail>`_: a
+   plugin for the `Maddy email server <https://maddy.email/>`_ which
+   aims to implement the chatmail relay features and configuration
+   options.
 
 -  `Chatmail Cookbook <https://github.com/feld/chatmail-cookbook>`_:
    A Chef Cookbook implementing a relay server. The project follows the
