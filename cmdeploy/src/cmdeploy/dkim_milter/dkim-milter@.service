@@ -1,0 +1,15 @@
+[Unit]
+Description=DKIM Milter %i
+Documentation=man:dkim-milter(8) man:dkim-milter.conf(5)
+After=network-online.target nss-lookup.target
+Wants=network-online.target
+
+[Service]
+User=dkim-milter
+UMask=007
+ExecStart=/usr/local/sbin/dkim-milter -c /etc/dkim-milter/dkim-milter-%i.conf
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

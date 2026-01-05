@@ -1,0 +1,2 @@
+# Sender expression    Domain                 Selector                 Key name
+.{{ config.domain }}   {{ config.domain }}    {{ config.selector }}    {{ config.signing_key_name }}

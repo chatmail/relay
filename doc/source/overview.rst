@@ -52,7 +52,7 @@ The deployed system components of a chatmail relay are:
 -  `acmetool <https://hlandau.github.io/acmetool/>`_ manages TLS
    certificates for Dovecot, Postfix, and Nginx
 
--  `OpenDKIM <http://www.opendkim.org/>`_ for signing messages with
+-  `DKIM Milter <https://github.com/chatmail/dkim-milter>`_ for signing messages with
    DKIM and rejecting inbound messages without DKIM
 
 -  `mtail <https://google.github.io/mtail/>`_ for collecting anonymized

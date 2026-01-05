@@ -72,7 +72,7 @@ in this case, just run ``ssh-keygen -R "mail.example.org"`` as recommended.
 
        ssh root@$NEW_IP4
        chown root: -R /var/lib/acme
-       chown opendkim: -R /etc/dkimkeys
+       chown dkim-milter: -R /etc/dkimkeys
        chown vmail: -R /home/vmail/mail
 
 
