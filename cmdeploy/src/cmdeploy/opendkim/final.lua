@@ -34,6 +34,9 @@ if valid then
 	for i = nsigs - 1, 0, -1 do
 		odkim.del_header(ctx, "DKIM-Signature", i)
 	end
+
+	-- Delete first and presumably only occurence
+        odkim.del_header(ctx, "Authentication-Results", 0)
 else
 	odkim.set_reply(ctx, "554", "5.7.1", error_msg)
 	odkim.set_result(ctx, SMFIS_REJECT)
