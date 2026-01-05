@@ -80,7 +80,7 @@ jobs:
 
       - name: set DNS entries
         run: |
-          ssh -o StrictHostKeyChecking=accept-new -v root@staging-ipv4.testrun.org chown opendkim:opendkim -R /etc/dkimkeys
+          ssh -o StrictHostKeyChecking=accept-new -v root@staging-ipv4.testrun.org chown dkim-milter:dkim-milter -R /etc/dkimkeys
           cmdeploy dns --zonefile staging-generated.zone
           cat staging-generated.zone >> .github/workflows/staging-ipv4.testrun.org-default.zone
           cat .github/workflows/staging-ipv4.testrun.org-default.zone

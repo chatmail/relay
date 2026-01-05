@@ -1,1 +1,0 @@
-{{ config.opendkim_selector }}._domainkey.{{ config.domain_name }} {{ config.domain_name }}:{{ config.opendkim_selector }}:/etc/dkimkeys/{{ config.opendkim_selector }}.private
