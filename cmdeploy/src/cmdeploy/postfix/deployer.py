@@ -4,7 +4,7 @@ from cmdeploy.basedeploy import Deployer, get_resource
 
 
 class PostfixDeployer(Deployer):
-    required_users = [("postfix", None, ["opendkim"])]
+    required_users = [("postfix", None, ["dkim-milter"])]
     daemon_reload = False
 
     def __init__(self, config, disable_mail):
