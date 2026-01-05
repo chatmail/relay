@@ -1,1 +1,0 @@
-*@{{ config.domain_name }} {{ config.opendkim_selector }}._domainkey.{{ config.domain_name }}
