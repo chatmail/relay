@@ -61,11 +61,17 @@ class PostfixDeployer(Deployer):
             mode="644",
         )
         need_restart |= login_map.changed
-
+        files.directory(
+            name="Ensure postfix@.service.d directory exists",
+            path="/etc/systemd/system/postfix@.service.d",
+            user="root",
+            group="root",
+            mode="755",
+        )
         restart_conf = files.put(
             name="postfix: restart automatically on failure",
             src=get_resource("service/10_restart.conf"),
-            dest="/etc/systemd/system/postfix.service.d/10_restart.conf",
+            dest="/etc/systemd/system/postfix@.service.d/10_restart.conf",
         )
         self.daemon_reload = restart_conf.changed
         self.need_restart = need_restart

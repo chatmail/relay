@@ -137,6 +137,14 @@ def _configure_dovecot(config: Config, debug: bool = False) -> (bool, bool):
         disable_ipv6=config.disable_ipv6,
     )
     need_restart |= main_config.changed
+    files.directory(
+        name="Ensure mailboxes directory exists",
+        path=str(config.mailboxes_dir),
+        user="vmail",
+        group="vmail",
+        mode="750",
+        create_remote_dir=True,
+    )
     auth_config = files.put(
         src=get_resource("dovecot/auth.conf"),
         dest="/etc/dovecot/auth.conf",
@@ -182,7 +190,13 @@ def _configure_dovecot(config: Config, debug: bool = False) -> (bool, bool):
         line="TZ=:/etc/localtime",
     )
     need_restart |= timezone_env.changed
-
+    files.directory(
+        name="Ensure dovecot.service.d directory exists",
+        path="/etc/systemd/system/dovecot.service.d",
+        user="root",
+        group="root",
+        mode="755",
+    )
     restart_conf = files.put(
         name="dovecot: restart automatically on failure",
         src=get_resource("service/10_restart.conf"),
