@@ -170,15 +170,6 @@ def _configure_remote_venv_with_chatmaild(config) -> None:
 
 class UnboundDeployer(Deployer):
     def install(self):
-        # Stop and disable systemd-resolved if it's running.
-        systemd.service(
-            name="Stop and disable systemd-resolved",
-            service="systemd-resolved.service",
-            running=False,
-            enabled=False,
-            _ignore_errors=True,
-        )
-
         # Run local DNS resolver `unbound`.
         # `resolvconf` takes care of setting up /etc/resolv.conf
         # to use 127.0.0.1 as the resolver.
@@ -216,6 +207,15 @@ class UnboundDeployer(Deployer):
         )
 
     def activate(self):
+        # Stop and disable systemd-resolved if it's running.
+        systemd.service(
+            name="Stop and disable systemd-resolved",
+            service="systemd-resolved.service",
+            running=False,
+            enabled=False,
+            _ignore_errors=True,
+        )
+
         server.shell(
             name="Generate root keys for validating DNSSEC",
             commands=[
