@@ -3,8 +3,14 @@ set -e
 
 # 1. Update and install dependencies
 echo "--- Installing dependencies ---"
-sudo apt update
-sudo apt install -y git curl wget python3-dev gcc python3 nano sed
+# Ubuntu 24.04 and others might need universe for python3-dev
+if command -v add-apt-repository > /dev/null 2>&1; then
+    sudo add-apt-repository -y universe
+fi
+
+# We use a timeout for the lock to handle automatic updates running in the background
+sudo apt-get update -o DPkg::Lock::Timeout=120
+sudo apt-get install -y -o DPkg::Lock::Timeout=120 git curl wget python3-dev build-essential python3 nano sed
 
 # 1.1 Install uv
 export PATH="$HOME/.local/bin:/root/.local/bin:$PATH"

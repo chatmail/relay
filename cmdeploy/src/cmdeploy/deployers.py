@@ -130,8 +130,8 @@ def _install_remote_venv_with_chatmaild() -> None:
     )
 
     apt.packages(
-        name="install gcc and headers to build crypt_r source package",
-        packages=["gcc", "python3-dev"],
+        name="install build-essential and headers to build crypt_r source package",
+        packages=["build-essential", "python3-dev"],
     )
 
     server.shell(
@@ -503,6 +503,10 @@ class ChatmailDeployer(Deployer):
         server.shell(
             name="Fix broken packages",
             commands=["apt-get install -f -y"],
+        )
+        server.shell(
+            name="Enable universe repository",
+            commands=["add-apt-repository -y universe || true"],
         )
         apt.update(name="apt update", cache_time=24 * 3600)
         apt.upgrade(name="upgrade apt packages", auto_remove=True)
