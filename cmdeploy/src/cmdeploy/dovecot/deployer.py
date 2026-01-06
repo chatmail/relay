@@ -143,7 +143,6 @@ def _configure_dovecot(config: Config, debug: bool = False) -> (bool, bool):
         user="vmail",
         group="vmail",
         mode="750",
-        create_remote_dir=True,
     )
     auth_config = files.put(
         src=get_resource("dovecot/auth.conf"),
