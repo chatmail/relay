@@ -170,6 +170,15 @@ def _configure_remote_venv_with_chatmaild(config) -> None:
 
 class UnboundDeployer(Deployer):
     def install(self):
+        # Stop and disable systemd-resolved if it's running.
+        systemd.service(
+            name="Stop and disable systemd-resolved",
+            service="systemd-resolved.service",
+            running=False,
+            enabled=False,
+            _ignore_errors=True,
+        )
+
         # Run local DNS resolver `unbound`.
         # `resolvconf` takes care of setting up /etc/resolv.conf
         # to use 127.0.0.1 as the resolver.
@@ -576,7 +585,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
 
     port_services = [
         (["master", "smtpd"], 25),
-        ("unbound", 53),
+        (["unbound", "systemd-resolve", "systemd-resolved"], 53),
         ("acmetool", 80),
         (["imap-login", "dovecot"], 143),
         ("nginx", 443),
