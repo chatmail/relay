@@ -26,7 +26,7 @@ default_client_limit = 20000
 # Increase number of logged in IMAP connections.
 # Each connection is handled by a separate `imap` process.
 # `imap` process should have `client_limit=1` as described in
-# <https://doc.dovecot.org/configuration_manual/service_configuration/#service-limits>
+# <https://doc.dovecot.org/2.3/configuration_manual/service_configuration/#service-limits>
 # so each logged in IMAP session will need its own `imap` process.
 #
 # If this limit is reached,
@@ -44,11 +44,11 @@ mail_server_comment = Chatmail server
 
 # `zlib` enables compressing messages stored in the maildir.
 # See
-# <https://doc.dovecot.org/configuration_manual/zlib_plugin/>
+# <https://doc.dovecot.org/2.3/configuration_manual/zlib_plugin/>
 # for documentation.
 #
 # quota plugin documentation:
-# <https://doc.dovecot.org/configuration_manual/quota_plugin/>
+# <https://doc.dovecot.org/2.3/configuration_manual/quota_plugin/>
 mail_plugins = zlib quota
 
 imap_capability = +XDELTAPUSH XCHATMAIL
@@ -125,13 +125,13 @@ plugin {
 
 protocol lmtp {
   # notify plugin is a dependency of push_notification plugin:
-  # <https://doc.dovecot.org/settings/plugin/notify-plugin/>
+  # <https://doc.dovecot.org/2.3/settings/plugin/notify-plugin/>
   #
   # push_notification plugin documentation:
-  # <https://doc.dovecot.org/configuration_manual/push_notification/>
+  # <https://doc.dovecot.org/2.3/configuration_manual/push_notification/>
   #
   # mail_lua and push_notification_lua are needed for Lua push notification handler.
-  # <https://doc.dovecot.org/configuration_manual/push_notification/#configuration>
+  # <https://doc.dovecot.org/2.3/configuration_manual/push_notification/#configuration>
   mail_plugins = $mail_plugins mail_lua notify push_notification push_notification_lua
 }
 
@@ -154,7 +154,7 @@ plugin {
 
 # push_notification configuration
 plugin {
-  # <https://doc.dovecot.org/configuration_manual/push_notification/#lua-lua>
+  # <https://doc.dovecot.org/2.3/configuration_manual/push_notification/#lua-lua>
   push_notification_driver = lua:file=/etc/dovecot/push_notification.lua
 }
 

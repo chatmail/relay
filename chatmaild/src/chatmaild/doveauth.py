@@ -16,7 +16,7 @@ NOCREATE_FILE = "/etc/chatmail-nocreate"
 
 
 def encrypt_password(password: str):
-    # https://doc.dovecot.org/configuration_manual/authentication/password_schemes/
+    # https://doc.dovecot.org/2.3/configuration_manual/authentication/password_schemes/
     passhash = crypt_r.crypt(password, crypt_r.METHOD_SHA512)
     return "{SHA512-CRYPT}" + passhash
 

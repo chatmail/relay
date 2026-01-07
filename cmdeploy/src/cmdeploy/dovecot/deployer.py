@@ -116,7 +116,7 @@ def _configure_dovecot(config: Config, debug: bool = False) -> (bool, bool):
     )
     need_restart |= lua_push_notification_script.changed
 
-    # as per https://doc.dovecot.org/configuration_manual/os/
+    # as per https://doc.dovecot.org/2.3/configuration_manual/os/
     # it is recommended to set the following inotify limits
     for name in ("max_user_instances", "max_user_watches"):
         key = f"fs.inotify.{name}"

@@ -22,7 +22,7 @@ class DictProxy:
                 wfile.flush()
 
     def handle_dovecot_request(self, msg, transactions):
-        # see https://doc.dovecot.org/developer_manual/design/dict_protocol/#dovecot-dict-protocol
+        # see https://doc.dovecot.org/2.3/developer_manual/design/dict_protocol/#dovecot-dict-protocol
         short_command = msg[0]
         parts = msg[1:].split("\t")
 
