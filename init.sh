@@ -1,6 +1,36 @@
 #!/bin/bash
 set -e
 
+# 0. Ask for domain and email at the beginning
+get_config_value() {
+    local key=$1
+    local file=$2
+    if [ -f "$file" ]; then
+        grep "^$key =" "$file" | head -n 1 | cut -d'=' -f2 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
+    fi
+}
+
+INI_FILE="chatmail.ini"
+if [ -d "relay-ir" ]; then
+    INI_FILE="relay-ir/chatmail.ini"
+fi
+
+if [ -z "$MAIL_DOMAIN" ]; then
+    MAIL_DOMAIN=$(get_config_value "mail_domain" "$INI_FILE")
+fi
+
+if [ -z "$ACME_EMAIL" ]; then
+    ACME_EMAIL=$(get_config_value "acme_email" "$INI_FILE")
+fi
+
+if [ -z "$MAIL_DOMAIN" ]; then
+    read -p "Enter your mail domain (e.g. example.com): " MAIL_DOMAIN < /dev/tty
+fi
+
+if [ -z "$ACME_EMAIL" ]; then
+    read -p "Enter your email for ACME/Let's Encrypt: " ACME_EMAIL < /dev/tty
+fi
+
 # 1. Update and install dependencies
 echo "--- Installing dependencies ---"
 # Ubuntu 24.04 and others might need universe for python3-dev
@@ -31,25 +61,27 @@ fi
 
 # 2. Clone the repository if not already in it
 if [ ! -d "relay-ir" ]; then
-    echo "--- Cloning relay-ir ---"
-    git clone https://github.com/omidz4t/relay-ir.git
-    cd relay-ir
+    # Check if we are already inside a relay-ir directory
+    if [ -f "scripts/cmdeploy" ]; then
+        echo "--- Already inside relay-ir directory ---"
+        git pull
+    else
+        echo "--- Cloning relay-ir ---"
+        git clone https://github.com/omidz4t/relay-ir.git
+        cd relay-ir
+    fi
 else
-    echo "--- relay-ir directory already exists, entering ---"
+    echo "--- relay-ir directory already exists, updating ---"
     cd relay-ir
+    git pull
 fi
 
 # 3. Initialize environment
 echo "--- Initializing environment ---"
 ./scripts/initenv.sh
 
-# 4. Ask for domain and email
-if [ -z "$MAIL_DOMAIN" ]; then
-    read -p "Enter your mail domain (e.g. example.com): " MAIL_DOMAIN < /dev/tty
-fi
-if [ -z "$ACME_EMAIL" ]; then
-    read -p "Enter your email for ACME/Let's Encrypt: " ACME_EMAIL < /dev/tty
-fi
+# 4. Ask for domain and email (already handled at the beginning)
+
 
 # 5. Initialize configuration
 echo "--- Initializing chatmail configuration ---"
