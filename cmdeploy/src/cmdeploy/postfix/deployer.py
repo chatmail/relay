@@ -65,7 +65,7 @@ class PostfixDeployer(Deployer):
         restart_conf = files.put(
             name="postfix: restart automatically on failure",
             src=get_resource("service/10_restart.conf"),
-            dest="/etc/systemd/system/dovecot.service.d/10_restart.conf",
+            dest="/etc/systemd/system/postfix.service.d/10_restart.conf",
         )
         self.daemon_reload = restart_conf.changed
         self.need_restart = need_restart
