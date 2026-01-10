@@ -31,8 +31,13 @@ end
 if valid then
 	-- Strip all DKIM-Signature headers after successful validation
 	-- Delete in reverse order to avoid index shifting.
-	for i = nsigs, 1, -1 do
+	for i = nsigs - 1, 0, -1 do
 		odkim.del_header(ctx, "DKIM-Signature", i)
+	end
+
+	-- Delete up to 10 Authentication-Results headers
+	for i = 9, 0, -1 do
+		odkim.del_header(ctx, "Authentication-Results", 0)
 	end
 else
 	odkim.set_reply(ctx, "554", "5.7.1", error_msg)
