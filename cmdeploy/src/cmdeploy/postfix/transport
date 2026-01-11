@@ -1,0 +1,5 @@
+no-dns.chatmail.at smtp:[77.42.80.106]
+no-dns2.testrun.org smtp:[77.42.86.249]
+
+nine.testrun.org discard:
+* :

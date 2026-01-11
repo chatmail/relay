@@ -60,7 +60,19 @@ class PostfixDeployer(Deployer):
             mode="644",
         )
         need_restart |= lmtp_header_cleanup.changed
-
+        # Transport map that discards messages to nine.testrun.org
+        transport_map = files.put(
+            src=get_resource("postfix/transport"),
+            dest="/etc/postfix/transport",
+            user="root",
+            group="root",
+            mode="644",
+        )
+        need_restart |= transport_map.changed
+        if transport_map.changed:
+            server.shell(
+                commands=["postmap /etc/postfix/transport"],
+            )
         # Login map that 1:1 maps email address to login.
         login_map = files.put(
             src=get_resource("postfix/login_map"),
