@@ -53,8 +53,8 @@ http {
 
 	ssl_protocols TLSv1 TLSv1.1 TLSv1.2 TLSv1.3;
 	ssl_prefer_server_ciphers on;
-	ssl_certificate /var/lib/acme/live/{{ config.domain_name }}/fullchain;
-	ssl_certificate_key /var/lib/acme/live/{{ config.domain_name }}/privkey;
+	ssl_certificate /etc/ssl/certs/ssl-cert-snakeoil.pem;
+	ssl_certificate_key /etc/ssl/private/ssl-cert-snakeoil.key;
 
 	gzip on;
 
