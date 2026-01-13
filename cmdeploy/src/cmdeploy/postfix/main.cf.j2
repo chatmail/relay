@@ -77,6 +77,7 @@ inet_protocols = all
 
 virtual_transport = lmtp:unix:private/dovecot-lmtp
 virtual_mailbox_domains = {{ config.mail_domain }}
+lmtp_header_checks = regexp:/etc/postfix/lmtp_header_cleanup
 
 mua_client_restrictions = permit_sasl_authenticated, reject
 mua_sender_restrictions = reject_sender_login_mismatch, permit_sasl_authenticated, reject

@@ -52,6 +52,15 @@ class PostfixDeployer(Deployer):
         )
         need_restart |= header_cleanup.changed
 
+        lmtp_header_cleanup = files.put(
+            src=get_resource("postfix/lmtp_header_cleanup"),
+            dest="/etc/postfix/lmtp_header_cleanup",
+            user="root",
+            group="root",
+            mode="644",
+        )
+        need_restart |= lmtp_header_cleanup.changed
+
         # Login map that 1:1 maps email address to login.
         login_map = files.put(
             src=get_resource("postfix/login_map"),
