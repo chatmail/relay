@@ -20,7 +20,7 @@ smtpd_tls_key_file=/etc/ssl/private/ssl-cert-snakeoil.key
 smtpd_tls_security_level=may
 
 smtp_tls_CApath=/etc/ssl/certs
-smtp_tls_security_level=verify
+smtp_tls_security_level=encrypt
 # Send SNI extension when connecting to other servers.
 # <https://www.postfix.org/postconf.5.html#smtp_tls_servername>
 smtp_tls_servername = hostname
