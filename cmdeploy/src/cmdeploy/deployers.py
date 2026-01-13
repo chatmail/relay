@@ -17,7 +17,6 @@ from pyinfra.operations import apt, files, pip, server, systemd
 
 from cmdeploy.cmdeploy import Out
 
-from .acmetool import AcmetoolDeployer
 from .basedeploy import (
     Deployer,
     Deployment,
@@ -529,7 +528,6 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
     port_services = [
         (["master", "smtpd"], 25),
         ("unbound", 53),
-        ("acmetool", 80),
         (["imap-login", "dovecot"], 143),
         ("nginx", 443),
         (["master", "smtpd"], 465),
@@ -561,7 +559,6 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
         UnboundDeployer(),
         TurnDeployer(mail_domain),
         IrohDeployer(config.enable_iroh_relay),
-        AcmetoolDeployer(config.acme_email, tls_domains),
         WebsiteDeployer(config),
         ChatmailVenvDeployer(config),
         MtastsDeployer(),
