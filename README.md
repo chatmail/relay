@@ -1,20 +1,15 @@
 
-# Chatmail relays for end-to-end encrypted email
+# No-DNS Chatmail relay
 
-Chatmail relay servers are interoperable Mail Transport Agents (MTAs) designed for: 
+With this branch, you don't need DNS at all,
+just a VPS with an IPv4 address,
+let's take `77.42.80.106` as an example:
 
--  **Zero State:** no private data or metadata collected, messages are auto-deleted, low disk usage
+```
+cmdeploy init whatever.you.want
+cmdeploy run --skip-dns-check --ssh-host 77.42.80.106
+```
 
--  **Instant/Realtime:** sub-second message delivery, realtime P2P
-   streaming, privacy-preserving Push Notifications for Apple, Google, and Huawei;
+Then you can login with a `dclogin://` code like this:
 
--  **Security Enforcement**: only strict TLS, DKIM and OpenPGP with minimized metadata accepted
-
--  **Reliable Federation and Decentralization:** No spam or IP reputation checks, federating
-   depends on established IETF standards and protocols.
-
-This repository contains everything needed to setup a ready-to-use chatmail relay on an ssh-reachable host. 
-For getting started and more information please refer to the web version of this repositories' documentation at
-
-[https://chatmail.at/doc/relay](https://chatmail.at/doc/relay)
-
+`dclogin:s0m3r4nd0@whatever.you.want?p=w7i8da7h8uads92ycc2rufyl&v=1&ih=77.42.80.106&sh=77.42.80.106&sp=443&ip=443&ic=3&sc=3`
