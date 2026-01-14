@@ -144,7 +144,7 @@ class Expiry:
                 continue
             changed = True
         if changed:
-            self.remove_file("maildirsize")
+            self.remove_file(f"{mbox.basedir}/maildirsize")
 
     def get_summary(self):
         return (
