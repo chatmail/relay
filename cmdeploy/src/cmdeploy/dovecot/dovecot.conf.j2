@@ -277,3 +277,134 @@ service imap-hibernate {
   }
 }
 {% endif %}
+
+{% if config.mtail_address %}
+#
+# Dovecot Statistics
+#
+# OpenMetrics endpoint at http://{{- config.mtail_address}}:3904/metrics
+service stats {
+  inet_listener http {
+    port = 3904
+    address = {{- config.mtail_address}}
+  }
+}
+
+# IMAP Command Metrics
+# - Bytes in/out for compression efficiency analysis
+# - Lock wait time for contention debugging
+# - Grouped by command name and reply state
+metric imap_command {
+  filter = event=imap_command_finished
+  fields = bytes_in bytes_out lock_wait_usecs running_usecs
+  group_by = cmd_name tagged_reply_state
+}
+
+# Duration buckets for latency histograms (base 10: 10us, 100us, 1ms, 10ms, 100ms, 1s, 10s, 100s)
+metric imap_command_duration {
+  filter = event=imap_command_finished
+  group_by = cmd_name duration:exponential:1:8:10
+}
+
+# Slow command outliers (>1 second = 1000000 usecs)
+# Useful for alerting without high cardinality
+metric imap_command_slow {
+  filter = event=imap_command_finished AND duration>1000000 AND NOT cmd_name=IDLE
+  group_by = cmd_name
+}
+
+# IDLE-specific metrics
+metric imap_idle {
+  filter = event=imap_command_finished AND cmd_name=IDLE
+  fields = bytes_in bytes_out running_usecs
+  group_by = tagged_reply_state
+}
+
+metric imap_idle_duration {
+  filter = event=imap_command_finished AND cmd_name=IDLE
+  # Base 10: 100ms to 27h (covers short wakeups to long idle sessions)
+  group_by = duration:exponential:5:11:10
+}
+
+# Hibernation Metrics (requires imap_hibernate_timeout to be set)
+metric imap_hibernated {
+  filter = event=imap_client_hibernated
+  # error field present = failure
+  group_by = mailbox
+}
+
+metric imap_hibernated_failed {
+  filter = event=imap_client_hibernated AND error=*
+}
+
+metric imap_unhibernated {
+  filter = event=imap_client_unhibernated
+  fields = hibernation_usecs
+  group_by = reason
+}
+
+metric imap_unhibernated_failed {
+  filter = event=imap_client_unhibernated AND error=*
+}
+
+# Hibernation duration buckets (how long clients actually stayed hibernated)
+# Base 10: 100ms to 27h
+metric imap_hibernation_duration {
+  filter = event=imap_client_unhibernated
+  group_by = reason duration:exponential:5:11:10
+}
+
+# Authentication / Login Metrics
+metric auth_request {
+  filter = event=auth_request_finished
+  group_by = success
+}
+
+metric auth_request_duration {
+  filter = event=auth_request_finished
+  group_by = success duration:exponential:2:6:10
+}
+
+metric auth_failed {
+  filter = event=auth_request_finished AND success=no
+}
+
+# Passdb cache effectiveness
+metric auth_passdb {
+  filter = event=auth_passdb_request_finished
+  group_by = result cache
+}
+
+# Master login (post-auth userdb lookup)
+metric auth_master_login {
+  filter = event=auth_master_client_login_finished
+}
+
+metric auth_master_login_failed {
+  filter = event=auth_master_client_login_finished AND error=*
+}
+
+# Mail Delivery (LMTP) - affects IDLE wakeup latency
+metric mail_delivery {
+  filter = event=mail_delivery_finished
+}
+
+metric mail_delivery_duration {
+  filter = event=mail_delivery_finished
+  group_by = duration:exponential:3:7:10
+}
+
+metric mail_delivery_failed {
+  filter = event=mail_delivery_finished AND error=*
+}
+
+# Connection Events
+metric client_connected {
+  filter = event=client_connection_connected AND category=service:imap
+}
+
+metric client_disconnected {
+  filter = event=client_connection_disconnected AND category=service:imap
+  fields = bytes_in bytes_out
+}
+{% endif %}

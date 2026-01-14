@@ -536,6 +536,8 @@ def deploy_chatmail(config_path: Path, disable_mail: bool) -> None:
         (["master", "smtpd"], 587),
         (["imap-login", "dovecot"], 993),
         ("iroh-relay", 3340),
+        ("mtail", 3903),
+        ("dovecot-stats", 3904),
         ("nginx", 8443),
         (["master", "smtpd"], config.postfix_reinject_port),
         (["master", "smtpd"], config.postfix_reinject_port_incoming),
