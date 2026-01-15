@@ -189,17 +189,23 @@ def test_exceed_rate_limit(cmsetup, gencreds, maildata, chatmail_config):
     mail = maildata(
         "encrypted.eml", from_addr=user1.addr, to_addr=user2.addr
     ).as_string()
-    for i in range(chatmail_config.max_user_send_per_minute + 5):
+
+    timestamps = []
+    i = 0
+    while len(timestamps) <= chatmail_config.max_user_send_per_minute * 1.7:
         print("Sending mail", str(i))
+        i += 1
         try:
             user1.smtp.sendmail(user1.addr, [user2.addr], mail)
+            timestamps.append(time.time())
         except smtplib.SMTPException as e:
-            if i < chatmail_config.max_user_send_per_minute:
+            if len(timestamps) < chatmail_config.max_user_send_per_minute:
                 pytest.fail(f"rate limit was exceeded too early with msg {i}")
             outcome = e.recipients[user2.addr]
             assert outcome[0] == 450
             assert b"4.7.1: Too much mail from" in outcome[1]
             return
+        timestamps[:] = [ts for ts in timestamps if ts >= (time.time() - 60)]
     pytest.fail("Rate limit was not exceeded")
 
 

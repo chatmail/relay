@@ -26,6 +26,7 @@ from .basedeploy import (
     get_resource,
 )
 from .dovecot.deployer import DovecotDeployer
+from .filtermail.deployer import FiltermailDeployer
 from .mtail.deployer import MtailDeployer
 from .nginx.deployer import NginxDeployer
 from .opendkim.deployer import OpendkimDeployer
@@ -416,8 +417,6 @@ class ChatmailVenvDeployer(Deployer):
     def __init__(self, config):
         self.config = config
         self.units = (
-            "filtermail",
-            "filtermail-incoming",
             "chatmail-metadata",
             "lastlogin",
             "chatmail-expire",
@@ -564,6 +563,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool, website_only: bool) -
     all_deployers = [
         ChatmailDeployer(mail_domain),
         LegacyRemoveDeployer(),
+        FiltermailDeployer(),
         JournaldDeployer(),
         UnboundDeployer(),
         TurnDeployer(mail_domain),

@@ -17,9 +17,8 @@ def configure_remote_units(mail_domain, units) -> None:
 
     # install systemd units
     for fn in units:
-        execpath = fn if fn != "filtermail-incoming" else "filtermail"
         params = dict(
-            execpath=f"{remote_venv_dir}/bin/{execpath}",
+            execpath=f"{remote_venv_dir}/bin/{fn}",
             config_path=remote_chatmail_inipath,
             remote_venv_dir=remote_venv_dir,
             mail_domain=mail_domain,
