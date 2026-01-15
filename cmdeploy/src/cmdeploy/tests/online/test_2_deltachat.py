@@ -17,6 +17,7 @@ def imap_mailbox(cmfactory):
     password = ac1.get_config("mail_pw")
     mailbox = imap_tools.MailBox(user.split("@")[1])
     mailbox.login(user, password)
+    mailbox.dc_ac = ac1
     return mailbox
 
 
@@ -120,6 +121,28 @@ class TestEndToEndDeltaChat:
         ch = ac2.qr_setup_contact(qr)
         assert ch.id >= 10
         ac1._evtracker.wait_securejoin_inviter_progress(1000)
+
+    def test_dkim_header_stripped(self, cmfactory, maildomain2, lp, imap_mailbox):
+        """Test that if a DC address receives a message, it has no
+        DKIM-Signature and Authentication-Results headers."""
+        ac1 = cmfactory.new_online_configuring_account(cache=False)
+        cmfactory.switch_maildomain(maildomain2)
+        ac2 = cmfactory.new_online_configuring_account(cache=False)
+        cmfactory.bring_accounts_online()
+        chat = cmfactory.get_accepted_chat(ac1, imap_mailbox.dc_ac)
+        chat.send_text("message0")
+        chat2 = cmfactory.get_accepted_chat(ac2, imap_mailbox.dc_ac)
+        chat2.send_text("message1")
+
+        lp.sec("receive message with ac1...")
+        received = 0
+        while received < 2:
+            msgs = imap_mailbox.fetch()
+            for msg in msgs:
+                lp.sec(f"ac1 received msg from {msg.from_}")
+                received += 1
+                assert "authentication-results" not in msg.headers
+                assert "dkim-signature" not in msg.headers
 
     def test_read_receipts_between_instances(self, cmfactory, lp, maildomain2):
         ac1 = cmfactory.new_online_configuring_account(cache=False)
