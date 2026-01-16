@@ -3,6 +3,10 @@ name = "filtermail"
 version = "0.1.0"
 edition = "2024"
 license = "MIT"
+readme = "README.md"
+authors = ["Chatmail Developers"]
+description = "A mail filtering service used by chatmail relay"
+repository = "https://github.com/chatmail/filtermail"
 
 [dependencies]
 async-trait = "0.1.89"
