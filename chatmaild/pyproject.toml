@@ -24,7 +24,6 @@ where = ['src']
 [project.scripts]
 doveauth = "chatmaild.doveauth:main"
 chatmail-metadata = "chatmaild.metadata:main"
-filtermail = "chatmaild.filtermail:main"
 chatmail-metrics = "chatmaild.metrics:main"
 chatmail-expire = "chatmaild.expire:main"
 chatmail-fsreport = "chatmaild.fsreport:main"
