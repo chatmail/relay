@@ -7,6 +7,7 @@ listen = *
 protocols = imap lmtp
 
 auth_mechanisms = plain
+auth_username_chars = abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890.-_@[]
 
 {% if debug == true %}
 auth_verbose = yes

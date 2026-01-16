@@ -89,6 +89,7 @@ def run_cmd(args, out):
     """Deploy chatmail services on the remote server."""
 
     ssh_host = args.ssh_host if args.ssh_host else args.config.mail_domain
+    ssh_host = ssh_host.strip("[").strip("]")
     sshexec = get_sshexec(ssh_host)
     require_iroh = args.config.enable_iroh_relay
     if not args.dns_check_disabled:

@@ -54,7 +54,6 @@ smtpd_tls_exclude_ciphers = aNULL, RC4, MD5, DES
 tls_preempt_cipherlist = yes
 
 smtpd_relay_restrictions = permit_mynetworks permit_sasl_authenticated defer_unauth_destination
-myhostname = {{ config.mail_domain }}
 alias_maps = hash:/etc/aliases
 alias_database = hash:/etc/aliases
 
