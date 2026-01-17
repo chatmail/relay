@@ -1,0 +1,2 @@
+# Key name                       Signing key
+{{ config.signing_key_name }}    </etc/dkimkeys/{{ config.signing_key_filename }}
