@@ -109,10 +109,6 @@ short overview of ``chatmaild`` services:
    is contacted by Dovecot when a user logs in and stores the date of
    the login.
 
--  `metrics <https://github.com/chatmail/relay/blob/main/chatmaild/src/chatmaild/metrics.py>`_
-   collects some metrics and displays them at
-   ``https://example.org/metrics``.
-
 ``www/``
 ~~~~~~~~~
 
@@ -142,11 +138,9 @@ Chatmail relay dependency diagram
         nginx-internal --- autoconfig.xml;
         certs-nginx[("`TLS certs
         /var/lib/acme`")] --> nginx-internal;
-        systemd-timer --- chatmail-metrics;
         systemd-timer --- acmetool;
         systemd-timer --- chatmail-expire-daily;
         systemd-timer --- chatmail-fsreport-daily;
-        chatmail-metrics --- website;
         acmetool --> certs[("`TLS certs
         /var/lib/acme`")];
         nginx-external --- |993|dovecot;

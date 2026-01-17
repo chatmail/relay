@@ -76,10 +76,6 @@ http {
 			try_files $uri $uri/ =404;
 		}
 
-		location /metrics {
-			default_type text/plain;
-		}
-
 		location /new {
 			if ($request_method = GET) {
 				# Redirect to Delta Chat,
