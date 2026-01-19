@@ -502,7 +502,7 @@ class GithashDeployer(Deployer):
         except Exception:
             git_diff = ""
         files.put(
-            name="Upload chatmail relay git commiit hash",
+            name="Upload chatmail relay git commit hash",
             src=StringIO(git_hash + git_diff),
             dest="/etc/chatmail-version",
             mode="700",
