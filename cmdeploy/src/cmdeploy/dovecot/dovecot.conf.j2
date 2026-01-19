@@ -326,11 +326,20 @@ metric imap_idle_duration {
   group_by = duration:exponential:5:11:10
 }
 
+metric imap_idle_commands {
+  filter = event=imap_command_finished AND cmd_name=IDLE
+  group_by = tagged_reply_state
+}
+
+metric imap_idle_failed {
+  filter = event=imap_command_finished AND cmd_name=IDLE AND tagged_reply_state!=OK
+}
+
 # Hibernation Metrics (requires imap_hibernate_timeout to be set)
 metric imap_hibernated {
   filter = event=imap_client_hibernated
   # error field present = failure
-  group_by = mailbox
+  # group_by = mailbox
 }
 
 metric imap_hibernated_failed {
@@ -340,7 +349,18 @@ metric imap_hibernated_failed {
 metric imap_unhibernated {
   filter = event=imap_client_unhibernated
   fields = hibernation_usecs
+#  group_by = reason
+}
+
+metric imap_unhibernated_reason {
+  filter = event=imap_client_unhibernated
   group_by = reason
+  fields = hibernation_usecs
+}
+
+metric imap_unhibernated_reason_sleep {
+  filter = event=imap_client_unhibernated
+  group_by = reason hibernation_usecs:exponential:4:8:10
 }
 
 metric imap_unhibernated_failed {
