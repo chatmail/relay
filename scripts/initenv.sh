@@ -18,8 +18,10 @@ if command -v lsb_release 2>&1 >/dev/null; then
   esac
 fi
 
-python3 -m venv --upgrade-deps venv
+uv venv venv
 
-venv/bin/pip install -e chatmaild 
-venv/bin/pip install -e cmdeploy
-venv/bin/pip install sphinx sphinxcontrib-mermaid sphinx-autobuild furo  # for building the docs
+source venv/bin/activate
+
+uv pip install -e chatmaild 
+uv pip install -e cmdeploy
+uv pip install sphinx sphinxcontrib-mermaid sphinx-autobuild furo  # for building the docs
