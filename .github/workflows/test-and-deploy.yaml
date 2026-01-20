@@ -74,7 +74,9 @@ jobs:
       - name: run deploy-chatmail offline tests 
         run: pytest --pyargs cmdeploy 
 
-      - run: cmdeploy init staging2.testrun.org
+      - run: |
+          cmdeploy init staging2.testrun.org
+          sed -i 's/#\s*mtail_address/mtail_address/' chatmail.ini
 
       - run: cmdeploy run --verbose --skip-dns-check
 
