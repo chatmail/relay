@@ -37,9 +37,7 @@ class DovecotDeployer(Deployer):
         restart = False if self.disable_mail else self.need_restart
 
         systemd.service(
-            name="disable dovecot for now"
-            if self.disable_mail
-            else "Start and enable Dovecot",
+            name="Disable dovecot for now" if self.disable_mail else "Start and enable Dovecot",
             service="dovecot.service",
             running=False if self.disable_mail else True,
             enabled=False if self.disable_mail else True,
@@ -144,5 +142,12 @@ def _configure_dovecot(config: Config, debug: bool = False) -> (bool, bool):
         dest="/etc/systemd/system/dovecot.service.d/10_restart.conf",
     )
     daemon_reload |= restart_conf.changed
+
+    # Validate dovecot configuration before restart
+    if need_restart:
+        server.shell(
+            name="Validate dovecot configuration",
+            commands=["doveconf -n >/dev/null"],
+        )
 
     return need_restart, daemon_reload

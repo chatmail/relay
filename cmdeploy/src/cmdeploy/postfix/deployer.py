@@ -1,4 +1,4 @@
-from pyinfra.operations import apt, files, systemd
+from pyinfra.operations import apt, files, server, systemd
 
 from cmdeploy.basedeploy import Deployer, get_resource
 
@@ -77,6 +77,14 @@ class PostfixDeployer(Deployer):
             dest="/etc/systemd/system/postfix@.service.d/10_restart.conf",
         )
         self.daemon_reload = restart_conf.changed
+
+        # Validate postfix configuration before restart
+        if need_restart:
+            server.shell(
+                name="Validate postfix configuration",
+                # Extract stderr and quit with error if non-zero
+                commands=["""bash -c 'w=$(postconf 2>&1 >/dev/null); [[ -z "$w" ]] || { echo "$w"; false; }'"""],
+            )
         self.need_restart = need_restart
 
     def activate(self):
