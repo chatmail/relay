@@ -6,10 +6,15 @@ use std::path::{Path, PathBuf};
 /// Chatmail configuration subset used by filtermail.
 #[derive(Debug, Clone, Deserialize)]
 pub struct Config {
+    #[serde(default = "Config::default_filtermail_smtp_port")]
     pub filtermail_smtp_port: u16,
+    #[serde(default = "Config::default_filtermail_smtp_port_incoming")]
     pub filtermail_smtp_port_incoming: u16,
+    #[serde(default = "Config::default_postfix_reinject_port")]
     pub postfix_reinject_port: u16,
+    #[serde(default = "Config::default_postfix_reinject_port_incoming")]
     pub postfix_reinject_port_incoming: u16,
+    #[serde(default = "Config::default_max_message_size")]
     pub max_message_size: usize,
     pub max_user_send_per_minute: usize,
     #[serde(default, deserialize_with = "deserialize_sequence")]
@@ -50,7 +55,7 @@ impl Config {
         Ok(wrapped_config.params)
     }
 
-    /// Get the mailboxes directory, using defaulting to `/home/vmail/mail/<mail_domain>` if not set.
+    /// Get the mailboxes directory, defaulting to `/home/vmail/mail/<mail_domain>` if not set.
     fn mailboxes_dir(&self) -> PathBuf {
         match &self.mailboxes_dir {
             Some(dir) => dir.clone(),
@@ -69,5 +74,23 @@ impl Config {
         enforce_e2ee.push("enforceE2EEincoming");
 
         !enforce_e2ee.exists()
+    }
+
+    // Following are needed since serde does not support default literals.
+
+    const fn default_filtermail_smtp_port() -> u16 {
+        10080
+    }
+    const fn default_filtermail_smtp_port_incoming() -> u16 {
+        10081
+    }
+    const fn default_postfix_reinject_port() -> u16 {
+        10025
+    }
+    const fn default_postfix_reinject_port_incoming() -> u16 {
+        10026
+    }
+    const fn default_max_message_size() -> usize {
+        31457280
     }
 }
