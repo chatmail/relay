@@ -55,7 +55,7 @@ async fn main() {
         let handler = Arc::new(OutgoingBeforeQueueHandler::new(config.clone()));
         let addr = format!("127.0.0.1:{}", config.filtermail_smtp_port);
         let max_size = config.max_message_size;
-        log::debug!("Outgoing SMTP server listening on {}", addr);
+        log::debug!("Outgoing SMTP server listening on {addr}");
 
         if let Err(e) = run_smtp_server(&addr, handler, max_size).await {
             eprintln!("Server error: {}", e);
@@ -65,7 +65,7 @@ async fn main() {
         let handler = Arc::new(IncomingBeforeQueueHandler::new(config.clone()));
         let addr = format!("127.0.0.1:{}", config.filtermail_smtp_port_incoming);
         let max_size = config.max_message_size;
-        log::debug!("Incoming SMTP server listening on {}", addr);
+        log::debug!("Incoming SMTP server listening on {addr}");
 
         if let Err(e) = run_smtp_server(&addr, handler, max_size).await {
             eprintln!("Server error: {}", e);

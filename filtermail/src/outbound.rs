@@ -30,7 +30,7 @@ impl OutgoingBeforeQueueHandler {
 #[async_trait]
 impl SmtpHandler for OutgoingBeforeQueueHandler {
     fn handle_mail(&self, address: &str) -> Result<(), String> {
-        log::info!("handle_MAIL from {}", address);
+        log::debug!("handle_MAIL from {address}");
 
         let parts: Vec<&str> = address.split('@').collect();
         if parts.len() != 2 {
@@ -40,15 +40,15 @@ impl SmtpHandler for OutgoingBeforeQueueHandler {
         let max_sent = self.config.max_user_send_per_minute;
         let mut limiter = self.send_rate_limiter.lock().unwrap();
         if !limiter.is_sending_allowed(address, max_sent) {
-            log::debug!("Rate limit exceeded for {}", address);
-            return Err(format!("450 4.7.1: Too much mail from {}", address));
+            log::debug!("Rate limit exceeded for {address}");
+            return Err(format!("450 4.7.1: Too much mail from {address}"));
         }
 
         Ok(())
     }
 
     fn check_data(&self, envelope: &Envelope) -> Result<(), String> {
-        log::info!("Processing DATA message from {}", envelope.mail_from);
+        log::debug!("Processing DATA message from {}", envelope.mail_from);
 
         let message = match parse_mail(&envelope.data) {
             Ok(m) => m,
@@ -76,11 +76,11 @@ impl SmtpHandler for OutgoingBeforeQueueHandler {
 
         // Allow encrypted or securejoin messages
         if mail_encrypted || is_securejoin(&message) {
-            log::info!("Outgoing: Filtering encrypted mail.");
+            log::debug!("Outgoing: Filtering encrypted mail.");
             return Ok(());
         }
 
-        log::info!("Outgoing: Filtering unencrypted mail.");
+        log::debug!("Outgoing: Filtering unencrypted mail.");
 
         // Allow passthrough senders
         if self
@@ -104,7 +104,7 @@ impl SmtpHandler for OutgoingBeforeQueueHandler {
 
         for recipient in &envelope.rcpt_to {
             if !recipient_matches_passthrough(recipient, &self.config.passthrough_recipients) {
-                log::info!("Rejected unencrypted mail.");
+                log::warn!("Rejected unencrypted mail from: {}", envelope.mail_from);
                 return Err(ENCRYPTION_NEEDED_523.to_string());
             }
         }
@@ -113,7 +113,7 @@ impl SmtpHandler for OutgoingBeforeQueueHandler {
     }
 
     async fn reinject_mail(&self, envelope: &Envelope) -> Result<(), String> {
-        log::info!("Re-injecting the mail that passed checks");
+        log::debug!("Re-injecting the mail that passed checks");
 
         let mailer = AsyncSmtpTransport::<Tokio1Executor>::builder_dangerous("localhost")
             .port(self.config.postfix_reinject_port)

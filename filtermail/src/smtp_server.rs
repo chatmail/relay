@@ -28,10 +28,10 @@ pub trait SmtpHandler: Send + Sync {
 
     /// Handles the DATA command.
     async fn handle_data(&self, envelope: &Envelope) -> Result<String, String> {
-        log::info!("handle_DATA before-queue");
+        log::debug!("handle_DATA before-queue");
         self.check_data(envelope)?;
         self.reinject_mail(envelope).await.map_err(|e| {
-            log::warn!("Failed to reinject mail: {}", e);
+            log::warn!("Failed to reinject mail: {e}");
             e
         })?;
         Ok("250 OK".to_string())
@@ -56,7 +56,7 @@ where
         let handler = handler.clone();
         tokio::spawn(async move {
             if let Err(e) = handle_connection(socket, handler, max_size).await {
-                log::error!("Error handling connection: {}", e);
+                log::error!("Error handling connection: {e}");
             }
         });
     }
@@ -98,7 +98,7 @@ where
             break 'connection;
         };
 
-        log::debug!("Received: {}", cmd);
+        log::debug!("Received: {cmd}");
 
         if cmd.to_uppercase().starts_with("HELO") || cmd.to_uppercase().starts_with("EHLO") {
             writer.write_all(b"250 OK\r\n").await?;
@@ -115,7 +115,7 @@ where
                     }
                 }
             } else {
-                log::debug!("Invalid MAIL FROM command. Can't extract address.");
+                log::warn!("Invalid MAIL FROM command. Can't extract address. Received: {cmd}");
                 writer
                     .write_all(b"500 Invalid address in MAIL FROM\r\n")
                     .await?;
@@ -159,13 +159,13 @@ where
             // Process the message
             match handler.handle_data(&envelope).await {
                 Ok(response) => {
-                    log::debug!("Sent: {}", response);
+                    log::debug!("Sent: {response}");
                     writer
                         .write_all(format!("{}\r\n", response).as_bytes())
                         .await?;
                 }
                 Err(e) => {
-                    log::debug!("Sent: {}", e);
+                    log::debug!("Sent: {e}");
                     writer.write_all(format!("{}\r\n", e).as_bytes()).await?;
                 }
             }
