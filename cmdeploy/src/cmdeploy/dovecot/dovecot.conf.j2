@@ -313,7 +313,8 @@ metric imap_command_slow {
   group_by = cmd_name
 }
 
-# IDLE-specific metrics
+# IDLE-specific Metrics
+
 metric imap_idle {
   filter = event=imap_command_finished AND cmd_name=IDLE
   fields = bytes_in bytes_out running_usecs
@@ -332,14 +333,13 @@ metric imap_idle_commands {
 }
 
 metric imap_idle_failed {
-  filter = event=imap_command_finished AND cmd_name=IDLE AND tagged_reply_state!=OK
+  filter = event=imap_command_finished AND cmd_name=IDLE AND NOT tagged_reply_state=OK
 }
 
-# Hibernation Metrics (requires imap_hibernate_timeout to be set)
+# Hibernation Metrics (requires imap_hibernate_timeout)
+
 metric imap_hibernated {
   filter = event=imap_client_hibernated
-  # error field present = failure
-  # group_by = mailbox
 }
 
 metric imap_hibernated_failed {
@@ -349,7 +349,6 @@ metric imap_hibernated_failed {
 metric imap_unhibernated {
   filter = event=imap_client_unhibernated
   fields = hibernation_usecs
-#  group_by = reason
 }
 
 metric imap_unhibernated_reason {
@@ -367,7 +366,7 @@ metric imap_unhibernated_failed {
   filter = event=imap_client_unhibernated AND error=*
 }
 
-# Hibernation duration buckets (how long clients actually stayed hibernated)
+# Hibernation duration buckets (how long clients stayed hibernated)
 # Base 10: 100ms to 27h
 metric imap_hibernation_duration {
   filter = event=imap_client_unhibernated
@@ -375,6 +374,7 @@ metric imap_hibernation_duration {
 }
 
 # Authentication / Login Metrics
+
 metric auth_request {
   filter = event=auth_request_finished
   group_by = success
@@ -405,6 +405,7 @@ metric auth_master_login_failed {
 }
 
 # Mail Delivery (LMTP) - affects IDLE wakeup latency
+
 metric mail_delivery {
   filter = event=mail_delivery_finished
 }
@@ -419,12 +420,13 @@ metric mail_delivery_failed {
 }
 
 # Connection Events
+
 metric client_connected {
-  filter = event=client_connection_connected AND category=service:imap
+  filter = event=client_connection_connected AND category="service:imap"
 }
 
 metric client_disconnected {
-  filter = event=client_connection_disconnected AND category=service:imap
+  filter = event=client_connection_disconnected AND category="service:imap"
   fields = bytes_in bytes_out
 }
 {% endif %}
