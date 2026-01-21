@@ -117,7 +117,7 @@ where
             } else {
                 log::debug!("Invalid MAIL FROM command. Can't extract address.");
                 writer
-                    .write_all(b"500 Invalid addreess in MAIL FROM\r\n")
+                    .write_all(b"500 Invalid address in MAIL FROM\r\n")
                     .await?;
             }
         } else if cmd.to_uppercase().starts_with("RCPT TO:") {
