@@ -26,3 +26,8 @@ env_logger = "0.11.8"
 [dev-dependencies]
 rstest = "0.26.1"
 testresult = "0.4.1"
+
+# The profile that 'dist' will build with
+[profile.dist]
+inherits = "release"
+lto = "thin"
