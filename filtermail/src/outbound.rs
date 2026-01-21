@@ -92,7 +92,10 @@ impl SmtpHandler for OutgoingBeforeQueueHandler {
         }
 
         // Allow self-sent Autocrypt Setup Message
-        if envelope.rcpt_to.len() == 1 && envelope.rcpt_to[0] == envelope.mail_from {
+        if envelope.rcpt_to.len() == 1
+            && let Some(rcpt_to) = envelope.rcpt_to.first()
+            && *rcpt_to == envelope.mail_from
+        {
             let subject = message
                 .headers
                 .get_first_value("Subject")
