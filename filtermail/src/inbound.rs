@@ -32,7 +32,7 @@ impl SmtpHandler for IncomingBeforeQueueHandler {
     }
 
     fn check_data(&self, envelope: &Envelope) -> Result<(), String> {
-        log::info!("Processing DATA message from {}", envelope.mail_from);
+        log::debug!("Processing DATA message from {}", envelope.mail_from);
 
         let message = match parse_mail(&envelope.data) {
             Ok(m) => m,
@@ -40,16 +40,16 @@ impl SmtpHandler for IncomingBeforeQueueHandler {
         };
 
         let mail_encrypted = check_encrypted(&message, false);
-        log::debug!("mail_encrypted: {}", mail_encrypted);
+        log::debug!("mail_encrypted: {mail_encrypted}");
         log::debug!("is_securejoin: {}", is_securejoin(&message));
 
         // Allow encrypted or securejoin messages
         if mail_encrypted || is_securejoin(&message) {
-            log::info!("Incoming: Filtering encrypted mail.");
+            log::debug!("Incoming: Filtering encrypted mail.");
             return Ok(());
         }
 
-        log::info!("Incoming: Filtering unencrypted mail.");
+        log::debug!("Incoming: Filtering unencrypted mail.");
 
         // Allow cleartext mailer-daemon messages
         if let Some(auto_submitted) = message.headers.get_first_value("Auto-Submitted")
@@ -72,7 +72,7 @@ impl SmtpHandler for IncomingBeforeQueueHandler {
 
         for recipient in &envelope.rcpt_to {
             if !self.config.is_cleartext_ok(recipient) {
-                log::info!("Rejected unencrypted mail.");
+                log::warn!("Rejected unencrypted email from: {}", envelope.mail_from);
                 return Err(ENCRYPTION_NEEDED_523.to_string());
             }
         }
@@ -81,7 +81,7 @@ impl SmtpHandler for IncomingBeforeQueueHandler {
     }
 
     async fn reinject_mail(&self, envelope: &Envelope) -> Result<(), String> {
-        log::info!("Re-injecting the mail that passed checks");
+        log::debug!("Re-injecting the mail that passed checks");
 
         let mailer = AsyncSmtpTransport::<Tokio1Executor>::builder_dangerous("localhost")
             .port(self.config.postfix_reinject_port_incoming)

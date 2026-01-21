@@ -71,20 +71,14 @@ fn check_openpgp_payload(payload: &[u8]) -> Result<bool, error::Error> {
             // Symmetrically Encrypted and Integrity Protected Data Packet (SEIPD)
             //
             // This is the only place where this function may return `True`.
-            log::debug!(
-                "check_openpgp_payload: i={i} packat_type_id={}",
-                packet_type_id
-            );
+            log::debug!("check_openpgp_payload: i={i} packat_type_id={packet_type_id}");
             return Ok(packet_type_id == 18);
         } else if ![1, 3].contains(&packet_type_id) {
             // All packets except the last one must be either
             // Public-Key Encrypted Session Key Packet (PKESK)
             // or
             // Symmetric-Key Encrypted Session Key Packet (SKESK)
-            log::debug!(
-                "check_openpgp_payload: i={i} packet_type_id={}",
-                packet_type_id
-            );
+            log::debug!("check_openpgp_payload: i={i} packet_type_id={packet_type_id}");
             return Ok(false);
         }
     }
