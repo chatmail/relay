@@ -7,20 +7,15 @@ use std::error::Error;
 ///
 /// Returns the first address if multiple are present.
 pub fn extract_address(input: &str) -> Option<String> {
-    // TODO: at this point it's probably simpler to use regex ;p
     let input_lower = input.to_lowercase();
     let mut trimmed = input_lower
         .trim_start_matches("mail from:")
         .trim_start_matches("rcpt to:");
+
+    let addr_end = trimmed.find('>').unwrap_or(trimmed.len() - 1);
     trimmed = trimmed
-        .split_once("=")
-        .map(|(address_raw, _)| {
-            address_raw
-                .rsplit_once(' ')
-                .map(|(addr, _)| addr)
-                .unwrap_or(address_raw)
-                .trim()
-        })
+        .split_at_checked(addr_end + 1)
+        .map(|(address_raw, _)| address_raw)
         .unwrap_or(trimmed);
 
     mailparse::addrparse(trimmed)
@@ -63,6 +58,8 @@ mod tests {
     #[rstest]
     #[case("MAIL FROM:<t1@example.org>", Some("t1@example.org".to_string()))]
     #[case("MAIL FROM:<t2@example.org> SOMETHING=SOMETHING OTHER=OTHER", Some("t2@example.org".to_string()))]
+    #[case("MAIL FROM:<SRS1=HHH=example.com==HHH=TT=example.org=alice@example.net> abc=def", Some("srs1=hhh=example.com==hhh=tt=example.org=alice@example.net".to_string()))]
+    #[case("MAIL FROM:<abc+alice@example.net> abc=def", Some("abc+alice@example.net".to_string()))]
     #[case("RCPT TO:<t3@example.org>", Some("t3@example.org".to_string()))]
     #[case("mail from:<t4@example.org>", Some("t4@example.org".to_string()))]
     #[case("Foo Bar <t5@example.org>", Some("t5@example.org".to_string()))]
