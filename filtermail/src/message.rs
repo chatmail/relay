@@ -116,7 +116,7 @@ pub fn check_encrypted(mail: &mailparse::ParsedMail, outgoing: bool) -> bool {
                     return false;
                 }
             };
-            if !check_armored_payload(payload, outgoing) {
+            if !check_armored_payload(&payload, outgoing) {
                 log::debug!("check_encrypted: armored payload check failed");
                 return false;
             }

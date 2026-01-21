@@ -96,23 +96,19 @@ fn check_openpgp_payload(payload: &[u8]) -> Result<bool, error::Error> {
 ///
 /// Returns `true` if the `payload` is a valid PGP message,
 /// `outgoing` informs whether the message is outgoing or incoming
-pub fn check_armored_payload(mut payload: String, outgoing: bool) -> bool {
+pub fn check_armored_payload(payload: &str, outgoing: bool) -> bool {
     const PREFIX: &str = "-----BEGIN PGP MESSAGE-----\r\n";
-    if !payload.starts_with(PREFIX) {
+    let Some(payload) = payload.strip_prefix(PREFIX) else {
         log::debug!("check_armored_payload: Did not find PGP MESSAGE prefix");
         return false;
-    }
-    payload = payload[PREFIX.len()..].to_string();
+    };
 
-    while payload.ends_with("\r\n") {
-        payload.truncate(payload.len() - 2);
-    }
+    let payload = payload.trim_end_matches("\r\n");
     const SUFFIX: &str = "-----END PGP MESSAGE-----";
-    if !payload.ends_with(SUFFIX) {
+    let Some(mut payload) = payload.strip_suffix(SUFFIX) else {
         log::debug!("check_armored_payload: Did not find PGP MESSAGE suffix");
         return false;
-    }
-    payload.truncate(payload.len() - SUFFIX.len());
+    };
 
     const VERSION_COMMENT: &str = "Version: ";
     if payload.starts_with(VERSION_COMMENT) {
@@ -123,20 +119,18 @@ pub fn check_armored_payload(mut payload: String, outgoing: bool) -> bool {
         }
         // Remove comments from incoming messages
         if let Some((_, right)) = payload.split_once("\r\n") {
-            payload = right.to_string();
+            payload = right;
         }
     }
 
-    while payload.starts_with("\r\n") {
-        payload = payload[2..].to_string();
-    }
+    let mut payload = payload.trim_start_matches("\r\n");
 
     // Remove CRC24.
     if let Some((left, _)) = payload.rsplit_once('=') {
-        payload = left.to_string();
+        payload = left;
     }
 
-    payload = payload.replace(['\r', '\n'], "");
+    let payload = payload.replace(['\r', '\n'], "");
     let payload = match BASE64_STANDARD.decode(payload.as_bytes()) {
         Ok(v) => v,
         Err(_) => {
@@ -260,10 +254,10 @@ Definitely not base64 encoded PGP message content.
     fn test_check_armored_payload(#[case] pgp_message: &str, #[case] expected: (bool, bool)) {
         let (expected_outgoing, expected_incoming) = expected;
 
-        let result = check_armored_payload(pgp_message.replace('\n', "\r\n").to_string(), true);
+        let result = check_armored_payload(&pgp_message.replace('\n', "\r\n"), true);
         assert_eq!(result, expected_outgoing);
 
-        let result = check_armored_payload(pgp_message.replace('\n', "\r\n").to_string(), false);
+        let result = check_armored_payload(&pgp_message.replace('\n', "\r\n"), false);
         assert_eq!(result, expected_incoming);
     }
 }
