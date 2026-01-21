@@ -25,7 +25,9 @@ pub fn is_securejoin(mail: &mailparse::ParsedMail) -> bool {
         return false;
     }
 
-    let part = &mail.subparts[0];
+    let Some(part) = &mail.subparts.first() else {
+        return false;
+    };
 
     // Part must not be multipart
     if !part.subparts.is_empty() {

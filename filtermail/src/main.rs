@@ -1,3 +1,29 @@
+#![doc = include_str!("../README.md")]
+#![forbid(unsafe_code)]
+#![warn(
+    unused,
+    clippy::correctness,
+    missing_debug_implementations,
+    missing_docs,
+    clippy::all,
+    clippy::wildcard_imports,
+    clippy::needless_borrow,
+    clippy::cast_lossless,
+    clippy::unused_async,
+    clippy::explicit_iter_loop,
+    clippy::explicit_into_iter_loop,
+    clippy::cloned_instead_of_copied
+)]
+#![cfg_attr(not(test), forbid(clippy::indexing_slicing))]
+#![cfg_attr(not(test), forbid(clippy::string_slice))]
+#![allow(
+    clippy::match_bool,
+    clippy::mixed_read_write_in_expression,
+    clippy::bool_assert_comparison,
+    clippy::manual_split_once,
+    clippy::format_push_string,
+    clippy::bool_to_int_with_if
+)]
 mod config;
 pub(crate) mod error;
 pub(crate) mod inbound;
@@ -30,13 +56,20 @@ async fn main() {
 
     let args: Vec<String> = env::args().collect();
     if args.len() != 3 {
-        eprintln!("Usage: {} <config_file> <mode>", args[0]);
+        eprintln!(
+            "Usage: {} <config_file> <mode>",
+            args.first().unwrap_or(&"filtermail".to_string())
+        );
         eprintln!("  mode: incoming or outgoing");
         process::exit(1);
     }
 
-    let config_path = &args[1];
-    let mode = &args[2];
+    let Some(config_path) = args.get(1) else {
+        unreachable!("args length checked above")
+    };
+    let Some(mode) = args.get(2) else {
+        unreachable!("args length checked above")
+    };
 
     if mode != "incoming" && mode != "outgoing" {
         eprintln!("Error: mode must be 'incoming' or 'outgoing'");
