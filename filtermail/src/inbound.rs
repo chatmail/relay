@@ -72,7 +72,7 @@ impl SmtpHandler for IncomingBeforeQueueHandler {
 
         for recipient in &envelope.rcpt_to {
             if !self.config.is_cleartext_ok(recipient) {
-                log::warn!("Rejected unencrypted email from: {}", envelope.mail_from);
+                log::warn!("Rejected unencrypted mail from: {}", envelope.mail_from);
                 return Err(ENCRYPTION_NEEDED_523.to_string());
             }
         }
