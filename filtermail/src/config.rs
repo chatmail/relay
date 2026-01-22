@@ -1,6 +1,7 @@
 //! Configuration file handling for filtermail.
 
 use serde::{Deserialize, Deserializer};
+use std::num::NonZeroU32;
 use std::path::{Path, PathBuf};
 
 /// Chatmail configuration subset used by filtermail.
@@ -16,7 +17,7 @@ pub struct Config {
     pub postfix_reinject_port_incoming: u16,
     #[serde(default = "Config::default_max_message_size")]
     pub max_message_size: usize,
-    pub max_user_send_per_minute: usize,
+    pub max_user_send_per_minute: NonZeroU32,
     #[serde(default, deserialize_with = "deserialize_sequence")]
     pub passthrough_senders: Vec<String>,
     #[serde(default, deserialize_with = "deserialize_sequence")]
