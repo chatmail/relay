@@ -44,21 +44,37 @@ counter warning_count
 }
 
 
-counter filtered_mail_count
+counter filtered_outgoing_mail_count
 
-counter encrypted_mail_count
-/Filtering encrypted mail\./ {
-  encrypted_mail_count++
-  filtered_mail_count++
+counter outgoing_encrypted_mail_count
+/Outgoing: Filtering encrypted mail\./ {
+  outgoing_encrypted_mail_count++
+  filtered_outgoing_mail_count++
 }
 
-counter unencrypted_mail_count
-/Filtering unencrypted mail\./ {
-  unencrypted_mail_count++
-  filtered_mail_count++
+counter outgoing_unencrypted_mail_count
+/Outgoing: Filtering unencrypted mail\./ {
+  outgoing_unencrypted_mail_count++
+  filtered_outgoing_mail_count++
 }
+
+
+counter filtered_incoming_mail_count
+
+counter incoming_encrypted_mail_count
+/Incoming: Filtering encrypted mail\./ {
+  incoming_encrypted_mail_count++
+  filtered_incoming_mail_count++
+}
+
+counter incoming_unencrypted_mail_count
+/Incoming: Filtering unencrypted mail\./ {
+  incoming_unencrypted_mail_count++
+  filtered_incoming_mail_count++
+}
+
 
 counter rejected_unencrypted_mail_count
-/Rejected unencrypted mail\./ {
+/Rejected unencrypted mail/ {
   rejected_unencrypted_mail_count++
 }
