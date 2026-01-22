@@ -89,11 +89,11 @@ impl SmtpHandler for OutgoingBeforeQueueHandler {
 
         // Allow encrypted or securejoin messages
         if mail_encrypted || is_securejoin(&message) {
-            log::debug!("Outgoing: Filtering encrypted mail.");
+            log::info!("Outgoing: Filtering encrypted mail.");
             return Ok(());
         }
 
-        log::debug!("Outgoing: Filtering unencrypted mail.");
+        log::info!("Outgoing: Filtering unencrypted mail.");
 
         // Allow passthrough senders
         if self

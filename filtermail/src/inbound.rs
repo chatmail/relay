@@ -45,11 +45,11 @@ impl SmtpHandler for IncomingBeforeQueueHandler {
 
         // Allow encrypted or securejoin messages
         if mail_encrypted || is_securejoin(&message) {
-            log::debug!("Incoming: Filtering encrypted mail.");
+            log::info!("Incoming: Filtering encrypted mail.");
             return Ok(());
         }
 
-        log::debug!("Incoming: Filtering unencrypted mail.");
+        log::info!("Incoming: Filtering unencrypted mail.");
 
         // Allow cleartext mailer-daemon messages
         if let Some(auto_submitted) = message.headers.get_first_value("Auto-Submitted")
