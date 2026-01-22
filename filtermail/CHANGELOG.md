@@ -1,3 +1,13 @@
+## 0.1.2 - 2026-01-22
+
+### Bug Fixes
+
+- Set logs required by grafana to INFO (#21)
+- Make inbound/outbound log messages consistent (#23)
+
+### Performance
+
+- Use governor for rate limiting (#20)
 ## 0.1.1 - 2026-01-21
 
 ### Bug Fixes
