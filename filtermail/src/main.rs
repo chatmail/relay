@@ -30,7 +30,6 @@ pub(crate) mod inbound;
 pub(crate) mod message;
 pub(crate) mod openpgp;
 pub(crate) mod outbound;
-pub(crate) mod rate_limiter;
 pub(crate) mod smtp_server;
 pub(crate) mod utils;
 

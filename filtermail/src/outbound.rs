@@ -3,11 +3,11 @@
 use crate::ENCRYPTION_NEEDED_523;
 use crate::config::Config;
 use crate::message::{check_encrypted, is_securejoin, recipient_matches_passthrough};
-use crate::rate_limiter::SendRateLimiter;
 pub use crate::smtp_server::Envelope;
 use crate::smtp_server::SmtpHandler;
 use crate::utils::{extract_address, format_smtp_error};
 use async_trait::async_trait;
+use governor::{DefaultKeyedRateLimiter, Quota, RateLimiter};
 use lettre::{AsyncSmtpTransport, AsyncTransport, Tokio1Executor};
 use mailparse::{MailHeaderMap, parse_mail};
 use std::sync::{Arc, Mutex};
@@ -15,14 +15,15 @@ use std::sync::{Arc, Mutex};
 /// Handler for outgoing SMTP messages.
 pub struct OutgoingBeforeQueueHandler {
     config: Arc<Config>,
-    send_rate_limiter: Arc<Mutex<SendRateLimiter>>,
+    send_rate_limiter: Arc<Mutex<DefaultKeyedRateLimiter<String>>>,
 }
 
 impl OutgoingBeforeQueueHandler {
     pub fn new(config: Config) -> Self {
+        let quota = Quota::per_minute(config.max_user_send_per_minute);
         Self {
             config: Arc::new(config),
-            send_rate_limiter: Arc::new(Mutex::new(SendRateLimiter::default())),
+            send_rate_limiter: Arc::new(Mutex::new(RateLimiter::keyed(quota))),
         }
     }
 }
@@ -37,12 +38,24 @@ impl SmtpHandler for OutgoingBeforeQueueHandler {
             return Err(format!("500 Invalid from address <{}>", address));
         }
 
-        let max_sent = self.config.max_user_send_per_minute;
-        let mut limiter = self.send_rate_limiter.lock().unwrap();
-        if !limiter.is_sending_allowed(address, max_sent) {
-            log::debug!("Rate limit exceeded for {address}");
-            return Err(format!("450 4.7.1: Too much mail from {address}"));
+        let Ok(limiter) = self.send_rate_limiter.lock() else {
+            log::error!("send_rate_limiter lock panicked!");
+            return Err("451 Temporary server error".to_string());
+        };
+        if let Err(e) = limiter.check_key(&address.to_string()) {
+            // "<example@example.org> rate limited until: ..."
+            log::debug!("<{address}> {e}");
+            return Err(format!("450 4.7.1: Too much mail from <{address}>, {e}"));
         }
+
+        // Cleanup
+        //
+        // This is only called after a successful check,
+        // so a spam of mails from the same user will not cause calling this repeatedly.
+        // In the future, in case of higher traffic this can be further optimized by e.g. calling it
+        // every N messages or in a separate task every N minutes.
+        // Time complexity is O(n) where n is the number of unique senders in the last minute.
+        limiter.retain_recent();
 
         Ok(())
     }
