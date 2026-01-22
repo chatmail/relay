@@ -32,13 +32,13 @@ class Config:
         self.passthrough_senders = params["passthrough_senders"].split()
         self.passthrough_recipients = params["passthrough_recipients"].split()
         self.www_folder = params.get("www_folder", "")
-        self.filtermail_smtp_port = int(params["filtermail_smtp_port"])
+        self.filtermail_smtp_port = int(params.get("filtermail_smtp_port", "10080"))
         self.filtermail_smtp_port_incoming = int(
-            params["filtermail_smtp_port_incoming"]
+            params.get("filtermail_smtp_port_incoming", "10081")
         )
-        self.postfix_reinject_port = int(params["postfix_reinject_port"])
+        self.postfix_reinject_port = int(params.get("postfix_reinject_port", "10025"))
         self.postfix_reinject_port_incoming = int(
-            params["postfix_reinject_port_incoming"]
+            params.get("postfix_reinject_port_incoming", "10026")
         )
         self.mtail_address = params.get("mtail_address")
         self.disable_ipv6 = params.get("disable_ipv6", "false").lower() == "true"
