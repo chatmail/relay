@@ -42,6 +42,11 @@ The deployed system components of a chatmail relay are:
 -  Dovecot_ is the Mail Delivery Agent (MDA) and
    stores messages for users until they download them
 
+-  `filtermail <https://github.com/chatmail/filtermail>`_
+   prevents unencrypted email from leaving or entering the chatmail
+   service and is integrated into Postfix’s outbound and inbound mail
+   pipelines.
+
 -  Nginx_ shows the web page with privacy policy and additional information
 
 -  `acmetool <https://hlandau.github.io/acmetool/>`_ manages TLS
@@ -84,11 +89,6 @@ short overview of ``chatmaild`` services:
    in turn uses `Dovecot SASL
    <https://doc.dovecot.org/2.3/configuration_manual/authentication/dict/#complete-example-for-authenticating-via-a-unix-socket>`_
    to authenticate logins.
-
--  `filtermail <https://github.com/chatmail/relay/blob/main/chatmaild/src/chatmaild/filtermail.py>`_
-   prevents unencrypted email from leaving or entering the chatmail
-   service and is integrated into Postfix’s outbound and inbound mail
-   pipelines.
 
 -  `chatmail-metadata <https://github.com/chatmail/relay/blob/main/chatmaild/src/chatmaild/metadata.py>`_
    is contacted by a `Dovecot lua
