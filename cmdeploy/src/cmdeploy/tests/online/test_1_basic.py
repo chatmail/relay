@@ -190,8 +190,9 @@ def test_exceed_rate_limit(cmsetup, gencreds, maildata, chatmail_config):
         "encrypted.eml", from_addr=user1.addr, to_addr=user2.addr
     ).as_string()
 
+    start = time.time()
     for i in range(chatmail_config.max_user_send_per_minute * 3):
-        print("Sending mail", str(i))
+        print("Sending mail", str(i + 1), "at", time.time() - start, "s.")
         try:
             user1.smtp.sendmail(user1.addr, [user2.addr], mail)
         except smtplib.SMTPException as e:
