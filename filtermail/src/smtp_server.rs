@@ -3,7 +3,7 @@
 use crate::utils::extract_address;
 use async_trait::async_trait;
 use std::sync::Arc;
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, BufWriter};
 use tokio::net::{TcpListener, TcpStream};
 
 /// Represents an SMTP envelope with sender, recipients, and raw message data.
@@ -53,6 +53,10 @@ where
 
     loop {
         let (socket, _) = listener.accept().await?;
+
+        // Disable Nagle's algorithm.
+        socket.set_nodelay(true)?;
+
         let handler = handler.clone();
         tokio::spawn(async move {
             if let Err(e) = handle_connection(socket, handler, max_size).await {
@@ -71,11 +75,13 @@ async fn handle_connection<H>(
 where
     H: SmtpHandler,
 {
-    let (reader, mut writer) = socket.into_split();
+    let (reader, writer) = socket.into_split();
     let mut reader = BufReader::new(reader);
+    let mut writer = BufWriter::new(writer);
     let mut line = String::new();
 
     writer.write_all(b"220 filtermail SMTP\r\n").await?;
+    writer.flush().await?;
 
     let mut envelope = Envelope {
         mail_from: String::new(),
@@ -102,15 +108,18 @@ where
 
         if cmd.to_uppercase().starts_with("HELO") || cmd.to_uppercase().starts_with("EHLO") {
             writer.write_all(b"250 OK\r\n").await?;
+            writer.flush().await?;
         } else if cmd.to_uppercase().starts_with("MAIL FROM:") {
             if let Some(from) = extract_address(cmd) {
                 match handler.handle_mail(&from) {
                     Ok(_) => {
                         envelope.mail_from = from;
                         writer.write_all(b"250 OK\r\n").await?;
+                        writer.flush().await?;
                     }
                     Err(e) => {
                         writer.write_all(format!("{}\r\n", e).as_bytes()).await?;
+                        writer.flush().await?;
                         break 'connection;
                     }
                 }
@@ -119,16 +128,19 @@ where
                 writer
                     .write_all(b"500 Invalid address in MAIL FROM\r\n")
                     .await?;
+                writer.flush().await?;
             }
         } else if cmd.to_uppercase().starts_with("RCPT TO:") {
             if let Some(to) = extract_address(cmd) {
                 envelope.rcpt_to.push(to);
                 writer.write_all(b"250 OK\r\n").await?;
+                writer.flush().await?;
             }
         } else if cmd.to_uppercase().starts_with("DATA") {
             writer
                 .write_all(b"354 End data with <CR><LF>.<CR><LF>\r\n")
                 .await?;
+            writer.flush().await?;
             let mut data = Vec::new();
             let mut data_line = String::new();
             'data_read: loop {
@@ -150,6 +162,7 @@ where
                     writer
                         .write_all(b"552 Message exceeds maximum size\r\n")
                         .await?;
+                    writer.flush().await?;
                     break 'connection;
                 }
             }
@@ -163,10 +176,12 @@ where
                     writer
                         .write_all(format!("{}\r\n", response).as_bytes())
                         .await?;
+                    writer.flush().await?;
                 }
                 Err(e) => {
                     log::debug!("Sent: {e}");
                     writer.write_all(format!("{}\r\n", e).as_bytes()).await?;
+                    writer.flush().await?;
                 }
             }
 
@@ -177,6 +192,7 @@ where
             };
         } else if cmd.to_uppercase().starts_with("QUIT") {
             writer.write_all(b"221 OK\r\n").await?;
+            writer.flush().await?;
             break 'connection;
         } else if cmd.to_uppercase().starts_with("RSET") {
             envelope = Envelope {
@@ -185,10 +201,13 @@ where
                 data: Vec::new(),
             };
             writer.write_all(b"250 OK\r\n").await?;
+            writer.flush().await?;
         } else if cmd.to_uppercase().starts_with("NOOP") {
             writer.write_all(b"250 OK\r\n").await?;
+            writer.flush().await?;
         } else {
             writer.write_all(b"500 Command not recognized\r\n").await?;
+            writer.flush().await?;
         }
     }
 
