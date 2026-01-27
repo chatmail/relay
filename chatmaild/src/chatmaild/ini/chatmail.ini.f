@@ -11,8 +11,11 @@ mail_domain = {mail_domain}
 # Restrictions on user addresses
 #
 
-# how many mails a user can send out per minute
+# email sending rate per user and minute
 max_user_send_per_minute = 60
+
+# per-user max burst size for sending rate limiting (GCRA bucket capacity)
+max_user_send_burst_size = 10
 
 # maximum mailbox size of a chatmail address
 max_mailbox_size = 500M

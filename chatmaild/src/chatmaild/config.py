@@ -20,7 +20,8 @@ class Config:
     def __init__(self, inipath, params):
         self._inipath = inipath
         self.mail_domain = params["mail_domain"]
-        self.max_user_send_per_minute = int(params["max_user_send_per_minute"])
+        self.max_user_send_per_minute = int(params.get("max_user_send_per_minute", 60))
+        self.max_user_send_burst_size = int(params.get("max_user_send_burst_size", 10))
         self.max_mailbox_size = params["max_mailbox_size"]
         self.max_message_size = int(params.get("max_message_size", "31457280"))
         self.delete_mails_after = params["delete_mails_after"]
