@@ -60,7 +60,9 @@ alias_database = hash:/etc/aliases
 # Postfix does not deliver mail for any domain by itself.
 # Primary domain is listed in `virtual_mailbox_domains` instead
 # and handed over to Dovecot.
-mydestination =
+mydestination = {{ config.mail_domain }}
+local_transport = lmtp:unix:private/dovecot-lmtp
+local_recipient_maps =
 
 relayhost = 
 mynetworks = 127.0.0.0/8 [::ffff:127.0.0.0]/104 [::1]/128
@@ -74,8 +76,6 @@ inet_protocols = ipv4
 inet_protocols = all
 {% endif %}
 
-virtual_transport = lmtp:unix:private/dovecot-lmtp
-virtual_mailbox_domains = {{ config.mail_domain }}
 lmtp_header_checks = regexp:/etc/postfix/lmtp_header_cleanup
 
 mua_client_restrictions = permit_sasl_authenticated, reject
