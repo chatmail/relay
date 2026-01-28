@@ -20,7 +20,8 @@ pub struct OutgoingBeforeQueueHandler {
 
 impl OutgoingBeforeQueueHandler {
     pub fn new(config: Config) -> Self {
-        let quota = Quota::per_minute(config.max_user_send_per_minute);
+        let quota = Quota::per_minute(config.max_user_send_per_minute)
+            .allow_burst(config.max_user_send_burst_size);
         Self {
             config: Arc::new(config),
             send_rate_limiter: RateLimiter::keyed(quota),
