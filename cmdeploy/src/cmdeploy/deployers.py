@@ -25,11 +25,11 @@ from .basedeploy import (
     configure_remote_units,
     get_resource,
 )
+from .dkim_milter.deployer import DkimMilterDeployer
 from .dovecot.deployer import DovecotDeployer
 from .filtermail.deployer import FiltermailDeployer
 from .mtail.deployer import MtailDeployer
 from .nginx.deployer import NginxDeployer
-from .opendkim.deployer import OpendkimDeployer
 from .postfix.deployer import PostfixDeployer
 from .www import build_webpages, find_merge_conflict, get_paths
 
@@ -572,7 +572,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool, website_only: bool) -
         WebsiteDeployer(config),
         ChatmailVenvDeployer(config),
         MtastsDeployer(),
-        OpendkimDeployer(mail_domain),
+        DkimMilterDeployer(mail_domain),
         # Dovecot should be started before Postfix
         # because it creates authentication socket
         # required by Postfix.
