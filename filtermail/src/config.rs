@@ -17,7 +17,10 @@ pub struct Config {
     pub postfix_reinject_port_incoming: u16,
     #[serde(default = "Config::default_max_message_size")]
     pub max_message_size: usize,
+    #[serde(default = "Config::default_max_user_send_per_minute")]
     pub max_user_send_per_minute: NonZeroU32,
+    #[serde(default = "Config::default_max_user_send_burst_size")]
+    pub max_user_send_burst_size: NonZeroU32,
     #[serde(default, deserialize_with = "deserialize_sequence")]
     pub passthrough_senders: Vec<String>,
     #[serde(default, deserialize_with = "deserialize_sequence")]
@@ -93,5 +96,11 @@ impl Config {
     }
     const fn default_max_message_size() -> usize {
         31457280
+    }
+    const fn default_max_user_send_per_minute() -> NonZeroU32 {
+        NonZeroU32::new(60).expect("60 != 0")
+    }
+    const fn default_max_user_send_burst_size() -> NonZeroU32 {
+        NonZeroU32::new(10).expect("10 != 0")
     }
 }
