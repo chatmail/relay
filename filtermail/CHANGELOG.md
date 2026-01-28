@@ -1,3 +1,16 @@
+## 0.2.0 - 2026-01-28
+
+### Features
+
+- Configurable rate limiter max burst size (#28)
+
+### Performance
+
+- Disable Nagle's algorithm and do own buffering on server connections
+
+### Refactor
+
+- Remove Mutex around rate limiter
 ## 0.1.2 - 2026-01-22
 
 ### Bug Fixes
