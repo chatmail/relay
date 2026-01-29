@@ -47,11 +47,12 @@ steps. Please substitute it with your own domain.
        www.chat.example.org. 3600 IN CNAME chat.example.org.
        mta-sts.chat.example.org. 3600 IN CNAME chat.example.org.
 
-2. On your local PC, clone the repository and bootstrap the Python
+2. On your local PC, install required packages, clone the repository and bootstrap the Python
    virtualenv.
 
    ::
 
+       sudo apt install git python3-dev gcc python3.11-venv
        git clone https://github.com/chatmail/relay
        cd relay
        scripts/initenv.sh
