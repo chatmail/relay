@@ -24,7 +24,7 @@ def iter_mailboxes(basedir, maxnum):
 
     for name in os_listdir_if_exists(basedir)[:maxnum]:
         if "@" in name:
-            yield MailboxStat(basedir + "/" + name)
+            yield MailboxStat(basedir + "/" + name, name)
 
 
 def get_file_entry(path):
@@ -49,8 +49,9 @@ def os_listdir_if_exists(path):
 class MailboxStat:
     last_login = None
 
-    def __init__(self, basedir):
+    def __init__(self, basedir, name):
         self.basedir = str(basedir)
+        self.name = name
         self.messages = []
         self.extrafiles = []
         self.scandir(self.basedir)
@@ -90,11 +91,13 @@ class Expiry:
         self.all_files = 0
         self.start = time.time()
 
-    def remove_mailbox(self, mboxdir):
+    def remove_mailbox(self, mboxdir, name):
         if self.verbose:
             print_info(f"removing {mboxdir}")
         if not self.dry:
             shutil.rmtree(mboxdir)
+            if self.config.tmpfs_index:
+                shutil.rmtree("/dev/shm/" + name)
         self.del_mboxes += 1
 
     def remove_file(self, path, mtime=None):
@@ -121,7 +124,7 @@ class Expiry:
         self.all_mboxes += 1
         changed = False
         if mbox.last_login and mbox.last_login < cutoff_without_login:
-            self.remove_mailbox(mbox.basedir)
+            self.remove_mailbox(mbox.basedir, mbox.name)
             return
 
         mboxname = os.path.basename(mbox.basedir)

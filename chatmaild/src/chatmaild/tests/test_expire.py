@@ -43,20 +43,22 @@ def create_new_messages(basedir, relpaths, size=1000, days=0):
 
 @pytest.fixture
 def mbox1(example_config):
-    mboxdir = example_config.mailboxes_dir.joinpath("mailbox1@example.org")
+    addr = "mailbox1@example.org"
+    mboxdir = example_config.mailboxes_dir.joinpath(addr)
     mboxdir.mkdir()
     fill_mbox(mboxdir)
-    return MailboxStat(mboxdir)
+    return MailboxStat(mboxdir, addr)
 
 
 def test_deltachat_folder(example_config):
     """Test old setups that might have a .DeltaChat folder where messages also need to get removed."""
-    mboxdir = example_config.mailboxes_dir.joinpath("mailbox1@example.org")
+    addr = "mailbox1@example.org"
+    mboxdir = example_config.mailboxes_dir.joinpath(addr)
     mboxdir.mkdir()
     mbox2dir = mboxdir.joinpath(".DeltaChat")
     mbox2dir.mkdir()
     fill_mbox(mbox2dir)
-    mb = MailboxStat(mboxdir)
+    mb = MailboxStat(mboxdir, addr)
     assert len(mb.messages) == 2
 
 
@@ -86,13 +88,13 @@ def test_stats_mailbox(mbox1):
 
     create_new_messages(mbox1.basedir, ["large-extra"], size=1000)
     create_new_messages(mbox1.basedir, ["index-something"], size=3)
-    mbox2 = MailboxStat(mbox1.basedir)
+    mbox2 = MailboxStat(mbox1.basedir, mbox1.name)
     assert len(mbox2.extrafiles) == 5
     assert mbox2.extrafiles[0].size == 1000
 
     # cope well with mailbox dirs that have no password (for whatever reason)
     Path(mbox1.basedir).joinpath("password").unlink()
-    mbox3 = MailboxStat(mbox1.basedir)
+    mbox3 = MailboxStat(mbox1.basedir, mbox1.name)
     assert mbox3.last_login is None
 
 
