@@ -74,12 +74,6 @@ mail_location = maildir:{{ config.mailboxes_dir }}/%u:INDEX=/dev/shm/%u
 mail_location = maildir:{{ config.mailboxes_dir }}/%u
 {% endif %}
 
-# index/cache files are not very useful for chatmail relay operations 
-# but it's not clear how to disable them completely. 
-# According to https://doc.dovecot.org/2.3/settings/advanced/#core_setting-mail_cache_max_size
-# if the cache file becomes larger than the specified size, it is truncated by dovecot 
-mail_cache_max_size = 500K
-
 namespace inbox {
   inbox = yes
 

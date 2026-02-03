@@ -47,7 +47,7 @@ def mbox1(example_config):
     mboxdir = example_config.mailboxes_dir.joinpath(addr)
     mboxdir.mkdir()
     fill_mbox(mboxdir)
-    return MailboxStat(mboxdir, addr)
+    return MailboxStat(mboxdir, addr, False)
 
 
 def test_deltachat_folder(example_config):
@@ -58,7 +58,7 @@ def test_deltachat_folder(example_config):
     mbox2dir = mboxdir.joinpath(".DeltaChat")
     mbox2dir.mkdir()
     fill_mbox(mbox2dir)
-    mb = MailboxStat(mboxdir, addr)
+    mb = MailboxStat(mboxdir, addr, False)
     assert len(mb.messages) == 2
 
 
@@ -71,7 +71,11 @@ def test_filentry_ordering(tmp_path):
 
 
 def test_no_mailbxoes(tmp_path, capsys):
-    assert [] == list(iter_mailboxes(str(tmp_path.joinpath("notexists")), maxnum=10))
+    assert [] == list(
+        iter_mailboxes(
+            str(tmp_path.joinpath("notexists")), maxnum=10, tmpfs_index=False
+        )
+    )
     out, err = capsys.readouterr()
     assert "no mailboxes" in err
 
@@ -88,13 +92,13 @@ def test_stats_mailbox(mbox1):
 
     create_new_messages(mbox1.basedir, ["large-extra"], size=1000)
     create_new_messages(mbox1.basedir, ["index-something"], size=3)
-    mbox2 = MailboxStat(mbox1.basedir, mbox1.name)
+    mbox2 = MailboxStat(mbox1.basedir, mbox1.name, False)
     assert len(mbox2.extrafiles) == 5
     assert mbox2.extrafiles[0].size == 1000
 
     # cope well with mailbox dirs that have no password (for whatever reason)
     Path(mbox1.basedir).joinpath("password").unlink()
-    mbox3 = MailboxStat(mbox1.basedir, mbox1.name)
+    mbox3 = MailboxStat(mbox1.basedir, mbox1.name, False)
     assert mbox3.last_login is None
 
 
