@@ -1,2 +1,4 @@
-/^DKIM-Signature:/            IGNORE
-/^Authentication-Results:/            IGNORE
+/^From:/            DUNNO
+/^Message-Id:/      DUNNO
+/^Chat-Is-Post-Message:/      DUNNO
+/.*/                IGNORE
