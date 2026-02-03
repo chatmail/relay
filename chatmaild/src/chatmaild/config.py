@@ -56,6 +56,7 @@ class Config:
         self.privacy_mail = params.get("privacy_mail")
         self.privacy_pdo = params.get("privacy_pdo")
         self.privacy_supervisor = params.get("privacy_supervisor")
+        self.tmpfs_index = params.get("tmpfs_index", "false").lower() == "true"
 
         # deprecated option
         mbdir = params.get("mailboxes_dir", f"/home/vmail/mail/{self.mail_domain}")

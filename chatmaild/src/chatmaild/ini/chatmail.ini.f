@@ -48,6 +48,9 @@ passthrough_senders =
 # (space-separated, item may start with "@" to whitelist whole recipient domains)
 passthrough_recipients =
 
+# store index files in tmpfs (good for disk size and I/O, bad for ram)
+tmpfs_index = false
+
 # path to www directory - documented here: https://chatmail.at/doc/relay/getting_started.html#custom-web-pages
 #www_folder = www
 
