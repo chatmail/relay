@@ -112,10 +112,10 @@ def get_default_config_content(mail_domain, **overrides):
 
     if mail_domain.endswith(".testrun.org"):
         override_inipath = inidir.joinpath("override-testrun.ini")
-        privacy = iniconfig.IniConfig(override_inipath)["privacy"]
+        params = iniconfig.IniConfig(override_inipath)["params"]
         lines = []
         for line in content.split("\n"):
-            for key, value in privacy.items():
+            for key, value in params.items():
                 value_lines = value.format(mail_domain=mail_domain).strip().split("\n")
                 if not line.startswith(f"{key} =") or not value_lines:
                     continue
