@@ -56,6 +56,7 @@ class Config:
         self.privacy_mail = params.get("privacy_mail")
         self.privacy_pdo = params.get("privacy_pdo")
         self.privacy_supervisor = params.get("privacy_supervisor")
+        self.tmpfs_index = params.get("tmpfs_index", "false").lower() == "true"
 
         # deprecated option
         mbdir = params.get("mailboxes_dir", f"/home/vmail/mail/{self.mail_domain}")
@@ -111,10 +112,10 @@ def get_default_config_content(mail_domain, **overrides):
 
     if mail_domain.endswith(".testrun.org"):
         override_inipath = inidir.joinpath("override-testrun.ini")
-        privacy = iniconfig.IniConfig(override_inipath)["privacy"]
+        params = iniconfig.IniConfig(override_inipath)["params"]
         lines = []
         for line in content.split("\n"):
-            for key, value in privacy.items():
+            for key, value in params.items():
                 value_lines = value.format(mail_domain=mail_domain).strip().split("\n")
                 if not line.startswith(f"{key} =") or not value_lines:
                     continue

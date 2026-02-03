@@ -159,7 +159,7 @@ def main(args=None):
 
     maxnum = int(args.maxnum) if args.maxnum else None
     rep = Report(now=now, min_login_age=int(args.min_login_age), mdir=args.mdir)
-    for mbox in iter_mailboxes(str(config.mailboxes_dir), maxnum=maxnum):
+    for mbox in iter_mailboxes(str(config.mailboxes_dir), maxnum, config.tmpfs_index):
         rep.process_mailbox_stat(mbox)
     rep.dump_summary()
 
