@@ -10,11 +10,10 @@ use async_trait::async_trait;
 use governor::{DefaultKeyedRateLimiter, Quota, RateLimiter};
 use lettre::{AsyncSmtpTransport, AsyncTransport, Tokio1Executor};
 use mailparse::{MailHeaderMap, parse_mail};
-use std::sync::Arc;
 
 /// Handler for outgoing SMTP messages.
 pub struct OutgoingBeforeQueueHandler {
-    config: Arc<Config>,
+    config: Config,
     send_rate_limiter: DefaultKeyedRateLimiter<String>,
 }
 
@@ -23,7 +22,7 @@ impl OutgoingBeforeQueueHandler {
         let quota = Quota::per_minute(config.max_user_send_per_minute)
             .allow_burst(config.max_user_send_burst_size);
         Self {
-            config: Arc::new(config),
+            config,
             send_rate_limiter: RateLimiter::keyed(quota),
         }
     }

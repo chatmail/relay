@@ -7,21 +7,18 @@ use crate::smtp_server::SmtpHandler;
 use async_trait::async_trait;
 use lettre::{AsyncSmtpTransport, AsyncTransport, Tokio1Executor};
 use mailparse::{MailHeaderMap, parse_mail};
-use std::sync::Arc;
 
 pub use crate::smtp_server::Envelope;
 use crate::utils::{extract_address, format_smtp_error};
 
 /// Handler for incoming SMTP messages.
 pub struct IncomingBeforeQueueHandler {
-    config: Arc<Config>,
+    config: Config,
 }
 
 impl IncomingBeforeQueueHandler {
     pub fn new(config: Config) -> Self {
-        Self {
-            config: Arc::new(config),
-        }
+        Self { config }
     }
 }
 
