@@ -5,11 +5,10 @@ use crate::config::Config;
 use crate::message::{check_encrypted, is_securejoin};
 use crate::smtp_server::SmtpHandler;
 use async_trait::async_trait;
-use lettre::{AsyncSmtpTransport, AsyncTransport, Tokio1Executor};
 use mailparse::{MailHeaderMap, parse_mail};
 
 pub use crate::smtp_server::Envelope;
-use crate::utils::{extract_address, format_smtp_error};
+use crate::utils::extract_address;
 
 /// Handler for incoming SMTP messages.
 pub struct IncomingBeforeQueueHandler {
@@ -80,30 +79,12 @@ impl SmtpHandler for IncomingBeforeQueueHandler {
     async fn reinject_mail(&self, envelope: &Envelope) -> Result<(), String> {
         log::debug!("Re-injecting the mail that passed checks");
 
-        let mailer = AsyncSmtpTransport::<Tokio1Executor>::builder_dangerous("localhost")
-            .port(self.config.postfix_reinject_port_incoming)
-            .build();
-
-        let envelope_data = lettre::address::Envelope::new(
-            Some(
-                envelope
-                    .mail_from
-                    .parse()
-                    .map_err(|e| format!("Invalid from address: {}", e))?,
-            ),
-            envelope
-                .rcpt_to
-                .iter()
-                .map(|addr| addr.parse())
-                .collect::<Result<Vec<_>, _>>()
-                .map_err(|e| format!("Invalid to address: {}", e))?,
-        )
-        .map_err(|e| format!("Failed to create envelope: {}", e))?;
-
-        mailer
-            .send_raw(&envelope_data, &envelope.data)
+        crate::smtp_client::send(self.config.postfix_reinject_port_incoming, envelope)
             .await
-            .map_err(format_smtp_error)?;
+            .map_err(|e| {
+                log::warn!("Failed to re-inject mail: {}", e);
+                e.smtp_response()
+            })?;
 
         Ok(())
     }

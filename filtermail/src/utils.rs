@@ -1,5 +1,4 @@
 use mailparse::MailAddr;
-use std::error::Error;
 
 /// Extracts the first email address found in SMTP command or email header.
 ///
@@ -25,29 +24,6 @@ pub fn extract_address(input: &str) -> Option<String> {
             Some(MailAddr::Group(group)) => group.addrs.first().map(|single| single.addr.clone()),
             None => None,
         })
-}
-
-/// Formats SMTP error to be able to send it back to postfix.
-pub fn format_smtp_error(error: lettre::transport::smtp::Error) -> String {
-    if let Some(code) = error.status() {
-        format!(
-            "{} {}",
-            code,
-            error
-                .source()
-                .map(ToString::to_string)
-                .unwrap_or("Unknown error".to_string())
-        )
-    } else {
-        // Default to 451, most probably means some internal service error (e.g. milter)
-        format!(
-            "451 {}",
-            error
-                .source()
-                .map(ToString::to_string)
-                .unwrap_or("Unknown error".to_string())
-        )
-    }
 }
 
 #[cfg(test)]
