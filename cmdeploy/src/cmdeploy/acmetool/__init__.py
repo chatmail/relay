@@ -67,7 +67,7 @@ class AcmetoolDeployer(Deployer):
         )
         files.template(
             src=importlib.resources.files(__package__).joinpath("desired.yaml.j2"),
-            dest=f"/var/lib/acme/desired/{self.domains[0]}", # 0 is mailhost TLD
+            dest=f"/var/lib/acme/desired/{self.domains[0]}",  # 0 is mailhost TLD
             user="root",
             group="root",
             mode="644",
