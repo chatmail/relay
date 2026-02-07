@@ -120,6 +120,60 @@ def test_handle_dovecot_protocol_iterate(gencreds, example_config):
     assert not lines[2]
 
 
+def test_invalid_localpart_characters(make_config):
+    """Test that is_allowed_to_create rejects localparts with invalid characters."""
+    config = make_config("chat.example.org", {"username_min_length": "3"})
+    password = "zequ0Aimuchoodaechik"
+    domain = config.mail_domain
+
+    # valid localparts
+    assert is_allowed_to_create(config, f"abc123@{domain}", password)
+    assert is_allowed_to_create(config, f"a.b-c_d@{domain}", password)
+
+    # uppercase rejected
+    assert not is_allowed_to_create(config, f"Abc123@{domain}", password)
+    assert not is_allowed_to_create(config, f"ABCDEFG@{domain}", password)
+
+    # spaces and special chars rejected
+    assert not is_allowed_to_create(config, f"a b cde@{domain}", password)
+    assert not is_allowed_to_create(config, f"abc+def@{domain}", password)
+    assert not is_allowed_to_create(config, f"abc!def@{domain}", password)
+    assert not is_allowed_to_create(config, f"ab@cdef@{domain}", password)
+    assert not is_allowed_to_create(config, f"abc/def@{domain}", password)
+    assert not is_allowed_to_create(config, f"abc\\def@{domain}", password)
+
+
+def test_concurrent_creation_same_account(dictproxy):
+    """Test that concurrent creation of the same account doesn't corrupt password."""
+    addr = "racetest1@chat.example.org"
+    password = "zequ0Aimuchoodaechik"
+    num_threads = 10
+    results = queue.Queue()
+
+    def create():
+        try:
+            res = dictproxy.lookup_passdb(addr, password)
+            results.put(("ok", res))
+        except Exception:
+            results.put(("err", traceback.format_exc()))
+
+    threads = [threading.Thread(target=create, daemon=True) for _ in range(num_threads)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(timeout=10)
+
+    passwords_seen = set()
+    for _ in range(num_threads):
+        status, res = results.get()
+        if status == "err":
+            pytest.fail(f"concurrent creation failed\n{res}")
+        passwords_seen.add(res["password"])
+
+    # all threads must see the same password hash
+    assert len(passwords_seen) == 1
+
+
 def test_50_concurrent_lookups_different_accounts(gencreds, dictproxy):
     num_threads = 50
     req_per_thread = 5
