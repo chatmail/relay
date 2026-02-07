@@ -264,6 +264,9 @@ class WebsiteDeployer(Deployer):
             # if www_folder is a hugo page, build it
             if build_dir:
                 www_path = build_webpages(src_dir, build_dir, self.config)
+                if www_path is None:
+                    logger.warning("Web page build failed, skipping website deployment")
+                    return
             # if it is not a hugo page, upload it as is
             files.rsync(
                 f"{www_path}/", "/var/www/html", flags=["-avz", "--chown=www-data"]
