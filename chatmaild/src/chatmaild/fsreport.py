@@ -68,7 +68,7 @@ class Report:
             for size in self.message_buckets:
                 for msg in mailbox.messages:
                     if msg.size >= size:
-                        if self.mdir and not msg.relpath.startswith(self.mdir):
+                        if self.mdir and f"/{self.mdir}/" not in msg.path:
                             continue
                         self.message_buckets[size] += msg.size
 
