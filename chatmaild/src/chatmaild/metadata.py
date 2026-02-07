@@ -79,12 +79,13 @@ class Metadata:
 
 
 class MetadataDictProxy(DictProxy):
-    def __init__(self, notifier, metadata, iroh_relay=None, turn_hostname=None):
+    def __init__(self, notifier, metadata, iroh_relay=None, turn_hostname=None, turn_socket_path=None):
         super().__init__()
         self.notifier = notifier
         self.metadata = metadata
         self.iroh_relay = iroh_relay
         self.turn_hostname = turn_hostname
+        self.turn_socket_path = turn_socket_path
 
     def handle_lookup(self, parts):
         # Lpriv/43f5f508a7ea0366dff30200c15250e3/devicetoken\tlkj123poi@c2.testrun.org
@@ -101,7 +102,7 @@ class MetadataDictProxy(DictProxy):
                             return f"O{self.iroh_relay}\n"
                         case "turn":
                             try:
-                                res = turn_credentials()
+                                res = turn_credentials(self.turn_socket_path)
                             except Exception:
                                 logging.exception("failed to get TURN credentials")
                                 return "N\n"
@@ -135,6 +136,7 @@ def main():
     config = read_config(config_path)
     iroh_relay = config.iroh_relay
     mail_domain = config.mail_domain
+    socket_path = config.turn_socket_path
 
     vmail_dir = config.mailboxes_dir
     if not vmail_dir.exists():
@@ -152,6 +154,7 @@ def main():
         metadata=metadata,
         iroh_relay=iroh_relay,
         turn_hostname=mail_domain,
+        turn_socket_path=socket_path,
     )
 
     dictproxy.serve_forever_from_socket(socket)
