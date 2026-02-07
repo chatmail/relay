@@ -51,7 +51,7 @@ http {
 	include /etc/nginx/mime.types;
 	default_type application/octet-stream;
 
-	ssl_protocols TLSv1 TLSv1.1 TLSv1.2 TLSv1.3;
+	ssl_protocols TLSv1.2 TLSv1.3;
 	ssl_prefer_server_ciphers on;
 	ssl_certificate /var/lib/acme/live/{{ config.domain_name }}/fullchain;
 	ssl_certificate_key /var/lib/acme/live/{{ config.domain_name }}/privkey;
