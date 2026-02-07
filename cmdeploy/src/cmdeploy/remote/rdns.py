@@ -53,7 +53,7 @@ def get_dkim_entry(mail_domain, pre_command, dkim_selector):
             print=log_progress,
         )
     except CalledProcessError:
-        return
+        return None, None
     dkim_value_raw = f"v=DKIM1;k=rsa;p={dkim_pubkey};s=email;t=s"
     dkim_value = '" "'.join(re.findall(".{1,255}", dkim_value_raw))
     web_dkim_value = "".join(re.findall(".{1,255}", dkim_value_raw))
