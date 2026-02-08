@@ -3,7 +3,6 @@
 """CGI script for creating new accounts."""
 
 import json
-import random
 import secrets
 import string
 
@@ -15,7 +14,9 @@ ALPHANUMERIC_PUNCT = string.ascii_letters + string.digits + string.punctuation
 
 
 def create_newemail_dict(config: Config):
-    user = "".join(random.choices(ALPHANUMERIC, k=config.username_max_length))
+    user = "".join(
+        secrets.choice(ALPHANUMERIC) for _ in range(config.username_max_length)
+    )
     password = "".join(
         secrets.choice(ALPHANUMERIC_PUNCT)
         for _ in range(config.password_min_length + 3)

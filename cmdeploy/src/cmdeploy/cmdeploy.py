@@ -113,24 +113,15 @@ def run_cmd(args, out):
         return 1
 
     try:
-        retcode = out.check_call(cmd, env=env)
+        out.check_call(cmd, env=env)
         if args.website_only:
-            if retcode == 0:
-                out.green("Website deployment completed.")
-            else:
-                out.red("Website deployment failed.")
-        elif retcode == 0:
-            out.green("Deploy completed, call `cmdeploy dns` next.")
-        elif not remote_data["acme_account_url"]:
-            out.red("Deploy completed but letsencrypt not configured")
-            out.red("Run 'cmdeploy run' again")
-            retcode = 0
+            out.green("Website deployment completed.")
         else:
-            out.red("Deploy failed")
+            out.green("Deploy completed, call `cmdeploy dns` next.")
+        return 0
     except subprocess.CalledProcessError:
         out.red("Deploy failed")
-        retcode = 1
-    return retcode
+        return 1
 
 
 def dns_cmd_options(parser):

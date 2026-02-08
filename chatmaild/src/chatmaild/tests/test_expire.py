@@ -112,6 +112,43 @@ def test_report(mbox1, example_config):
     report_main(args)
 
 
+def test_report_mdir_filters_by_path(mbox1, example_config):
+    """Test that Report with mdir='cur' only counts messages in cur/ subdirectory."""
+    from chatmaild.fsreport import Report
+
+    now = datetime.utcnow().timestamp()
+
+    # Set password mtime to old enough so min_login_age check passes
+    password = Path(mbox1.basedir).joinpath("password")
+    old_time = now - 86400 * 10  # 10 days ago
+    os.utime(password, (old_time, old_time))
+
+    # Reload mailbox with updated mtime
+    from chatmaild.expire import MailboxStat
+
+    mbox = MailboxStat(mbox1.basedir)
+
+    # Report without mdir — should count all messages
+    rep_all = Report(now=now, min_login_age=1, mdir=None)
+    rep_all.process_mailbox_stat(mbox)
+    total_all = rep_all.message_buckets[0]
+
+    # Report with mdir='cur' — should only count cur/ messages
+    rep_cur = Report(now=now, min_login_age=1, mdir="cur")
+    rep_cur.process_mailbox_stat(mbox)
+    total_cur = rep_cur.message_buckets[0]
+
+    # Report with mdir='new' — should only count new/ messages
+    rep_new = Report(now=now, min_login_age=1, mdir="new")
+    rep_new.process_mailbox_stat(mbox)
+    total_new = rep_new.message_buckets[0]
+
+    # cur has 500-byte msg, new has 600-byte msg (from fill_mbox)
+    assert total_cur == 500
+    assert total_new == 600
+    assert total_all == 500 + 600
+
+
 def test_expiry_cli_basic(example_config, mbox1):
     args = (str(example_config._inipath),)
     expiry_main(args)

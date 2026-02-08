@@ -1,7 +1,10 @@
 import json
 import logging
 import os
+import re
 import sys
+
+import filelock
 
 try:
     import crypt_r
@@ -13,6 +16,7 @@ from .dictproxy import DictProxy
 from .migrate_db import migrate_from_db_to_maildir
 
 NOCREATE_FILE = "/etc/chatmail-nocreate"
+VALID_LOCALPART_RE = re.compile(r"^[a-z0-9._-]+$")
 
 
 def encrypt_password(password: str):
@@ -50,6 +54,10 @@ def is_allowed_to_create(config: Config, user, cleartext_password) -> bool:
             config.username_min_length,
             config.username_max_length,
         )
+        return False
+
+    if not VALID_LOCALPART_RE.match(localpart):
+        logging.warning("localpart %r contains invalid characters", localpart)
         return False
 
     return True
@@ -140,8 +148,17 @@ class AuthDictProxy(DictProxy):
         if not is_allowed_to_create(self.config, addr, cleartext_password):
             return
 
-        user.set_password(encrypt_password(cleartext_password))
-        print(f"Created address: {addr}", file=sys.stderr)
+        lock = filelock.FileLock(str(user.password_path) + ".lock", timeout=5)
+        try:
+            with lock:
+                userdata = user.get_userdb_dict()
+                if userdata:
+                    return userdata
+                user.set_password(encrypt_password(cleartext_password))
+                print(f"Created address: {addr}", file=sys.stderr)
+        except filelock.Timeout:
+            logging.warning("lock timeout creating %s, skipping", addr)
+            return
         return user.get_userdb_dict()
 
 

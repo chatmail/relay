@@ -40,5 +40,5 @@ def dovecot_recalc_quota(user):
     #
     for line in output.split("\n"):
         parts = line.split()
-        if parts[2] == "STORAGE":
+        if len(parts) >= 6 and parts[2] == "STORAGE":
             return dict(value=int(parts[3]), limit=int(parts[4]), percent=int(parts[5]))

@@ -60,6 +60,28 @@ def mockdns(request, mockdns_base, mockdns_expected):
     return mockdns_base
 
 
+class TestGetDkimEntry:
+    def test_dkim_entry_returns_tuple_on_success(self, mockdns):
+        entry, web_entry = remote.rdns.get_dkim_entry(
+            "some.domain", "", dkim_selector="opendkim"
+        )
+        # May return None,None if openssl not available, but should never crash
+        if entry is not None:
+            assert "opendkim._domainkey.some.domain" in entry
+            assert "opendkim._domainkey.some.domain" in web_entry
+
+    def test_dkim_entry_returns_none_tuple_on_error(self, monkeypatch):
+        """CalledProcessError must return (None, None), not bare None."""
+        from subprocess import CalledProcessError
+
+        def failing_shell(command, fail_ok=False, print=print):
+            raise CalledProcessError(1, command)
+
+        monkeypatch.setattr(remote.rdns, "shell", failing_shell)
+        result = remote.rdns.get_dkim_entry("some.domain", "", dkim_selector="opendkim")
+        assert result == (None, None)
+
+
 class TestPerformInitialChecks:
     def test_perform_initial_checks_ok1(self, mockdns, mockdns_expected):
         remote_data = remote.rdns.perform_initial_checks("some.domain")

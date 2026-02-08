@@ -83,7 +83,9 @@ class PostfixDeployer(Deployer):
             server.shell(
                 name="Validate postfix configuration",
                 # Extract stderr and quit with error if non-zero
-                commands=["""bash -c 'w=$(postconf 2>&1 >/dev/null); [[ -z "$w" ]] || { echo "$w"; false; }'"""],
+                commands=[
+                    """bash -c 'w=$(postconf 2>&1 >/dev/null); [[ -z "$w" ]] || { echo "$w"; false; }'"""
+                ],
             )
         self.need_restart = need_restart
 

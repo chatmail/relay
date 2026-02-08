@@ -101,7 +101,11 @@ class MetadataDictProxy(DictProxy):
                 # Handle `GETMETADATA "" /shared/vendor/deltachat/irohrelay`
                 return f"O{self.iroh_relay}\n"
             elif keyname == "vendor/vendor.dovecot/pvt/server/vendor/deltachat/turn":
-                res = turn_credentials()
+                try:
+                    res = turn_credentials()
+                except Exception:
+                    logging.exception("failed to get TURN credentials")
+                    return "N\n"
                 port = 3478
                 return f"O{self.turn_hostname}:{port}:{res}\n"
 

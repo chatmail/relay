@@ -314,6 +314,51 @@ def test_persistent_queue_items(tmp_path, testaddr, token):
     assert not queue_item < item2 and not item2 < queue_item
 
 
+def test_turn_credentials_exception_returns_N(notifier, metadata, monkeypatch):
+    """Test that turn_credentials() failure returns N\\n instead of crashing."""
+    import chatmaild.metadata
+
+    dictproxy = MetadataDictProxy(
+        notifier=notifier,
+        metadata=metadata,
+        turn_hostname="turn.example.org",
+    )
+
+    def mock_turn_credentials():
+        raise ConnectionRefusedError("socket not available")
+
+    monkeypatch.setattr(chatmaild.metadata, "turn_credentials", mock_turn_credentials)
+
+    transactions = {}
+    res = dictproxy.handle_dovecot_request(
+        "Lshared/0123/vendor/vendor.dovecot/pvt/server/vendor/deltachat/turn"
+        "\tuser@example.org",
+        transactions,
+    )
+    assert res == "N\n"
+
+
+def test_turn_credentials_success(notifier, metadata, monkeypatch):
+    """Test that valid turn_credentials() returns TURN URI."""
+    import chatmaild.metadata
+
+    dictproxy = MetadataDictProxy(
+        notifier=notifier,
+        metadata=metadata,
+        turn_hostname="turn.example.org",
+    )
+
+    monkeypatch.setattr(chatmaild.metadata, "turn_credentials", lambda: "user:pass")
+
+    transactions = {}
+    res = dictproxy.handle_dovecot_request(
+        "Lshared/0123/vendor/vendor.dovecot/pvt/server/vendor/deltachat/turn"
+        "\tuser@example.org",
+        transactions,
+    )
+    assert res == "Oturn.example.org:3478:user:pass\n"
+
+
 def test_iroh_relay(dictproxy):
     rfile = io.BytesIO(
         b"\n".join(
