@@ -149,12 +149,16 @@ class AuthDictProxy(DictProxy):
             return
 
         lock = filelock.FileLock(str(user.password_path) + ".lock", timeout=5)
-        with lock:
-            userdata = user.get_userdb_dict()
-            if userdata:
-                return userdata
-            user.set_password(encrypt_password(cleartext_password))
-            print(f"Created address: {addr}", file=sys.stderr)
+        try:
+            with lock:
+                userdata = user.get_userdb_dict()
+                if userdata:
+                    return userdata
+                user.set_password(encrypt_password(cleartext_password))
+                print(f"Created address: {addr}", file=sys.stderr)
+        except filelock.Timeout:
+            logging.warning("lock timeout creating %s, skipping", addr)
+            return
         return user.get_userdb_dict()
 
 

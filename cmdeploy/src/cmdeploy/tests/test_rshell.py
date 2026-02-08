@@ -20,10 +20,8 @@ def test_dovecot_recalc_quota_normal_output():
 
 def test_dovecot_recalc_quota_empty_output():
     """Empty doveadm output (trailing newline) must not IndexError."""
-    call_count = [0]
 
     def mock_shell(cmd):
-        call_count[0] += 1
         if "recalc" in cmd:
             return ""
         # quota get returns only empty lines
@@ -37,10 +35,8 @@ def test_dovecot_recalc_quota_empty_output():
 
 def test_dovecot_recalc_quota_malformed_output():
     """Malformed output with too few columns must not crash."""
-    call_count = [0]
 
     def mock_shell(cmd):
-        call_count[0] += 1
         if "recalc" in cmd:
             return ""
         # partial line, fewer than 6 parts
@@ -54,10 +50,8 @@ def test_dovecot_recalc_quota_malformed_output():
 
 def test_dovecot_recalc_quota_header_only():
     """Only header line, no data rows."""
-    call_count = [0]
 
     def mock_shell(cmd):
-        call_count[0] += 1
         if "recalc" in cmd:
             return ""
         return "Quota name Type    Value  Limit  %\n"
