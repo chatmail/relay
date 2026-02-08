@@ -80,7 +80,6 @@ class TestGetDkimEntry:
         monkeypatch.setattr(remote.rdns, "shell", failing_shell)
         result = remote.rdns.get_dkim_entry("some.domain", "", dkim_selector="opendkim")
         assert result == (None, None)
-        assert result[0] is None and result[1] is None
 
 
 class TestPerformInitialChecks:
