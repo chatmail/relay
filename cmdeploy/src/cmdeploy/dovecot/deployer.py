@@ -22,7 +22,7 @@ class DovecotDeployer(Deployer):
 
     def install(self):
         arch = host.get_fact(Arch)
-        if not "dovecot.service" in host.get_fact(SystemdEnabled):
+        if not host.get_fact(SystemdEnabled).get("dovecot.service"):
             _install_dovecot_package("core", arch)
             _install_dovecot_package("imapd", arch)
             _install_dovecot_package("lmtpd", arch)
