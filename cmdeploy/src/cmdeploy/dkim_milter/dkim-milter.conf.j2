@@ -1,0 +1,30 @@
+mode = {{ config.mode }}
+
+{% if config.mode == "verify" %}
+# DKIM milter will skip verification for trusted sources,
+# which in our case is everything, since we run DKIM milter on a reinjection port,
+# and all connections are local.
+# We force verification for local connections by not trusting anyone.
+trusted_networks =
+{% endif %}
+
+log_destination = syslog
+log_level = info
+
+canonicalization = relaxed/simple
+
+lookup_timeout = 60s
+
+signing_keys = /etc/dkim-milter/signing-keys
+signing_senders = /etc/dkim-milter/signing-senders
+
+# Signing
+sign_headers = default; autocrypt:content-type
+oversign_headers = signed-extended
+
+# Verification
+required_signed_headers = From*
+forbid_unsigned_content = yes
+reject_failures = missing, no-pass, author-mismatch
+
+socket = unix:/var/spool/postfix/dkim-milter/{{ config.socket_name }}

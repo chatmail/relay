@@ -52,7 +52,7 @@ The deployed system components of a chatmail relay are:
 -  `acmetool <https://hlandau.github.io/acmetool/>`_ manages TLS
    certificates for Dovecot, Postfix, and Nginx
 
--  `OpenDKIM <http://www.opendkim.org/>`_ for signing messages with
+-  `DKIM Milter <https://github.com/chatmail/dkim-milter>`_ for signing messages with
    DKIM and rejecting inbound messages without DKIM
 
 -  `mtail <https://google.github.io/mtail/>`_ for collecting anonymized
@@ -268,12 +268,10 @@ Chatmail relays enforce :rfc:`DKIM <6376>` to authenticate incoming emails.
 Incoming emails must have a valid DKIM signature with
 Signing Domain Identifier (SDID, ``d=`` parameter in the DKIM-Signature
 header) equal to the ``From:`` header domain. This property is checked
-by OpenDKIM screen policy script before validating the signatures. This
+by dkim-milter ``reject_failures = author-mismatch `` policy. This
 corresponds to strict :rfc:`DMARC <7489>` alignment (``adkim=s``).
 If there is no valid DKIM signature on the incoming email, the
 sender receives a “5.7.1 No valid DKIM signature found” error.
-After validating the DKIM signature,
-the `final.lua` script strips all ``OpenDKIM:`` headers to reduce message size on disc.
 
 Note that chatmail relays
 
