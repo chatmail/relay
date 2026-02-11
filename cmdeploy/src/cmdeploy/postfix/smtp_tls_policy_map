@@ -1,2 +1,2 @@
 /^\[([0-9]{1,3}\.){3}[0-9]{1,3}\]$/ encrypt
-/nauta\.cu/    may
+/^nauta\.cu$/    may
