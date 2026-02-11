@@ -124,7 +124,7 @@ def run_cmd(args, out):
                 out.red("Website deployment failed.")
         elif retcode == 0:
             out.green("Deploy completed, call `cmdeploy dns` next.")
-        elif not remote_data["acme_account_url"]:
+        elif not args.dns_check_disabled and not remote_data["acme_account_url"]:
             out.red("Deploy completed but letsencrypt not configured")
             out.red("Run 'cmdeploy run' again")
             retcode = 0
