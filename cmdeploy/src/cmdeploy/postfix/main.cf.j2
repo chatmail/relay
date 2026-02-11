@@ -69,6 +69,15 @@ mynetworks = 127.0.0.0/8
 {% else %}
 mynetworks = 127.0.0.0/8 [::ffff:127.0.0.0]/104 [::1]/128
 {% endif %}
+{% if config.addr_v4 %}
+smtp_bind_address = {{ config.addr_v4 }}
+{% endif %}
+{% if config.addr_v6 %}
+smtp_bind_address6 = {{ config.addr_v6 }}
+{% endif %}
+{% if config.addr_v4 or config.addr_v6 %}
+smtp_bind_address_enforce = yes
+{% endif %}
 mailbox_size_limit = 0
 message_size_limit = {{config.max_message_size}}
 recipient_delimiter = +

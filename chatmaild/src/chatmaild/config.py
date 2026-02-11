@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import iniconfig
@@ -43,6 +44,8 @@ class Config:
         )
         self.mtail_address = params.get("mtail_address")
         self.disable_ipv6 = params.get("disable_ipv6", "false").lower() == "true"
+        self.addr_v4 = os.environ.get("CHATMAIL_ADDR_V4", "")
+        self.addr_v6 = os.environ.get("CHATMAIL_ADDR_V6", "")
         self.acme_email = params.get("acme_email", "")
         self.imap_rawlog = params.get("imap_rawlog", "false").lower() == "true"
         self.imap_compress = params.get("imap_compress", "false").lower() == "true"
