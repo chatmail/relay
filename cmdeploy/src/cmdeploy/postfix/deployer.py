@@ -61,6 +61,20 @@ class PostfixDeployer(Deployer):
         )
         need_restart |= lmtp_header_cleanup.changed
 
+        tls_policy_map = files.put(
+            name="Upload SMTP TLS Policy that accepts self-signed certificates for IP-only hosts",
+            src=get_resource("postfix/smtp_tls_policy_map"),
+            dest="/etc/postfix/smtp_tls_policy_map",
+            user="root",
+            group="root",
+            mode="644",
+        )
+        need_restart |= tls_policy_map.changed
+        if tls_policy_map.changed:
+            server.shell(
+                commands=["postmap /etc/postfix/smtp_tls_policy_map"],
+            )
+
         # Login map that 1:1 maps email address to login.
         login_map = files.put(
             src=get_resource("postfix/login_map"),
