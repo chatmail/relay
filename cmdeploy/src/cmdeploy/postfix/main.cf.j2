@@ -25,7 +25,7 @@ smtp_tls_security_level=verify
 # <https://www.postfix.org/postconf.5.html#smtp_tls_servername>
 smtp_tls_servername = hostname
 smtp_tls_session_cache_database = btree:${data_directory}/smtp_scache
-smtp_tls_policy_maps = inline:{nauta.cu=may}
+smtp_tls_policy_maps = hash:/etc/postfix/smtp_tls_policy_map
 smtp_tls_protocols = >=TLSv1.2
 smtp_tls_mandatory_protocols = >=TLSv1.2
 
