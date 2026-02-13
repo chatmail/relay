@@ -54,6 +54,33 @@ RUN apt-get update && \
 
 WORKDIR /opt/chatmail
 
+# --- Build-time install stage ---
+# Bake the "install" deployer stage into the image; we can't use
+# scripts/initenv.sh because /opt/chatmail is empty at build time as 
+# source arrives at runtime via volume mount., so we use a throwaway venv.
+# On container start only "configure,activate" stages run.
+COPY . /tmp/chatmail-src/
+WORKDIR /tmp/chatmail-src
+
+# Dummy config — deploy_chatmail() needs a parseable ini to instantiate deployers
+RUN printf '[params]\nmail_domain = build.local\n' > /tmp/chatmail.ini
+
+# Do what initenv.sh would do without the docs
+RUN python3 -m venv /tmp/build-venv && \
+    /tmp/build-venv/bin/pip install --no-cache-dir \
+        -e chatmaild -e cmdeploy
+
+RUN CMDEPLOY_STAGES=install \
+    CHATMAIL_INI=/tmp/chatmail.ini \
+    CHATMAIL_DOCKER=True \
+    /tmp/build-venv/bin/pyinfra @local \
+        /tmp/chatmail-src/cmdeploy/src/cmdeploy/run.py -y
+
+RUN rm -rf /tmp/chatmail-src /tmp/build-venv /tmp/chatmail.ini
+
+WORKDIR /opt/chatmail
+# --- End build-time install stage ---
+
 ARG SETUP_CHATMAIL_SERVICE_PATH=/lib/systemd/system/setup_chatmail.service
 COPY ./docker/files/setup_chatmail.service "$SETUP_CHATMAIL_SERVICE_PATH"
 RUN ln -sf "$SETUP_CHATMAIL_SERVICE_PATH" "/etc/systemd/system/multi-user.target.wants/setup_chatmail.service"
@@ -61,13 +88,6 @@ RUN ln -sf "$SETUP_CHATMAIL_SERVICE_PATH" "/etc/systemd/system/multi-user.target
 COPY --chmod=555 ./docker/files/setup_chatmail_docker.sh /setup_chatmail_docker.sh
 COPY --chmod=555 ./docker/files/update_ini.sh /update_ini.sh
 COPY --chmod=555 ./docker/files/entrypoint.sh /entrypoint.sh
-
-## TODO: add git clone.
-## Problem: how correct save only required files inside container....
-# RUN git clone https://github.com/chatmail/relay.git -b master . \
-#  && ./scripts/initenv.sh
-
-# EXPOSE 443 25 587 143 993 
 
 VOLUME ["/sys/fs/cgroup", "/home"]
 
@@ -78,6 +98,3 @@ ENTRYPOINT ["/entrypoint.sh"]
 CMD [   "--default-standard-output=journal+console", \
         "--default-standard-error=journal+console" ]
 
-## TODO: Add installation and configuration of chatmaild inside the Dockerfile.
-## This is required to ensure repeatable deployment.
-## In the current MVP, the chatmaild server is updated on every container restart.

@@ -70,6 +70,7 @@ fi
 ./scripts/cmdeploy init --config "${INI_FILE}" $INI_CMD_ARGS $MAIL_DOMAIN || true
 bash /update_ini.sh
 
+export CMDEPLOY_STAGES="${CMDEPLOY_STAGES:-configure,activate}"
 ./scripts/cmdeploy run --ssh-host @docker
 
 echo "ForwardToConsole=yes" >> /etc/systemd/journald.conf
