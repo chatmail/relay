@@ -55,12 +55,12 @@ RUN apt-get update && \
 WORKDIR /opt/chatmail
 
 ARG SETUP_CHATMAIL_SERVICE_PATH=/lib/systemd/system/setup_chatmail.service
-COPY ./files/setup_chatmail.service "$SETUP_CHATMAIL_SERVICE_PATH"
+COPY ./docker/files/setup_chatmail.service "$SETUP_CHATMAIL_SERVICE_PATH"
 RUN ln -sf "$SETUP_CHATMAIL_SERVICE_PATH" "/etc/systemd/system/multi-user.target.wants/setup_chatmail.service"
 
-COPY --chmod=555 ./files/setup_chatmail_docker.sh /setup_chatmail_docker.sh
-COPY --chmod=555 ./files/update_ini.sh /update_ini.sh
-COPY --chmod=555 ./files/entrypoint.sh /entrypoint.sh
+COPY --chmod=555 ./docker/files/setup_chatmail_docker.sh /setup_chatmail_docker.sh
+COPY --chmod=555 ./docker/files/update_ini.sh /update_ini.sh
+COPY --chmod=555 ./docker/files/entrypoint.sh /entrypoint.sh
 
 ## TODO: add git clone.
 ## Problem: how correct save only required files inside container....
