@@ -1,2 +1,3 @@
 /^DKIM-Signature:/            IGNORE
 /^Authentication-Results:/            IGNORE
+/^Received:/            IGNORE
