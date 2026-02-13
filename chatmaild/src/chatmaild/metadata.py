@@ -76,12 +76,13 @@ class Metadata:
 
 
 class MetadataDictProxy(DictProxy):
-    def __init__(self, notifier, metadata, iroh_relay=None, turn_hostname=None):
+    def __init__(self, notifier, metadata, iroh_relay=None, turn_hostname=None, config=None):
         super().__init__()
         self.notifier = notifier
         self.metadata = metadata
         self.iroh_relay = iroh_relay
         self.turn_hostname = turn_hostname
+        self.config = config
 
     def handle_lookup(self, parts):
         # Lpriv/43f5f508a7ea0366dff30200c15250e3/devicetoken\tlkj123poi@c2.testrun.org
@@ -101,7 +102,7 @@ class MetadataDictProxy(DictProxy):
                 # Handle `GETMETADATA "" /shared/vendor/deltachat/irohrelay`
                 return f"O{self.iroh_relay}\n"
             elif keyname == "vendor/vendor.dovecot/pvt/server/vendor/deltachat/turn":
-                res = turn_credentials()
+                res = turn_credentials(self.config)
                 port = 3478
                 return f"O{self.turn_hostname}:{port}:{res}\n"
 
@@ -146,6 +147,7 @@ def main():
         metadata=metadata,
         iroh_relay=iroh_relay,
         turn_hostname=mail_domain,
+        config=config,
     )
 
     dictproxy.serve_forever_from_socket(socket)
