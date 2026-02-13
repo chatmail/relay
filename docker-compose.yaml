@@ -1,13 +1,13 @@
 services:
   chatmail:
-    build: 
+    build:
       context: ./docker
       dockerfile: chatmail_relay.dockerfile
       tags:
         - chatmail-relay:latest
     image: chatmail-relay:latest
     restart: unless-stopped
-    container_name: chatmail 
+    container_name: chatmail
     cgroup: host # required for systemd
     tty: true # required for logs
     tmpfs: # required for systemd
@@ -36,11 +36,10 @@ services:
       ## system
       - /sys/fs/cgroup:/sys/fs/cgroup:rw # required for systemd
       - ./:/opt/chatmail
-      
+
       ## data
       - ./data/chatmail:/home
       - ./data/chatmail-dkimkeys:/etc/dkimkeys
-      - ./data/chatmail-echobot:/run/echobot
       - ./data/chatmail-acme:/var/lib/acme
 
       ## custom resources
