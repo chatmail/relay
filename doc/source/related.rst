@@ -14,8 +14,8 @@ We know of three work-in-progress alternative implementation efforts:
    it to support all of the features and configuration settings required
    to operate as a chatmail relay.
 
--  `Madmail <https://github.com/omidz4t/madmail>`_: an
-   experimental fork of Maddy Mail Server <https://maddy.email/>`_ optimized
+-  `Madmail <https://github.com/themadorg/madmail>`_: an
+   experimental fork of `Maddy Mail Server <https://maddy.email/>`_, modified
    for chatmail deployments.  It provides a single binary solution
    for running a chatmail relay.
 
