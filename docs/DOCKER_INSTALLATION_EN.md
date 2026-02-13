@@ -1,6 +1,5 @@
 # Known issues and limitations
 
-- Chatmail will be reinstalled every time the container is started (longer the first time, faster on subsequent starts). This is how the original installer works because it wasn’t designed for Docker. At the end of the documentation, there’s a [proposed solution](#locking-the-chatmail-version).
 - Requires cgroups v2 configured in the system. Operation with cgroups v1 has not been tested.
 - Yes, of course, using systemd inside a container is a hack, and it would be better to split it into several services, but since this is an MVP, it turned out to be easier to do it this way initially than to rewrite the entire deployment system.
 - The Docker image is only suitable for amd64. If you need to run it on a different architecture, try modifying the Dockerfile (specifically the part responsible for installing dovecot).
@@ -59,6 +58,7 @@ cp ./docker/example.env .env
 - `PATH_TO_SSL` – Path to where the certificates are stored. (default: `/var/lib/acme/live/${MAIL_DOMAIN}`)
 - `ENABLE_CERTS_MONITORING` – Enable certificate monitoring if `USE_FOREIGN_CERT_MANAGER=true`. If certificates change, services will be automatically restarted. (default: `false`)
 - `CERTS_MONITORING_TIMEOUT` – Interval in seconds to check if certificates have changed. (default: `'60'`)
+- `CMDEPLOY_STAGES` – Deployment stages to run on container start. (default: `"configure,activate"`). Set to `"install,configure,activate"` to force a full reinstall.
 
 You can also use any variables from the [ini configuration file](https://github.com/chatmail/relay/blob/main/chatmaild/src/chatmaild/ini/chatmail.ini.f); they must be in uppercase.
 
@@ -114,79 +114,19 @@ docker compose down
 docker compose up -d
 ```
 
-## Locking the Chatmail version
+## Forcing a full reinstall
 
-> [!note]
-> These steps are optional and should only be done if you are not satisfied that the service is installed each time the container starts.
+The Docker image bakes the install stage (binary downloads, package setup, chatmaild venv) into the image at build time. On container start, only the `configure` and `activate` stages run by default.
 
-Since the current Docker version installs the Chatmail service every time the container starts, you can lock the container version after installation as follows:
-
-1. Commit the current state of the configured container:
+To force a full reinstall (e.g., after updating the source), either rebuild the image:
 
 ```shell
-docker container commit chatmail configured-chatmail:$(date +'%Y-%m-%d')
-docker image ls | grep configured-chatmail
-```
-
-2. Change the entrypoint for the container in `docker-compose.yaml` to:
-
-```yaml
-services:
-  chatmail:
-    image: <image name from step 1>
-    volumes:
-      ...
-      ## custom resources
-      - ./custom/setup_chatmail_docker.sh:/setup_chatmail_docker.sh
-```
-
-3. Create the file `./custom/setup_chatmail_docker.sh` with the new configuration:
-
-```shell
-mkdir -p ./custom
-cat > ./custom/setup_chatmail_docker.sh << 'EOF'
-#!/bin/bash
-
-set -eo pipefail
-
-export ENABLE_CERTS_MONITORING="${ENABLE_CERTS_MONITORING:-true}"
-export CERTS_MONITORING_TIMEOUT="${CERTS_MONITORING_TIMEOUT:-60}"
-export PATH_TO_SSL="${PATH_TO_SSL:-/var/lib/acme/live/${MAIL_DOMAIN}}"
-
-calculate_hash() {
-    find "$PATH_TO_SSL" -type f -exec sha1sum {} \; | sort | sha1sum | awk '{print $1}'
-}
-
-monitor_certificates() {
-    if [ "$ENABLE_CERTS_MONITORING" != "true" ]; then
-        echo "Certs monitoring disabled."
-        exit 0
-    fi
-
-    current_hash=$(calculate_hash)
-    previous_hash=$current_hash
-
-    while true; do
-        current_hash=$(calculate_hash)
-        if [[ "$current_hash" != "$previous_hash" ]]; then
-        # TODO: add an option to restart at a specific time interval 
-            echo "[INFO] Certificate's folder hash was changed, reloading nginx, dovecot and postfix services."
-            systemctl reload nginx.service
-            systemctl reload dovecot.service
-            systemctl reload postfix.service
-            previous_hash=$current_hash
-        fi
-        sleep $CERTS_MONITORING_TIMEOUT
-    done
-}
-
-monitor_certificates &
-EOF
-```
-
-4. Restart the service:
-
-```shell
-docker compose down
+docker compose build chatmail
 docker compose up -d
+```
+
+Or override the stages at runtime without rebuilding:
+
+```shell
+CMDEPLOY_STAGES="install,configure,activate" docker compose up -d
 ```
