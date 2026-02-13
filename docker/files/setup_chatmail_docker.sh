@@ -56,7 +56,9 @@ if [ "$FORCE_REINIT_INI_FILE" = true ]; then
     INI_CMD_ARGS=--force
 fi
 
-/usr/sbin/opendkim-genkey -D /etc/dkimkeys -d $MAIL_DOMAIN -s opendkim
+if [ ! -f /etc/dkimkeys/opendkim.private ]; then
+    /usr/sbin/opendkim-genkey -D /etc/dkimkeys -d $MAIL_DOMAIN -s opendkim
+fi
 chown opendkim:opendkim /etc/dkimkeys/opendkim.private
 chown opendkim:opendkim /etc/dkimkeys/opendkim.txt
 
