@@ -25,6 +25,7 @@ from .basedeploy import (
     activate_remote_units,
     configure_remote_units,
     get_resource,
+    has_systemd,
 )
 from .dovecot.deployer import DovecotDeployer
 from .filtermail.deployer import FiltermailDeployer
@@ -65,6 +66,8 @@ def _build_chatmaild(dist_dir) -> None:
 
 
 def remove_legacy_artifacts():
+    if not has_systemd():
+        return
     # disable legacy doveauth-dictproxy.service
     if host.get_fact(SystemdEnabled).get("doveauth-dictproxy.service"):
         systemd.service(
@@ -299,7 +302,7 @@ class LegacyRemoveDeployer(Deployer):
             present=False,
         )
         # remove echobot if it is still running
-        if host.get_fact(SystemdEnabled).get("echobot.service"):
+        if has_systemd() and host.get_fact(SystemdEnabled).get("echobot.service"):
             systemd.service(
                 name="Disable echobot.service",
                 service="echobot.service",
