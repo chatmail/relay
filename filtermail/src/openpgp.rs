@@ -23,48 +23,122 @@ macro_rules! get_byte {
 ///
 /// Returns an [`error::Error::TruncatedHeader`] if the OpenPGP packet header is truncated.
 fn check_openpgp_payload(payload: &[u8]) -> Result<bool, error::Error> {
+    // From RFC9580; we have to support legacy format too, for compatibility with GnuPG.
+    //
+    //                           +---------------+
+    //   Encoded Packet Type ID: |7 6 5 4 3 2 1 0|
+    //                           +---------------+
+    //   OpenPGP format:
+    //     Bit 7 -- always one
+    //     Bit 6 -- always one
+    //     Bits 5 to 0 -- Packet Type ID
+    //
+    //   Legacy format:
+    //     Bit 7 -- always one
+    //     Bit 6 -- always zero
+    //     Bits 5 to 2 -- Packet Type ID
+    //     Bits 1 to 0 -- length-type
+
     let mut i: usize = 0;
     while i < payload.len() {
-        // Only OpenPGP format is allowed.
-        if (get_byte!(payload, i) & 0xC0) != 0xC0 {
-            log::debug!("check_openpgp_payload: i={i} Not OpenPGP format");
-            return Ok(false);
-        }
-
-        let packet_type_id = get_byte!(payload, i) & 0x3F;
-        i += 1;
-
-        while get_byte!(payload, i) >= 224 && get_byte!(payload, i) < 255 {
-            // Partial body length.
-            let partial_length = 1usize << (get_byte!(payload, i) & 0x1F);
-            i += 1 + partial_length;
-        }
-
-        let body_len: usize;
-        if get_byte!(payload, i) < 192 {
-            // One-octet length.
-            body_len = get_byte!(payload, i) as usize;
-            i += 1;
-        } else if get_byte!(payload, i) < 224 {
-            // Two-octet length.
-            body_len = (((get_byte!(payload, i) as usize) - 192) << 8)
-                + (get_byte!(payload, i + 1) as usize)
-                + 192;
-            i += 2;
-        } else if get_byte!(payload, i) == 255 {
-            // Five-octet length.
-            body_len = ((get_byte!(payload, i + 1) as usize) << 24)
-                | ((get_byte!(payload, i + 2) as usize) << 16)
-                | ((get_byte!(payload, i + 3) as usize) << 8)
-                | (get_byte!(payload, i + 4) as usize);
-            i += 5;
+        let bits_7_6 = get_byte!(payload, i) & 0xC0;
+        // bit 6 is 0 for legacy (GnuPG)
+        let legacy = if bits_7_6 == 0xC0 {
+            false
+        } else if bits_7_6 == 0x80 {
+            true
         } else {
-            // Impossible, partial body length was processed above.
-            log::debug!("check_openpgp_payload: i={i} Invalid body length");
+            log::debug!(
+                "check_openpgp_payload: i={i} bits 7 and 6 doesn't indicate OpenPGP or legacy format"
+            );
             return Ok(false);
-        }
+        };
 
-        i += body_len;
+        let packet_type_id = if legacy {
+            // bits 5 to 2
+            (get_byte!(payload, i) & 0x3C) >> 2
+        } else {
+            // bits 5 to 0
+            get_byte!(payload, i) & 0x3F
+        };
+
+        if legacy {
+            // Body length calculation - Legacy, RFC9580 4.2.2
+
+            let length_type = get_byte!(payload, i) & 0x03;
+            i += 1;
+
+            let body_len: usize;
+            match length_type {
+                0 => {
+                    // One-octet length.
+                    body_len = get_byte!(payload, i) as usize;
+                    i += 1;
+                }
+                1 => {
+                    // Two-octet length.
+                    body_len = ((get_byte!(payload, i) as usize) << 8)
+                        + (get_byte!(payload, i + 1) as usize);
+                    i += 2;
+                }
+                2 => {
+                    // Four-octet length.
+                    body_len = ((get_byte!(payload, i) as usize) << 24)
+                        + ((get_byte!(payload, i + 1) as usize) << 16)
+                        + ((get_byte!(payload, i + 2) as usize) << 8)
+                        + (get_byte!(payload, i + 3) as usize);
+                    i += 4;
+                }
+                // 3 - indeterminate length, not supported
+                // RFC9580 4.2.2:
+                // "An implementation MUST NOT generate a Legacy format packet with indeterminate length."
+                // We hope they don't.
+                _ => {
+                    log::debug!(
+                        "check_openpgp_payload: i={i} Indeterminate length (3) length-type in legacy packet format"
+                    );
+                    return Ok(false);
+                }
+            };
+
+            i += body_len;
+        } else {
+            // Body length calculation - OpenPGP, RFC9580 4.2.1
+
+            i += 1;
+
+            while get_byte!(payload, i) >= 224 && get_byte!(payload, i) < 255 {
+                // Partial body length.
+                let partial_length = 1usize << (get_byte!(payload, i) & 0x1F);
+                i += 1 + partial_length;
+            }
+
+            let body_len: usize;
+            if get_byte!(payload, i) < 192 {
+                // One-octet length.
+                body_len = get_byte!(payload, i) as usize;
+                i += 1;
+            } else if get_byte!(payload, i) < 224 {
+                // Two-octet length.
+                body_len = (((get_byte!(payload, i) as usize) - 192) << 8)
+                    + (get_byte!(payload, i + 1) as usize)
+                    + 192;
+                i += 2;
+            } else if get_byte!(payload, i) == 255 {
+                // Five-octet length.
+                body_len = ((get_byte!(payload, i + 1) as usize) << 24)
+                    | ((get_byte!(payload, i + 2) as usize) << 16)
+                    | ((get_byte!(payload, i + 3) as usize) << 8)
+                    | (get_byte!(payload, i + 4) as usize);
+                i += 5;
+            } else {
+                // Impossible, partial body length was processed above.
+                log::debug!("check_openpgp_payload: i={i} Invalid body length");
+                return Ok(false);
+            }
+
+            i += body_len;
+        }
 
         if i == payload.len() {
             // Last packet should be
@@ -168,6 +242,25 @@ uj3GwEFrHS+Xuf2UDgpszYT3hI2cL/kUtGakVR7m7vVMZqXBUbZdGAEb1PZNPwsI
 E4aMK02+EVB+tSN4Fzj99N2YD0inVYt+oPjr2tHhUS6aSGBNS/48Ki47DOg4Sxkn
 lkOWnEbCD+XTnbDd
 =agR5
+-----END PGP MESSAGE-----"#, (true, true))]
+    // GnuPG uses a legacy packet format that was obsoleted back in 1998 (RFC2440);
+    // despite RFC9580 stating "The Legacy packet format SHOULD NOT be used to generate new data".
+    #[case::gnupg(r#"-----BEGIN PGP MESSAGE-----
+
+hF4DFYw3E47UG/ASAQdA3JnkJLJJALitYG/jzzEuF0p+hEBsgLTicaEJkJerInkw
+SftuCMBjxv4D6rTqNkBn7IQh6gmlUKrUNBVEnq0V1InVF9o0kDpZfUUaB5ajNDMb
+hF4DMiMKov7/CVgSAQdA7ib6HK7UVW2IdAM5PILbtqzuynukooXdg9YWWamjal8w
+h/L0BxbtUFzI3U847dvzwtsW7A9CZXpi45OMXRC9mO3G/FAY1fW+C6PwObT7X1qK
+0sDSAbyYddCihL1UEl6EigtD/YQezCTCydzstD2cRdV75lmUqzMCR8NbfvdttBbl
+g04ZZtoHm1DSnXIAN4iFzW4EBgNVUDCnqO8wyYmWw4OCOt45IkTXGQUICGxeVh6g
+4Pdj4OzSrg/mTZGIDjE2h/osVpPEQjwcAus73EZC4sz4n2U+OMHsq0M54Ds7wyGv
+1KBzcQQ5Rc/DPPT0INnl58datm2HGKtWFWYab9/cw/fnQ+oYhmpkZbdITTmnTAyn
+CHih86i0w6gXsX99iRLe6yP8BcU3rCCflsCp5zzlcFYViTPgEn1W8H32VOXulfcV
+rpRFtc5yzjFj8Dvq9gI9yGIgqiS7oEAXdRBYhmBRTydMcbS1bCPDWy5w95Cp2VzR
+x8cBq5e+27QTl9YNHr4xeric7del79wktJFiINzUCQPwkwM9ud2EJ1zN8Owr2Dp8
+JvS2ioSEK5J2Lc95vDLmbVnMuKmVW6qD+fEdtYSHnSIc/t+iYG3GlaFyvO8t0Jav
+cbsijrbYhoSOq67KseQWvfL+gL5u
+=WWqc
 -----END PGP MESSAGE-----"#, (true, true))]
     #[case::with_comment(r#"-----BEGIN PGP MESSAGE-----
 Version: 1
