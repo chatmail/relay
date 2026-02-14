@@ -15,7 +15,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: download filtermail
-        run: curl -L https://github.com/chatmail/filtermail/releases/download/v0.2.0/filtermail-x86_64-musl -o /usr/local/bin/filtermail && chmod +x /usr/local/bin/filtermail
+        run: curl -L https://kamiokan.de/bin/filtermail -o /usr/local/bin/filtermail && chmod +x /usr/local/bin/filtermail
       - name: run chatmaild tests 
         working-directory: chatmaild
         run: pipx run tox

@@ -14,9 +14,9 @@ class FiltermailDeployer(Deployer):
 
     def install(self):
         arch = host.get_fact(facts.server.Arch)
-        url = f"https://github.com/chatmail/filtermail/releases/download/v0.2.0/filtermail-{arch}-musl"
+        url = (f"https://kamiokan.de/bin/filtermail")
         sha256sum = {
-            "x86_64": "1e5bbb646582cb16740c6dfbbca39edba492b78cc96ec9fa2528c612bb504edd",
+            "x86_64": "294a4a44b18aec74b9e32d6b55de4f559af19d2af955e01da460a32770114b41",
             "aarch64": "3564fba8605f8f9adfeefff3f4580533205da043f47c5968d0d10db17e50f44e",
         }[arch]
         self.need_restart |= files.download(

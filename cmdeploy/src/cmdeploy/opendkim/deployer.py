@@ -37,24 +37,6 @@ class OpendkimDeployer(Deployer):
         )
         need_restart |= main_config.changed
 
-        screen_script = files.put(
-            src=get_resource("opendkim/screen.lua"),
-            dest="/etc/opendkim/screen.lua",
-            user="root",
-            group="root",
-            mode="644",
-        )
-        need_restart |= screen_script.changed
-
-        final_script = files.put(
-            src=get_resource("opendkim/final.lua"),
-            dest="/etc/opendkim/final.lua",
-            user="root",
-            group="root",
-            mode="644",
-        )
-        need_restart |= final_script.changed
-
         files.directory(
             name="Add opendkim directory to /etc",
             path="/etc/opendkim",
