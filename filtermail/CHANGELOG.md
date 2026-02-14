@@ -1,3 +1,17 @@
+## 0.3.0 - 2026-02-14
+
+### Features
+
+- Support legacy, pre-OpenPGP packet format (#44)
+
+### Miscellaneous Tasks
+
+- *(dist)* Switch to musl targets (#31)
+
+### Refactor
+
+- Remove unnecessary Arc (#36)
+- Use a custom, minimal SMTP client instead of lettre (#33)
 ## 0.2.0 - 2026-01-28
 
 ### Features
