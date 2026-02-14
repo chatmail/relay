@@ -15,8 +15,9 @@ def main():
     )
     disable_mail = bool(os.environ.get("CHATMAIL_DISABLE_MAIL"))
     website_only = bool(os.environ.get("CHATMAIL_WEBSITE_ONLY"))
+    docker = bool(os.environ.get("CHATMAIL_DOCKER"))
 
-    deploy_chatmail(config_path, disable_mail, website_only)
+    deploy_chatmail(config_path, disable_mail, website_only, docker)
 
 
 if pyinfra.is_cli:

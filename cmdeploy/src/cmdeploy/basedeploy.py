@@ -5,6 +5,11 @@ import os
 from pyinfra.operations import files, server, systemd
 
 
+def has_systemd():
+    """Returns False during Docker image builds or any other non-systemd environment."""
+    return os.path.isdir("/run/systemd/system")
+
+
 def get_resource(arg, pkg=__package__):
     return importlib.resources.files(pkg).joinpath(arg)
 

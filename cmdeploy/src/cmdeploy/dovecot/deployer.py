@@ -9,6 +9,7 @@ from cmdeploy.basedeploy import (
     activate_remote_units,
     configure_remote_units,
     get_resource,
+    has_systemd,
 )
 
 
@@ -22,10 +23,11 @@ class DovecotDeployer(Deployer):
 
     def install(self):
         arch = host.get_fact(Arch)
-        if not "dovecot.service" in host.get_fact(SystemdEnabled):
-            _install_dovecot_package("core", arch)
-            _install_dovecot_package("imapd", arch)
-            _install_dovecot_package("lmtpd", arch)
+        if has_systemd() and "dovecot.service" in host.get_fact(SystemdEnabled):
+            return  # already installed and running
+        _install_dovecot_package("core", arch)
+        _install_dovecot_package("imapd", arch)
+        _install_dovecot_package("lmtpd", arch)
 
     def configure(self):
         configure_remote_units(self.config.mail_domain, self.units)
@@ -116,18 +118,19 @@ def _configure_dovecot(config: Config, debug: bool = False) -> (bool, bool):
 
     # as per https://doc.dovecot.org/2.3/configuration_manual/os/
     # it is recommended to set the following inotify limits
-    for name in ("max_user_instances", "max_user_watches"):
-        key = f"fs.inotify.{name}"
-        if host.get_fact(Sysctl)[key] > 65535:
-            # Skip updating limits if already sufficient
-            # (enables running in incus containers where sysctl readonly)
-            continue
-        server.sysctl(
-            name=f"Change {key}",
-            key=key,
-            value=65535,
-            persist=True,
-        )
+    if config.change_kernel_settings:
+        for name in ("max_user_instances", "max_user_watches"):
+            key = f"fs.inotify.{name}"
+            if host.get_fact(Sysctl)[key] > 65535:
+                # Skip updating limits if already sufficient
+                # (enables running in incus containers where sysctl readonly)
+                continue
+            server.sysctl(
+                name=f"Change {key}",
+                key=key,
+                value=65535,
+                persist=True,
+            )
 
     timezone_env = files.line(
         name="Set TZ environment variable",
