@@ -17,7 +17,7 @@ tokio = { version = "1.49.0", features = ["full"] }
 thiserror = "2.0.18"
 mailparse = "0.16.1"
 log = "0.4.29"
-env_logger = "0.11.8"
+env_logger = "0.11.9"
 governor = "0.10.4"
 
 [dev-dependencies]
