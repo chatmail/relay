@@ -3,12 +3,12 @@ services:
     build:
       context: ./
       dockerfile: docker/chatmail_relay.dockerfile
-      tags:
-        - chatmail-relay:latest
     image: chatmail-relay:latest
     restart: unless-stopped
     container_name: chatmail
-    cgroup: host # required for systemd
+    # Required for systemd — use only one of the following:
+    cgroup: host          # compose v2 only
+    # privileged: true    # compose v1 (not tested)
     tty: true # required for logs
     tmpfs: # required for systemd
       - /tmp
