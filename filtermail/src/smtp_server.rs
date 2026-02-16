@@ -10,6 +10,7 @@ use tokio::net::{TcpListener, TcpStream};
 #[derive(Debug, Clone)]
 pub struct Envelope {
     pub mail_from: String,
+    pub origin_ip: String,
     pub rcpt_to: Vec<String>,
     pub data: Vec<u8>,
 }
@@ -85,6 +86,7 @@ where
 
     let mut envelope = Envelope {
         mail_from: String::new(),
+        origin_ip: String::new(),
         rcpt_to: Vec::new(),
         data: Vec::new(),
     };
@@ -106,8 +108,13 @@ where
 
         log::debug!("Received: {cmd}");
 
-        if cmd.to_uppercase().starts_with("HELO") || cmd.to_uppercase().starts_with("EHLO") {
-            writer.write_all(b"250 OK\r\n").await?;
+        if cmd.to_uppercase().starts_with("HELO") {
+            writer.write_all(b"250-filtermail\r\n250 OK\r\n").await?;
+            writer.flush().await?;
+        } else if cmd.to_uppercase().starts_with("EHLO") {
+            writer
+                .write_all(b"250-filtermail\r\n250-XFORWARD ADDR\r\n250 OK\r\n")
+                .await?;
             writer.flush().await?;
         } else if cmd.to_uppercase().starts_with("MAIL FROM:") {
             if let Some(from) = extract_address(cmd) {
@@ -187,9 +194,22 @@ where
 
             envelope = Envelope {
                 mail_from: String::new(),
+                origin_ip: String::new(),
                 rcpt_to: Vec::new(),
                 data: Vec::new(),
             };
+        } else if cmd.to_uppercase().starts_with("XFORWARD") {
+            // https://www.postfix.org/XFORWARD_README.html
+            if let Some(addr_part) = cmd
+                .split_whitespace()
+                .find(|part| part.to_uppercase().starts_with("ADDR="))
+                && let Some(ip) = addr_part.strip_prefix("ADDR=")
+            {
+                let ip = ip.to_lowercase();
+                envelope.origin_ip = ip.strip_prefix("ipv6:").unwrap_or(&ip).to_string();
+                writer.write_all(b"250 OK\r\n").await?;
+                writer.flush().await?;
+            }
         } else if cmd.to_uppercase().starts_with("QUIT") {
             writer.write_all(b"221 OK\r\n").await?;
             writer.flush().await?;
@@ -197,6 +217,7 @@ where
         } else if cmd.to_uppercase().starts_with("RSET") {
             envelope = Envelope {
                 mail_from: String::new(),
+                origin_ip: String::new(),
                 rcpt_to: Vec::new(),
                 data: Vec::new(),
             };

@@ -1,4 +1,3 @@
-use crate::utils::get_domain_from_address;
 use hickory_resolver::name_server::TokioConnectionProvider;
 use hickory_resolver::{Name, TokioResolver};
 use lru::LruCache;
@@ -135,9 +134,9 @@ impl DkimVerifier {
         Ok(Self { resolver, config })
     }
 
-    /// Verifies the DKIM signature of a raw email message and alignment with the domain of
-    /// provided `From` address.
-    pub async fn verify(&self, raw_mail: &[u8], from_address: &str) -> Result<(), String> {
+    /// Verifies the DKIM signature of a raw email message and its alignment with the provided
+    /// domain.
+    pub async fn verify(&self, raw_mail: &[u8], from_domain: &str) -> Result<(), String> {
         let (headers, body_start) = {
             use viadkim::{FieldBody, FieldName, HeaderField};
 
@@ -165,12 +164,6 @@ impl DkimVerifier {
 
             (viadkim_headers, body_start)
         };
-
-        let Some(from_domain) = get_domain_from_address(from_address) else {
-            return Err("501 Invalid From address".to_string());
-        };
-
-        log::debug!("`From` header domain: {from_domain}");
 
         let Some(mut verifier) =
             viadkim::Verifier::verify_header(&self.resolver, &headers, &self.config).await
@@ -204,7 +197,7 @@ impl DkimVerifier {
             if !signature
                 .domain
                 .to_string()
-                .eq_ignore_ascii_case(&from_domain)
+                .eq_ignore_ascii_case(from_domain)
             {
                 log::debug!(
                     "Signature {}: Domain different than in From header, skipping",

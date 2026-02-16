@@ -17,6 +17,8 @@ pub enum Error {
         context: String,
         raw_smtp_answer: String,
     },
+    #[error("Invalid email address: {0}")]
+    InvalidEmailAddress(String),
 }
 
 impl Error {
@@ -28,6 +30,7 @@ impl Error {
                 raw_smtp_answer, ..
             } => raw_smtp_answer.clone(),
             Error::TruncatedHeader => self.to_string(),
+            Error::InvalidEmailAddress(address) => format!("500 Invalid email address: {address}"),
             _ => "451 Local error".to_string(),
         }
     }
