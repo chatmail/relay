@@ -53,7 +53,7 @@ mkdir -p "$(dirname "$CHATMAIL_INI")"
 $CMDEPLOY init --config "$CHATMAIL_INI" $MAIL_DOMAIN || true
 
 export CMDEPLOY_STAGES="${CMDEPLOY_STAGES:-configure,activate}"
-$CMDEPLOY run --ssh-host @docker
+$CMDEPLOY run --config "$CHATMAIL_INI" --ssh-host @docker
 
 echo "ForwardToConsole=yes" >> /etc/systemd/journald.conf
 systemctl restart systemd-journald

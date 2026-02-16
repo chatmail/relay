@@ -1,3 +1,4 @@
+# Copy docker/example.env to .env and set MAIL_DOMAIN before starting.
 services:
   chatmail:
     build:
