@@ -19,6 +19,10 @@ mailparse = "0.16.1"
 log = "0.4.29"
 env_logger = "0.11.9"
 governor = "0.10.4"
+viadkim = { version = "0.2.0" }
+hickory-resolver = "0.25.2"
+lru = "0.16.3"
+parking_lot = "0.12.5"
 
 [dev-dependencies]
 rstest = "0.26.1"

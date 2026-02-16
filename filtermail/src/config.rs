@@ -25,7 +25,7 @@ pub struct Config {
     pub passthrough_senders: Vec<String>,
     #[serde(default, deserialize_with = "deserialize_sequence")]
     pub passthrough_recipients: Vec<String>,
-    mail_domain: String,
+    pub mail_domain: String,
     mailboxes_dir: Option<PathBuf>,
 }
 
