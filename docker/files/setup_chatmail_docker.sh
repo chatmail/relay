@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -eo pipefail
+set -euo pipefail
 export CHATMAIL_INI="${CHATMAIL_INI:-/etc/chatmail/chatmail.ini}"
 
 CMDEPLOY=/opt/cmdeploy/bin/cmdeploy
