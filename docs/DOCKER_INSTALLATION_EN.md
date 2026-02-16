@@ -49,6 +49,10 @@ docker compose build chatmail
 
 The build bakes all binaries, Python packages, and the install stage into the image. After building, only `docker-compose.yaml` and `.env` are needed to run the container.
 
+TODO: upload the image to a registry, for now, you can upload the image to your server directly with
+```shell
+time docker save chatmail-relay:latest | pigz | ssh chat.example.com 'pigz -d | docker load' # pigz is multithreaded gzip
+```
 ## Running with Docker Compose
 
 1. Copy `docker-compose.yaml` and `docker/example.env` into a working directory:
