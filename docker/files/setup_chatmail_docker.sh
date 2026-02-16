@@ -14,29 +14,38 @@ if [ -z "$MAIL_DOMAIN" ]; then
 fi
 
 calculate_hash() {
+    if [ ! -d "$PATH_TO_SSL" ]; then
+        echo ""
+        return 0
+    fi
     find "$PATH_TO_SSL" -type f -exec sha1sum {} \; | sort | sha1sum | awk '{print $1}'
 }
 
 monitor_certificates() {
     if [ "$ENABLE_CERTS_MONITORING" != "true" ]; then
         echo "Certs monitoring disabled."
-        exit 0
+        return 0
     fi
 
-    current_hash=$(calculate_hash)
-    previous_hash=$current_hash
+    # Wait for certificate directory to exist before monitoring
+    echo "[INFO] Waiting for certificate directory: $PATH_TO_SSL"
+    while [ ! -d "$PATH_TO_SSL" ]; do
+        sleep "$CERTS_MONITORING_TIMEOUT"
+    done
+    echo "[INFO] Certificate directory found, starting monitoring."
+
+    previous_hash=$(calculate_hash)
 
     while true; do
+        sleep "$CERTS_MONITORING_TIMEOUT"
         current_hash=$(calculate_hash)
-        if [[ "$current_hash" != "$previous_hash" ]]; then
-        # TODO: add an option to restart at a specific time interval 
+        if [ -n "$current_hash" ] && [ "$current_hash" != "$previous_hash" ]; then
             echo "[INFO] Certificate's folder hash was changed, reloading nginx, dovecot and postfix services."
             systemctl reload nginx.service
             systemctl reload dovecot.service
             systemctl reload postfix.service
             previous_hash=$current_hash
         fi
-        sleep $CERTS_MONITORING_TIMEOUT
     done
 }
 
