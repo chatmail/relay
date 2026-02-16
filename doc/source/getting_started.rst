@@ -154,8 +154,9 @@ This starts a local live development cycle for chatmail web pages:
    directory and generating HTML files and copying assets to the
    ``www/build`` directory.
 
--  Starts a browser window automatically where you can “refresh” as
-   needed.
+-  if you are running scripts/cmdeploy webdev on the relay itself,
+   you need to configure a route in /etc/nginx/nginx.conf
+   to expose the build directory.
 
 Custom web pages
 ----------------
