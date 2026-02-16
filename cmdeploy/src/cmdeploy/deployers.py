@@ -610,7 +610,12 @@ def deploy_chatmail(config_path: Path, disable_mail: bool, website_only: bool) -
         UnboundDeployer(config),
         TurnDeployer(mail_domain),
         IrohDeployer(config.enable_iroh_relay),
-        AcmetoolDeployer(config.acme_email, tls_domains),
+    ]
+
+    if not config.noacme:
+        all_deployers.append(AcmetoolDeployer(config.acme_email, tls_domains))
+
+    all_deployers += [
         WebsiteDeployer(config),
         ChatmailVenvDeployer(config),
         MtastsDeployer(),

@@ -1,0 +1,30 @@
+log:
+  level: INFO
+
+entryPoints:
+  web:
+    address: ":80"
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          permanent: true
+  websecure:
+    address: ":443"
+
+providers:
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    exposedByDefault: false
+  file:
+    directory: /dynamic/conf
+    watch: true
+
+certificatesResolvers:
+  letsEncrypt:
+    acme:
+      storage: /data/acme.json
+      caServer: "https://acme-v02.api.letsencrypt.org/directory"
+      tlschallenge: true
+      httpChallenge:
+        entryPoint: web
