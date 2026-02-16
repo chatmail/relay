@@ -6,9 +6,10 @@ use crate::dkim_verifier::DkimVerifier;
 use crate::message::{check_encrypted, is_securejoin};
 pub use crate::smtp_server::Envelope;
 use crate::smtp_server::SmtpHandler;
-use crate::utils::extract_address;
+use crate::utils::{AddressDomain, extract_address};
 use async_trait::async_trait;
 use mailparse::{MailHeaderMap, parse_mail};
+use std::str::FromStr;
 
 /// Handler for incoming SMTP messages.
 pub struct IncomingBeforeQueueHandler {
@@ -50,9 +51,25 @@ impl SmtpHandler for IncomingBeforeQueueHandler {
             return Err(format!("500 Invalid FROM header: {from_header}"));
         };
 
-        self.dkim_verifier
-            .verify(&envelope.data, &from_addr)
-            .await?;
+        let from_domain = AddressDomain::from_str(&from_addr).map_err(|e| e.smtp_response())?;
+
+        match from_domain {
+            AddressDomain::Literal(ip) => {
+                if !envelope.origin_ip.eq_ignore_ascii_case(&ip) {
+                    log::warn!(
+                        "Received invalid origin address: {ip}, actual: {}",
+                        envelope.origin_ip
+                    );
+                    return Err(format!(
+                        "500 Invalid FROM domain literal: {ip} does not match origin IP {}",
+                        envelope.origin_ip
+                    ));
+                }
+            }
+            AddressDomain::Name(domain) => {
+                self.dkim_verifier.verify(&envelope.data, &domain).await?;
+            }
+        }
 
         let mail_encrypted = check_encrypted(&message, false);
         log::debug!("mail_encrypted: {mail_encrypted}");
