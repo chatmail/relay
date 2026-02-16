@@ -69,6 +69,7 @@ RUN python3 -m venv /opt/cmdeploy && \
 RUN CMDEPLOY_STAGES=install \
     CHATMAIL_INI=/tmp/chatmail.ini \
     CHATMAIL_NOSYSCTL=True \
+    CHATMAIL_NOPORTCHECK=True \
     /opt/cmdeploy/bin/pyinfra @local \
         /opt/chatmail/cmdeploy/src/cmdeploy/run.py -y
 
