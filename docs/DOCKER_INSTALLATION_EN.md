@@ -64,19 +64,12 @@ If you are running from the cloned repo directory, just copy the env file:
 cp ./docker/example.env .env
 ```
 
-2. Configure environment variables in the `.env` file.
-   Below is the list of variables used during deployment:
+2. Configure the `.env` file. Only `MAIL_DOMAIN` is required:
 
 - `MAIL_DOMAIN` – The domain name of the future server. (required)
-- `DEBUG_COMMANDS_ENABLED` – Run debug commands before installation. (default: `false`)
-- `FORCE_REINIT_INI_FILE` – Recreate the ini configuration file on startup. (default: `false`)
-- `USE_FOREIGN_CERT_MANAGER` – Use a third-party certificate manager. (default: `false`)
-- `PATH_TO_SSL` – Path to where the certificates are stored. (default: `/var/lib/acme/live/${MAIL_DOMAIN}`)
-- `ENABLE_CERTS_MONITORING` – Enable certificate monitoring if `USE_FOREIGN_CERT_MANAGER=true`. If certificates change, services will be automatically restarted. (default: `false`)
-- `CERTS_MONITORING_TIMEOUT` – Interval in seconds to check if certificates have changed. (default: `60`)
 - `CMDEPLOY_STAGES` – Deployment stages to run on container start. (default: `"configure,activate"`). Set to `"install,configure,activate"` to force a full reinstall.
 
-You can also use any variables from the [ini configuration file](https://github.com/chatmail/relay/blob/main/chatmaild/src/chatmaild/ini/chatmail.ini.f); they must be in uppercase.
+The container generates a `chatmail.ini` with defaults from `MAIL_DOMAIN` on first start. To customize chatmail settings, mount your own `chatmail.ini` instead (see [Customization](#custom-chatmailini) below).
 
 3. Start the container:
 
@@ -134,9 +127,21 @@ docker compose up -d
 
 ### Custom chatmail.ini
 
-Instead of using environment variables, you can mount your own `chatmail.ini` configuration file. This is useful if you prefer managing the full ini file directly or want to share one configuration across environments.
+There are two configuration modes:
 
-1. In `docker-compose.yaml`, uncomment or add the ini volume mount:
+**Simple (default):** Set `MAIL_DOMAIN` in `.env`. The container auto-generates `chatmail.ini` with defaults on first start. This is sufficient for most deployments.
+
+**Advanced:** Generate a `chatmail.ini`, edit it, and mount it into the container. This gives you full control over all chatmail settings.
+
+1. Extract the generated config from a running container:
+
+```shell
+docker cp chatmail:/etc/chatmail/chatmail.ini ./chatmail.ini
+```
+
+2. Edit `chatmail.ini` as needed.
+
+3. In `docker-compose.yaml`, uncomment or add the ini volume mount:
 
 ```yaml
 services:
@@ -146,7 +151,7 @@ services:
       - ./chatmail.ini:/etc/chatmail/chatmail.ini
 ```
 
-2. Environment variables from `.env` are still applied on top of the mounted file at container start, so you can combine both approaches.
+4. Restart the container. The mounted file is used directly — the container skips generating a new one.
 
 ## Migrating from a bare-metal install
 
@@ -163,13 +168,11 @@ systemctl disable postfix dovecot doveauth nginx opendkim unbound acmetool-redir
   lastlogin mtail
 ```
 
-2. Convert your existing `chatmail.ini` to the Docker `.env` format:
+2. Copy your existing `chatmail.ini` and mount it into the container (see [Custom chatmail.ini](#custom-chatmailini) above):
 
 ```shell
-python3 docker/cm_ini_to_env.py /usr/local/lib/chatmaild/chatmail.ini .env
+cp /usr/local/lib/chatmaild/chatmail.ini ./chatmail.ini
 ```
-
-or mount it (see above).
 
 3. Copy persistent data into the `./data/` subdirectories:
 

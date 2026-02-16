@@ -20,18 +20,12 @@ services:
         max-size: "10m"
         max-file: "3"
     environment:
-      CHANGE_KERNEL_SETTINGS: "False"
       MAIL_DOMAIN: $MAIL_DOMAIN
-      ACME_EMAIL: $ACME_EMAIL
-      WWW_FOLDER: /opt/chatmail-www
-      MAX_MESSAGE_SIZE: $MAX_MESSAGE_SIZE
-      DEBUG_COMMANDS_ENABLED: $DEBUG_COMMANDS_ENABLED
-      FORCE_REINIT_INI_FILE: $FORCE_REINIT_INI_FILE
-      USE_FOREIGN_CERT_MANAGER: $USE_FOREIGN_CERT_MANAGER
-      ENABLE_CERTS_MONITORING: $ENABLE_CERTS_MONITORING
-      CERTS_MONITORING_TIMEOUT: $CERTS_MONITORING_TIMEOUT
-      IS_DEVELOPMENT_INSTANCE: $IS_DEVELOPMENT_INSTANCE
       CMDEPLOY_STAGES: ${CMDEPLOY_STAGES:-}
+      # Certificate monitoring (only needed with USE_FOREIGN_CERT_MANAGER)
+      USE_FOREIGN_CERT_MANAGER: ${USE_FOREIGN_CERT_MANAGER:-}
+      ENABLE_CERTS_MONITORING: ${ENABLE_CERTS_MONITORING:-}
+      CERTS_MONITORING_TIMEOUT: ${CERTS_MONITORING_TIMEOUT:-}
     network_mode: "host"
     volumes:
       ## system
@@ -49,4 +43,3 @@ services:
       ## debug
       # - ./docker/files/setup_chatmail_docker.sh:/setup_chatmail_docker.sh
       # - ./docker/files/entrypoint.sh:/entrypoint.sh
-      # - ./docker/files/update_ini.sh:/update_ini.sh

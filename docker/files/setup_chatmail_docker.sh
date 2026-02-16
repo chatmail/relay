@@ -5,7 +5,6 @@ export CHATMAIL_INI="${CHATMAIL_INI:-/etc/chatmail/chatmail.ini}"
 export ENABLE_CERTS_MONITORING="${ENABLE_CERTS_MONITORING:-true}"
 export CERTS_MONITORING_TIMEOUT="${CERTS_MONITORING_TIMEOUT:-60}"
 export PATH_TO_SSL="${PATH_TO_SSL:-/var/lib/acme/live/${MAIL_DOMAIN}}"
-export CHANGE_KERNEL_SETTINGS=${CHANGE_KERNEL_SETTINGS:-"False"}
 
 CMDEPLOY=/opt/cmdeploy/bin/cmdeploy
 
@@ -43,20 +42,15 @@ monitor_certificates() {
 
 ### MAIN
 
-if [ "$FORCE_REINIT_INI_FILE" = true ]; then
-    INI_CMD_ARGS=--force
-fi
-
 if [ ! -f /etc/dkimkeys/opendkim.private ]; then
     /usr/sbin/opendkim-genkey -D /etc/dkimkeys -d $MAIL_DOMAIN -s opendkim
 fi
 chown opendkim:opendkim /etc/dkimkeys/opendkim.private
 chown opendkim:opendkim /etc/dkimkeys/opendkim.txt
 
-# Create chatmail.ini from env vars (skips if file already exists, e.g. volume-mounted)
+# Create chatmail.ini (skips if file already exists, e.g. volume-mounted)
 mkdir -p "$(dirname "$CHATMAIL_INI")"
-$CMDEPLOY init --config "$CHATMAIL_INI" $INI_CMD_ARGS $MAIL_DOMAIN || true
-INI_FILE="$CHATMAIL_INI" bash /update_ini.sh
+$CMDEPLOY init --config "$CHATMAIL_INI" $MAIL_DOMAIN || true
 
 export CMDEPLOY_STAGES="${CMDEPLOY_STAGES:-configure,activate}"
 $CMDEPLOY run --ssh-host @docker

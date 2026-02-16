@@ -84,7 +84,6 @@ COPY ./docker/files/setup_chatmail.service "$SETUP_CHATMAIL_SERVICE_PATH"
 RUN ln -sf "$SETUP_CHATMAIL_SERVICE_PATH" "/etc/systemd/system/multi-user.target.wants/setup_chatmail.service"
 
 COPY --chmod=555 ./docker/files/setup_chatmail_docker.sh /setup_chatmail_docker.sh
-COPY --chmod=555 ./docker/files/update_ini.sh /update_ini.sh
 COPY --chmod=555 ./docker/files/entrypoint.sh /entrypoint.sh
 
 VOLUME ["/sys/fs/cgroup", "/home"]
