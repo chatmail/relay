@@ -16,6 +16,9 @@ RUN echo 'APT::Install-Recommends "0";' > /etc/apt/apt.conf.d/01norecommend && \
     update-locale LANG=$LANG \
     && rm -rf /var/lib/apt/lists/*
 
+# Dovecot is installed by the pyinfra install stage below (DovecotDeployer),
+# which downloads+verifies SHA256 hashes from the canonical source in
+# cmdeploy/src/cmdeploy/dovecot/deployer.py — no need to duplicate here.
 RUN apt-get update && \
     apt-get install -y \
         git \
@@ -37,19 +40,6 @@ RUN apt-get update && \
         libnginx-mod-stream \
         fcgiwrap \
         cron \
-    && for pkg in core imapd lmtpd; do \
-      case "$pkg" in \
-        core) sha256="43f593332e22ac7701c62d58b575d2ca409e0f64857a2803be886c22860f5587" ;; \
-        imapd) sha256="8d8dc6fc00bbb6cdb25d345844f41ce2f1c53f764b79a838eb2a03103eebfa86" ;; \
-        lmtpd) sha256="2f69ba5e35363de50962d42cccbfe4ed8495265044e244007d7ccddad77513ab" ;; \
-      esac; \
-      url="https://download.delta.chat/dovecot/dovecot-${pkg}_2.3.21%2Bdfsg1-3_amd64.deb"; \
-      file="/tmp/$(basename "$url")"; \
-      curl -fsSL "$url" -o "$file"; \
-      echo "$sha256  $file" | sha256sum -c -; \
-      apt-get install -y "$file"; \
-      rm -f "$file"; \
-    done \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /opt/chatmail
