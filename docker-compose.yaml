@@ -23,7 +23,7 @@ services:
       CHANGE_KERNEL_SETTINGS: "False"
       MAIL_DOMAIN: $MAIL_DOMAIN
       ACME_EMAIL: $ACME_EMAIL
-      RECREATE_VENV: $RECREATE_VENV
+      WWW_FOLDER: /opt/chatmail-www
       MAX_MESSAGE_SIZE: $MAX_MESSAGE_SIZE
       DEBUG_COMMANDS_ENABLED: $DEBUG_COMMANDS_ENABLED
       FORCE_REINIT_INI_FILE: $FORCE_REINIT_INI_FILE
@@ -36,15 +36,15 @@ services:
     volumes:
       ## system
       - /sys/fs/cgroup:/sys/fs/cgroup:rw # required for systemd
-      - ./:/opt/chatmail
 
       ## data
       - ./data/chatmail:/home
       - ./data/chatmail-dkimkeys:/etc/dkimkeys
       - ./data/chatmail-acme:/var/lib/acme
 
-      ## custom resources
-      # - ./custom/www/src/index.md:/opt/chatmail/www/src/index.md
+      ## optional overrides
+      # - ./chatmail.ini:/etc/chatmail/chatmail.ini   # use your own config
+      # - ./custom/www:/opt/chatmail-www              # custom website
 
       ## debug
       # - ./docker/files/setup_chatmail_docker.sh:/setup_chatmail_docker.sh

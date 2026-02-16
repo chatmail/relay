@@ -54,32 +54,30 @@ RUN apt-get update && \
 
 WORKDIR /opt/chatmail
 
-# --- Build-time install stage ---
-# Bake the "install" deployer stage into the image; we can't use
-# scripts/initenv.sh because /opt/chatmail is empty at build time as 
-# source arrives at runtime via volume mount., so we use a throwaway venv.
+# --- Build-time: install cmdeploy venv and run install stage ---
+# Editable install so importlib.resources reads directly from the source tree.
 # On container start only "configure,activate" stages run.
-COPY . /tmp/chatmail-src/
-WORKDIR /tmp/chatmail-src
+COPY . /opt/chatmail/
+WORKDIR /opt/chatmail
 
-# Dummy config — deploy_chatmail() needs a parseable ini to instantiate deployers
 RUN printf '[params]\nmail_domain = build.local\n' > /tmp/chatmail.ini
 
-# Do what initenv.sh would do without the docs
-RUN python3 -m venv /tmp/build-venv && \
-    /tmp/build-venv/bin/pip install --no-cache-dir \
-        -e chatmaild -e cmdeploy
+RUN python3 -m venv /opt/cmdeploy && \
+    /opt/cmdeploy/bin/pip install --no-cache-dir \
+        -e chatmaild/ -e cmdeploy/
 
 RUN CMDEPLOY_STAGES=install \
     CHATMAIL_INI=/tmp/chatmail.ini \
     CHATMAIL_DOCKER=True \
-    /tmp/build-venv/bin/pyinfra @local \
-        /tmp/chatmail-src/cmdeploy/src/cmdeploy/run.py -y
+    /opt/cmdeploy/bin/pyinfra @local \
+        /opt/chatmail/cmdeploy/src/cmdeploy/run.py -y
 
-RUN rm -rf /tmp/chatmail-src /tmp/build-venv /tmp/chatmail.ini
+RUN cp -a www/ /opt/chatmail-www/
 
-WORKDIR /opt/chatmail
-# --- End build-time install stage ---
+RUN rm -f /tmp/chatmail.ini
+# --- End build-time install ---
+
+ENV CHATMAIL_INI=/etc/chatmail/chatmail.ini
 
 ARG SETUP_CHATMAIL_SERVICE_PATH=/lib/systemd/system/setup_chatmail.service
 COPY ./docker/files/setup_chatmail.service "$SETUP_CHATMAIL_SERVICE_PATH"

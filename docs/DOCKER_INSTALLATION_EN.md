@@ -29,16 +29,7 @@ Please substitute it with your own domain.
     mta-sts.chat.example.com. 3600 IN CNAME chat.example.com.
    ```
 
-2. clone the repository on your server.
-
-   ```shell
-    git clone https://github.com/chatmail/relay
-    cd relay
-   ```
-
-## Installation
-
-1. Configure kernel parameters because they cannot be changed inside the container, specifically `fs.inotify.max_user_instances` and `fs.inotify.max_user_watches`. Run the following:
+2. Configure kernel parameters because they cannot be changed inside the container, specifically `fs.inotify.max_user_instances` and `fs.inotify.max_user_watches`. Run the following:
 
 ```shell
 echo "fs.inotify.max_user_instances=65536" | sudo tee -a /etc/sysctl.d/99-inotify.conf
@@ -46,82 +37,116 @@ echo "fs.inotify.max_user_watches=65536" | sudo tee -a /etc/sysctl.d/99-inotify.
 sudo sysctl --system
 ```
 
-2. Copy `./docker/example.env` and rename it to `.env`. This file stores variables used in `docker-compose.yaml`.
+## Building the image
+
+Clone the repository and build the Docker image:
+
+```shell
+git clone https://github.com/chatmail/relay
+cd relay
+docker compose build chatmail
+```
+
+The build bakes all binaries, Python packages, and the install stage into the image. After building, only `docker-compose.yaml` and `.env` are needed to run the container.
+
+## Running with Docker Compose
+
+1. Copy `docker-compose.yaml` and `docker/example.env` into a working directory:
+
+```shell
+cp docker-compose.yaml /path/to/your/workdir/
+cp docker/example.env /path/to/your/workdir/.env
+```
+
+If you are running from the cloned repo directory, just copy the env file:
 
 ```shell
 cp ./docker/example.env .env
 ```
 
-3. Configure environment variables in the `.env` file. These variables are used in the `docker-compose.yaml` file to pass repeated values.
+2. Configure environment variables in the `.env` file.
    Below is the list of variables used during deployment:
 
 - `MAIL_DOMAIN` – The domain name of the future server. (required)
 - `DEBUG_COMMANDS_ENABLED` – Run debug commands before installation. (default: `false`)
 - `FORCE_REINIT_INI_FILE` – Recreate the ini configuration file on startup. (default: `false`)
 - `USE_FOREIGN_CERT_MANAGER` – Use a third-party certificate manager. (default: `false`)
-- `RECREATE_VENV` - Recreate the virtual environment (venv). If set to `true`, the environment will be recreated when the container starts, which will increase the startup time of the service but can help avoid certain errors. (default: `false`)
-- `INI_FILE` – Path to the ini configuration file. (default: `./chatmail.ini`)
 - `PATH_TO_SSL` – Path to where the certificates are stored. (default: `/var/lib/acme/live/${MAIL_DOMAIN}`)
 - `ENABLE_CERTS_MONITORING` – Enable certificate monitoring if `USE_FOREIGN_CERT_MANAGER=true`. If certificates change, services will be automatically restarted. (default: `false`)
-- `CERTS_MONITORING_TIMEOUT` – Interval in seconds to check if certificates have changed. (default: `'60'`)
+- `CERTS_MONITORING_TIMEOUT` – Interval in seconds to check if certificates have changed. (default: `60`)
 - `CMDEPLOY_STAGES` – Deployment stages to run on container start. (default: `"configure,activate"`). Set to `"install,configure,activate"` to force a full reinstall.
 
 You can also use any variables from the [ini configuration file](https://github.com/chatmail/relay/blob/main/chatmaild/src/chatmaild/ini/chatmail.ini.f); they must be in uppercase.
 
-4. Build the Docker image:
-
-```shell
-docker compose build chatmail
-```
-
-5. Start docker compose and wait for the installation to finish:
+3. Start the container:
 
 ```shell
 docker compose up -d # start service
 docker compose logs -f chatmail # view container logs, press CTRL+C to exit
 ```
 
-### venv creation
-The first container start takes longer because it creates the cmdeploy Python virtualenv at `/opt/chatmail/venv` (persisted on the host via volume mount). Subsequent starts reuse the existing venv. Set `RECREATE_VENV=true` in `.env` to force a rebuild if needed.
+4. After installation is complete, you can open `https://<your_domain_name>` in your browser.
 
-6. After installation is complete, you can open `https://<your_domain_name>` in your browser.
+## Managing the server
 
-## Using custom files
-
-When using Docker, you can apply modified configuration files to make the installation more personalized. This is usually needed for the `www/src` section so that the Chatmail landing page is customized to your taste, but it can be used for any other cases as well.
-
-To replace files correctly:
-
-1. Create the `./custom` directory. It is in `.gitignore`, so it won’t cause conflicts when updating.
+Use `docker exec` to run cmdeploy commands inside the container:
 
 ```shell
-mkdir -p ./custom
+# Show required DNS records
+docker exec chatmail /opt/cmdeploy/bin/cmdeploy dns --ssh-host @docker
+
+# Check server status
+docker exec chatmail /opt/cmdeploy/bin/cmdeploy status --ssh-host @docker
+
+# Run benchmarks (can also run from any machine with cmdeploy installed)
+docker exec chatmail /opt/cmdeploy/bin/cmdeploy bench chat.example.com
 ```
 
-2. Modify the required file. For example, `index.md`:
+## Customization
+
+### Custom website
+
+You can customize the Chatmail landing page by mounting a directory with your own website source files.
+
+1. Create a directory with your custom website source:
 
 ```shell
 mkdir -p ./custom/www/src
 nano ./custom/www/src/index.md
 ```
 
-3. In `docker-compose.yaml`, add the file mount in the `volumes` section:
+2. In `docker-compose.yaml`, uncomment or add the website volume mount:
 
 ```yaml
 services:
   chatmail:
     volumes:
       ...
-      ## custom resources
-      - ./custom/www/src/index.md:/opt/chatmail/www/src/index.md
+      - ./custom/www:/opt/chatmail-www
 ```
 
-4. Restart the service:
+3. Restart the service:
 
 ```shell
 docker compose down
 docker compose up -d
 ```
+
+### Custom chatmail.ini
+
+Instead of using environment variables, you can mount your own `chatmail.ini` configuration file. This is useful if you prefer managing the full ini file directly or want to share one configuration across environments.
+
+1. In `docker-compose.yaml`, uncomment or add the ini volume mount:
+
+```yaml
+services:
+  chatmail:
+    volumes:
+      ...
+      - ./chatmail.ini:/etc/chatmail/chatmail.ini
+```
+
+2. Environment variables from `.env` are still applied on top of the mounted file at container start, so you can combine both approaches.
 
 ## Migrating from a bare-metal install
 
@@ -143,6 +168,8 @@ systemctl disable postfix dovecot doveauth nginx opendkim unbound acmetool-redir
 ```shell
 python3 docker/cm_ini_to_env.py /usr/local/lib/chatmaild/chatmail.ini .env
 ```
+
+or mount it (see above).
 
 3. Copy persistent data into the `./data/` subdirectories:
 
