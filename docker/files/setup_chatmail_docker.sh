@@ -67,7 +67,10 @@ git config --global --add safe.directory /opt/chatmail
 if [ "$RECREATE_VENV" = true ]; then
     rm -rf venv
 fi
-./scripts/initenv.sh
+# Skip venv creation if it already exists
+if [ ! -x venv/bin/python ] || [ ! -x venv/bin/cmdeploy ]; then
+    ./scripts/initenv.sh
+fi
 
 ./scripts/cmdeploy init --config "${INI_FILE}" $INI_CMD_ARGS $MAIL_DOMAIN || true
 bash /update_ini.sh
