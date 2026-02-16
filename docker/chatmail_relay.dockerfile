@@ -80,6 +80,7 @@ RUN rm -f /tmp/chatmail.ini
 
 ENV CHATMAIL_INI=/etc/chatmail/chatmail.ini
 ENV PATH="/opt/cmdeploy/bin:${PATH}"
+RUN ln -s /etc/chatmail/chatmail.ini /opt/chatmail/chatmail.ini
 
 ARG SETUP_CHATMAIL_SERVICE_PATH=/lib/systemd/system/setup_chatmail.service
 COPY ./docker/files/setup_chatmail.service "$SETUP_CHATMAIL_SERVICE_PATH"
