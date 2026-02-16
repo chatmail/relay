@@ -77,6 +77,12 @@ RUN rm -f /etc/nginx/sites-enabled/default
 COPY --chmod=555 ./docker/files/setup_chatmail_docker.sh /setup_chatmail_docker.sh
 COPY --chmod=555 ./docker/files/entrypoint.sh /entrypoint.sh
 
+# Certificate monitoring as a proper systemd timer (not a background process)
+COPY --chmod=555 ./docker/files/chatmail-certmon.sh /chatmail-certmon.sh
+COPY ./docker/files/chatmail-certmon.service /lib/systemd/system/chatmail-certmon.service
+COPY ./docker/files/chatmail-certmon.timer /lib/systemd/system/chatmail-certmon.timer
+RUN ln -sf /lib/systemd/system/chatmail-certmon.timer /etc/systemd/system/timers.target.wants/chatmail-certmon.timer
+
 HEALTHCHECK --interval=60s --timeout=10s --retries=3 \
   CMD systemctl is-active dovecot postfix nginx unbound opendkim filtermail doveauth chatmail-metadata || exit 1
 

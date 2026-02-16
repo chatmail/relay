@@ -29,10 +29,7 @@ services:
     environment:
       MAIL_DOMAIN: $MAIL_DOMAIN
       CMDEPLOY_STAGES: ${CMDEPLOY_STAGES:-}
-      # Certificate monitoring (only needed with USE_FOREIGN_CERT_MANAGER)
       USE_FOREIGN_CERT_MANAGER: ${USE_FOREIGN_CERT_MANAGER:-}
-      ENABLE_CERTS_MONITORING: ${ENABLE_CERTS_MONITORING:-}
-      CERTS_MONITORING_TIMEOUT: ${CERTS_MONITORING_TIMEOUT:-}
     network_mode: "host"
     volumes:
       ## system
