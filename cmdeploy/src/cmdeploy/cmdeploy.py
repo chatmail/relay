@@ -331,7 +331,7 @@ def add_config_option(parser):
         "--config",
         dest="inipath",
         action="store",
-        default=Path("chatmail.ini"),
+        default=Path(os.environ.get("CHATMAIL_INI", "chatmail.ini")),
         type=Path,
         help="path to the chatmail.ini file",
     )
