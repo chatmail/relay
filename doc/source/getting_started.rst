@@ -102,7 +102,6 @@ steps. Please substitute it with your own domain.
    public).
 
 
-
 Docker installation
 -------------------
 
@@ -110,26 +109,32 @@ There is experimental support for running chatmail via Docker.
 A monolithic image based on the above cmdeploy method is available `through a separate repository <https://github.com/chatmail/docker/pkgs/container/docker>`_.
 See the `chatmail/docker README <https://github.com/chatmail/docker>`_ for full setup instructions.
 
-Other helpful commands
-----------------------
 
-To check the status of your deployment server running the chatmail service:
+Next Steps
+----------
 
-::
-
-   scripts/cmdeploy status
-
-To display and check all recommended DNS records:
+Now you should display and check all recommended DNS records
+to enable federation with other relays:
 
 ::
 
    scripts/cmdeploy dns
 
-To test whether your chatmail service is working correctly:
+You should also test whether your chatmail service is working correctly:
 
 ::
 
    scripts/cmdeploy test
+
+Other Helpful Commands
+----------------------
+
+To check the status of your chatmail relay:
+
+::
+
+   scripts/cmdeploy status
+
 
 To measure the performance of your chatmail service:
 
