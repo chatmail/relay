@@ -8,6 +8,8 @@ pub enum Error {
     Config(#[from] serini::Error),
     #[error(transparent)]
     Io(#[from] std::io::Error),
+    #[error(transparent)]
+    Resolve(#[from] hickory_resolver::ResolveError),
     #[error("OpenPGP packet header is truncated - can't validate!")]
     TruncatedHeader,
     #[error("Unable to send email, Error during {context}, server said: {raw_smtp_answer}")]

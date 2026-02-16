@@ -55,7 +55,7 @@ impl SmtpHandler for OutgoingBeforeQueueHandler {
         Ok(())
     }
 
-    fn check_data(&self, envelope: &Envelope) -> Result<(), String> {
+    async fn check_data(&self, envelope: &Envelope) -> Result<(), String> {
         log::debug!("Processing DATA message from {}", envelope.mail_from);
 
         let message = match parse_mail(&envelope.data) {

@@ -21,7 +21,7 @@ pub trait SmtpHandler: Send + Sync {
     fn handle_mail(&self, address: &str) -> Result<(), String>;
 
     /// Checks the DATA command before reinjection.
-    fn check_data(&self, envelope: &Envelope) -> Result<(), String>;
+    async fn check_data(&self, envelope: &Envelope) -> Result<(), String>;
 
     /// Reinjects the mail back to postfix.
     async fn reinject_mail(&self, envelope: &Envelope) -> Result<(), String>;
@@ -29,7 +29,7 @@ pub trait SmtpHandler: Send + Sync {
     /// Handles the DATA command.
     async fn handle_data(&self, envelope: &Envelope) -> Result<String, String> {
         log::debug!("handle_DATA before-queue");
-        self.check_data(envelope)?;
+        self.check_data(envelope).await?;
         self.reinject_mail(envelope).await.map_err(|e| {
             log::warn!("Failed to reinject mail: {e}");
             e

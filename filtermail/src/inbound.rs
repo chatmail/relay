@@ -2,22 +2,26 @@
 
 use crate::ENCRYPTION_NEEDED_523;
 use crate::config::Config;
+use crate::dkim_verifier::DkimVerifier;
 use crate::message::{check_encrypted, is_securejoin};
+pub use crate::smtp_server::Envelope;
 use crate::smtp_server::SmtpHandler;
+use crate::utils::extract_address;
 use async_trait::async_trait;
 use mailparse::{MailHeaderMap, parse_mail};
-
-pub use crate::smtp_server::Envelope;
-use crate::utils::extract_address;
 
 /// Handler for incoming SMTP messages.
 pub struct IncomingBeforeQueueHandler {
     config: Config,
+    dkim_verifier: DkimVerifier,
 }
 
 impl IncomingBeforeQueueHandler {
-    pub fn new(config: Config) -> Self {
-        Self { config }
+    pub fn new(config: Config) -> Result<Self, crate::error::Error> {
+        Ok(Self {
+            config,
+            dkim_verifier: DkimVerifier::new()?,
+        })
     }
 }
 
@@ -27,13 +31,28 @@ impl SmtpHandler for IncomingBeforeQueueHandler {
         Ok(())
     }
 
-    fn check_data(&self, envelope: &Envelope) -> Result<(), String> {
+    async fn check_data(&self, envelope: &Envelope) -> Result<(), String> {
         log::debug!("Processing DATA message from {}", envelope.mail_from);
 
         let message = match parse_mail(&envelope.data) {
             Ok(m) => m,
             Err(e) => return Err(format!("500 Failed to parse message: {}", e)),
         };
+
+        let from_header = message
+            .headers
+            .get_first_value("From")
+            .unwrap_or_default()
+            .trim()
+            .to_string();
+
+        let Some(from_addr) = extract_address(&from_header) else {
+            return Err(format!("500 Invalid FROM header: {from_header}"));
+        };
+
+        self.dkim_verifier
+            .verify(&envelope.data, &from_addr)
+            .await?;
 
         let mail_encrypted = check_encrypted(&message, false);
         log::debug!("mail_encrypted: {mail_encrypted}");
@@ -50,20 +69,10 @@ impl SmtpHandler for IncomingBeforeQueueHandler {
         // Allow cleartext mailer-daemon messages
         if let Some(auto_submitted) = message.headers.get_first_value("Auto-Submitted")
             && !auto_submitted.is_empty()
+            && from_addr.to_lowercase().starts_with("mailer-daemon@")
+            && message.ctype.mimetype == "multipart/report"
         {
-            let from_header = message
-                .headers
-                .get_first_value("From")
-                .unwrap_or_default()
-                .trim()
-                .to_string();
-
-            if let Some(from_addr) = extract_address(&from_header)
-                && from_addr.to_lowercase().starts_with("mailer-daemon@")
-                && message.ctype.mimetype == "multipart/report"
-            {
-                return Ok(());
-            }
+            return Ok(());
         }
 
         for recipient in &envelope.rcpt_to {

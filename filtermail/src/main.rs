@@ -25,6 +25,7 @@
     clippy::bool_to_int_with_if
 )]
 mod config;
+mod dkim_verifier;
 pub(crate) mod error;
 pub(crate) mod inbound;
 pub(crate) mod message;
@@ -95,7 +96,10 @@ async fn main() {
             process::exit(1);
         }
     } else {
-        let handler = Arc::new(IncomingBeforeQueueHandler::new(config.clone()));
+        let handler = Arc::new(
+            // We want to panic here if the handler cannot be created.
+            IncomingBeforeQueueHandler::new(config.clone()).unwrap(),
+        );
         let addr = format!("127.0.0.1:{}", config.filtermail_smtp_port_incoming);
         let max_size = config.max_message_size;
         log::debug!("Incoming SMTP server listening on {addr}");

@@ -26,6 +26,17 @@ pub fn extract_address(input: &str) -> Option<String> {
         })
 }
 
+pub fn get_domain_from_address(address: &str) -> Option<String> {
+    let parts: Vec<&str> = address.split('@').collect();
+    if parts.len() == 2
+        && let Some(domain) = parts.get(1)
+    {
+        Some(domain.to_string())
+    } else {
+        None
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -43,5 +54,15 @@ mod tests {
     fn test_extract_address(#[case] input: &str, #[case] expected: Option<String>) {
         let result = extract_address(input);
         assert_eq!(result, expected)
+    }
+
+    #[rstest]
+    #[case("t1@example.org", Some("example.org".to_string()))]
+    #[case("SRS1=HHH=example.com==HHH=TT=example.org=alice@example.net", Some("example.net".to_string()))]
+    #[case("invalid", None)]
+    #[case("invalid@address@com", None)]
+    fn test_get_domain_from_address(#[case] input: &str, #[case] expected: Option<String>) {
+        let result = get_domain_from_address(input);
+        assert_eq!(result, expected);
     }
 }
