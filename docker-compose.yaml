@@ -1,4 +1,10 @@
 # Copy docker/example.env to .env and set MAIL_DOMAIN before starting.
+#
+# Security note: this container uses network_mode:host (chatmail needs many
+# ports: 25, 53, 80, 143, 443, 465, 587, 993, 3340, 8443) and cgroup:host
+# (required for systemd). Together these give the container near-host-level
+# access. This is acceptable for a dedicated mail server, but be aware that
+# the container can bind any port and see all host network traffic.
 services:
   chatmail:
     build:
