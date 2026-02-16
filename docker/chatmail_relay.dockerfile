@@ -8,7 +8,7 @@ RUN echo 'APT::Install-Recommends "0";' > /etc/apt/apt.conf.d/01norecommend && \
     apt-get install -y \
         ca-certificates && \
     DEBIAN_FRONTEND=noninteractive \
-    TZ=Europe/London \
+    TZ=UTC \
     apt-get install -y tzdata && \
     apt-get install -y locales && \
     sed -i -e "s/# $LANG.*/$LANG UTF-8/" /etc/locale.gen && \
@@ -16,9 +16,6 @@ RUN echo 'APT::Install-Recommends "0";' > /etc/apt/apt.conf.d/01norecommend && \
     update-locale LANG=$LANG \
     && rm -rf /var/lib/apt/lists/*
 
-# Dovecot is installed by the pyinfra install stage below (DovecotDeployer),
-# which downloads+verifies SHA256 hashes from the canonical source in
-# cmdeploy/src/cmdeploy/dovecot/deployer.py — no need to duplicate here.
 RUN apt-get update && \
     apt-get install -y \
         git \
@@ -41,8 +38,6 @@ RUN apt-get update && \
         fcgiwrap \
         cron \
     && rm -rf /var/lib/apt/lists/*
-
-WORKDIR /opt/chatmail
 
 # --- Build-time: install cmdeploy venv and run install stage ---
 # Editable install so importlib.resources reads directly from the source tree.
@@ -76,10 +71,14 @@ ARG SETUP_CHATMAIL_SERVICE_PATH=/lib/systemd/system/setup_chatmail.service
 COPY ./docker/files/setup_chatmail.service "$SETUP_CHATMAIL_SERVICE_PATH"
 RUN ln -sf "$SETUP_CHATMAIL_SERVICE_PATH" "/etc/systemd/system/multi-user.target.wants/setup_chatmail.service"
 
+# Remove default nginx site config at build time (not in entrypoint)
+RUN rm -f /etc/nginx/sites-enabled/default
+
 COPY --chmod=555 ./docker/files/setup_chatmail_docker.sh /setup_chatmail_docker.sh
 COPY --chmod=555 ./docker/files/entrypoint.sh /entrypoint.sh
 
-VOLUME ["/sys/fs/cgroup", "/home"]
+HEALTHCHECK --interval=60s --timeout=10s --retries=3 \
+  CMD systemctl is-active dovecot postfix nginx unbound opendkim filtermail doveauth chatmail-metadata || exit 1
 
 STOPSIGNAL SIGRTMIN+3
 
