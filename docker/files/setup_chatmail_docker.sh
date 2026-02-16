@@ -52,7 +52,7 @@ monitor_certificates() {
 ### MAIN
 
 if [ ! -f /etc/dkimkeys/opendkim.private ]; then
-    /usr/sbin/opendkim-genkey -D /etc/dkimkeys -d $MAIL_DOMAIN -s opendkim
+    /usr/sbin/opendkim-genkey -D /etc/dkimkeys -d "$MAIL_DOMAIN" -s opendkim
 fi
 chown opendkim:opendkim /etc/dkimkeys/opendkim.private
 chown opendkim:opendkim /etc/dkimkeys/opendkim.txt
@@ -60,11 +60,11 @@ chown opendkim:opendkim /etc/dkimkeys/opendkim.txt
 # Create chatmail.ini (skips if file already exists, e.g. volume-mounted)
 mkdir -p "$(dirname "$CHATMAIL_INI")"
 if [ ! -f "$CHATMAIL_INI" ]; then
-    $CMDEPLOY init --config "$CHATMAIL_INI" $MAIL_DOMAIN
+    $CMDEPLOY init --config "$CHATMAIL_INI" "$MAIL_DOMAIN"
 fi
 
 export CMDEPLOY_STAGES="${CMDEPLOY_STAGES:-configure,activate}"
-$CMDEPLOY run --config "$CHATMAIL_INI" --ssh-host @docker
+$CMDEPLOY run --config "$CHATMAIL_INI" --ssh-host @local
 
 echo "ForwardToConsole=yes" >> /etc/systemd/journald.conf
 systemctl restart systemd-journald
