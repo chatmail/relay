@@ -47,12 +47,6 @@ class Config:
         self.addr_v4 = os.environ.get("CHATMAIL_ADDR_V4", "")
         self.addr_v6 = os.environ.get("CHATMAIL_ADDR_V6", "")
         self.acme_email = params.get("acme_email", "")
-        self.change_kernel_settings = (
-            params.get("change_kernel_settings", "true").lower() == "true"
-        )
-        self.fs_inotify_max_user_instances_and_watchers = int(
-            params["fs_inotify_max_user_instances_and_watchers"]
-        )
         self.imap_rawlog = params.get("imap_rawlog", "false").lower() == "true"
         self.imap_compress = params.get("imap_compress", "false").lower() == "true"
         if "iroh_relay" not in params:

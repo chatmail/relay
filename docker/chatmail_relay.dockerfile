@@ -68,7 +68,7 @@ RUN python3 -m venv /opt/cmdeploy && \
 
 RUN CMDEPLOY_STAGES=install \
     CHATMAIL_INI=/tmp/chatmail.ini \
-    CHATMAIL_DOCKER=True \
+    CHATMAIL_NOSYSCTL=True \
     /opt/cmdeploy/bin/pyinfra @local \
         /opt/chatmail/cmdeploy/src/cmdeploy/run.py -y
 
@@ -78,6 +78,7 @@ RUN rm -f /tmp/chatmail.ini
 # --- End build-time install ---
 
 ENV CHATMAIL_INI=/etc/chatmail/chatmail.ini
+ENV PATH="/opt/cmdeploy/bin:${PATH}"
 
 ARG SETUP_CHATMAIL_SERVICE_PATH=/lib/systemd/system/setup_chatmail.service
 COPY ./docker/files/setup_chatmail.service "$SETUP_CHATMAIL_SERVICE_PATH"

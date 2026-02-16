@@ -2,6 +2,7 @@
 Chat Mail pyinfra deploy.
 """
 
+import os
 import shutil
 import subprocess
 import sys
@@ -538,13 +539,12 @@ class GithashDeployer(Deployer):
         )
 
 
-def deploy_chatmail(config_path: Path, disable_mail: bool, website_only: bool, docker: bool) -> None:
+def deploy_chatmail(config_path: Path, disable_mail: bool, website_only: bool) -> None:
     """Deploy a chat-mail instance.
 
     :param config_path: path to chatmail.ini
     :param disable_mail: whether to disable postfix & dovecot
     :param website_only: if True, only deploy the website
-    :param docker: whether it is running in a docker container
     """
     config = read_config(config_path)
     check_config(config)
@@ -570,7 +570,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool, website_only: bool, d
             Out().red(f"Deploy failed: mtail_address {config.mtail_address} is not available (VPN up?).\n")
             exit(1)
 
-    if not docker:
+    if not os.environ.get("CHATMAIL_NOPORTCHECK"):
         port_services = [
             (["master", "smtpd"], 25),
             ("unbound", 53),

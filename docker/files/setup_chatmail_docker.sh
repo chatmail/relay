@@ -50,7 +50,9 @@ chown opendkim:opendkim /etc/dkimkeys/opendkim.txt
 
 # Create chatmail.ini (skips if file already exists, e.g. volume-mounted)
 mkdir -p "$(dirname "$CHATMAIL_INI")"
-$CMDEPLOY init --config "$CHATMAIL_INI" $MAIL_DOMAIN || true
+if [ ! -f "$CHATMAIL_INI" ]; then
+    $CMDEPLOY init --config "$CHATMAIL_INI" $MAIL_DOMAIN
+fi
 
 export CMDEPLOY_STAGES="${CMDEPLOY_STAGES:-configure,activate}"
 $CMDEPLOY run --config "$CHATMAIL_INI" --ssh-host @docker
