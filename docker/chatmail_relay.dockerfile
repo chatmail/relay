@@ -61,6 +61,9 @@ RUN CMDEPLOY_STAGES=install \
 RUN cp -a www/ /opt/chatmail-www/
 
 RUN rm -f /tmp/chatmail.ini
+
+# Record image version for upgrade detection at runtime
+RUN git rev-parse HEAD > /etc/chatmail-image-version 2>/dev/null || echo "unknown" > /etc/chatmail-image-version
 # --- End build-time install ---
 
 ENV CHATMAIL_INI=/etc/chatmail/chatmail.ini
