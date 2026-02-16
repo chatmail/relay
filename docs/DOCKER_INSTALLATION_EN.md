@@ -90,10 +90,10 @@ Use `docker exec` to run cmdeploy commands inside the container:
 
 ```shell
 # Show required DNS records
-docker exec chatmail /opt/cmdeploy/bin/cmdeploy dns --ssh-host @docker
+docker exec chatmail /opt/cmdeploy/bin/cmdeploy dns --ssh-host @local
 
 # Check server status
-docker exec chatmail /opt/cmdeploy/bin/cmdeploy status --ssh-host @docker
+docker exec chatmail /opt/cmdeploy/bin/cmdeploy status --ssh-host @local
 
 # Run benchmarks (can also run from any machine with cmdeploy installed)
 docker exec chatmail /opt/cmdeploy/bin/cmdeploy bench chat.example.com
