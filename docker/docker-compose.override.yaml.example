@@ -15,8 +15,10 @@ services:
       # - ./data/chatmail-dkimkeys:/etc/dkimkeys
       # - ./data/chatmail-acme:/var/lib/acme
 
-      ## Or mount mail storage from an existing bare-metal install:
+      ## Or mount data from an existing bare-metal install:
       # - /home/vmail:/home/vmail
+      # - /etc/dkimkeys:/etc/dkimkeys
+      # - /var/lib/acme:/var/lib/acme
 
       ## Mount your own chatmail.ini (skips auto-generation):
       # - ./chatmail.ini:/etc/chatmail/chatmail.ini
