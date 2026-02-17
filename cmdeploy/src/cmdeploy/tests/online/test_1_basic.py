@@ -27,6 +27,7 @@ class TestSSHExecutor:
         assert res["A"] or res["AAAA"]
 
     def test_logged(self, sshexec, maildomain, capsys):
+        sshexec.verbose = False
         sshexec.logged(
             remote.rdns.perform_initial_checks, kwargs=dict(mail_domain=maildomain)
         )

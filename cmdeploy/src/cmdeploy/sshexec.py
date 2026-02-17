@@ -96,13 +96,15 @@ class LocalExec:
 
     def logged(self, call, kwargs: dict):
         title = call.__doc__
+        if not title:
+            title = call.__name__
         where = "locally"
         if self.docker:
             if call == remote.rdns.perform_initial_checks:
                 kwargs["pre_command"] = "docker exec chatmail "
                 where = "in docker"
         if self.verbose:
-            print(f"Running {where}: {call.__name__}(**{kwargs})")
+            print_stderr(f"Running {where}: {title}(**{kwargs})")
             return self(call, kwargs, log_callback=print_stderr)
         else:
             print_stderr(title, end="")
