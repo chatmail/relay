@@ -11,7 +11,7 @@ services:
       ## Data paths — bind-mount to host directories for easy access/backup.
       ## Uncomment and adjust paths as needed. These override the named
       ## volumes in the base docker-compose.yaml.
-      # - ./data/chatmail:/home
+      # - ./data/chatmail:/home/vmail
       # - ./data/chatmail-dkimkeys:/etc/dkimkeys
       # - ./data/chatmail-acme:/var/lib/acme
 

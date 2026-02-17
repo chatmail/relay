@@ -49,7 +49,7 @@ RUN printf '[params]\nmail_domain = build.local\n' > /tmp/chatmail.ini
 
 # Dummy git repo init: .git/ is excluded from the build context (.dockerignore)
 # but setuptools calls `git ls-files` when building the sdist.
-RUN git init && \
+RUN git init -q && \
     python3 -m venv /opt/cmdeploy && \
     /opt/cmdeploy/bin/pip install --no-cache-dir \
         -e chatmaild/ -e cmdeploy/
@@ -65,7 +65,7 @@ RUN cp -a www/ /opt/chatmail-www/
 
 RUN rm -f /tmp/chatmail.ini
 
-# Record image version for upgrade detection at runtime.
+# Record image version (used in deploy fingerprint at runtime).
 # GIT_HASH is passed as a build arg (from docker-compose or CI) so that
 # .git/ can be excluded from the build context via .dockerignore.
 ARG GIT_HASH=unknown

@@ -41,11 +41,11 @@ services:
       ## system (required)
       - /sys/fs/cgroup:/sys/fs/cgroup:rw
       ## data (defaults — override in docker-compose.override.yaml)
-      - chatmail-mail:/home
+      - chatmail-data:/home/vmail
       - chatmail-dkimkeys:/etc/dkimkeys
       - chatmail-acme:/var/lib/acme
 
 volumes:
-  chatmail-mail:
+  chatmail-data:
   chatmail-dkimkeys:
   chatmail-acme:
