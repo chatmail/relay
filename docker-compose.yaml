@@ -1,0 +1,52 @@
+services:
+  chatmail:
+    build:
+      context: ./
+      dockerfile: docker/chatmail_relay.dockerfile
+    image: chatmail-relay:latest
+    restart: unless-stopped
+    container_name: chatmail
+    # Required for systemd — use only one of the following:
+    cgroup: host          # compose v2 only
+    # privileged: true    # compose v1 (not tested)
+    tty: true # required for logs
+    tmpfs: # required for systemd
+      - /tmp
+      - /run
+      - /run/lock
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    environment:
+      CHANGE_KERNEL_SETTINGS: "False"
+      MAIL_DOMAIN: $MAIL_DOMAIN
+      ACME_EMAIL: $ACME_EMAIL
+      RECREATE_VENV: $RECREATE_VENV
+      MAX_MESSAGE_SIZE: $MAX_MESSAGE_SIZE
+      DEBUG_COMMANDS_ENABLED: $DEBUG_COMMANDS_ENABLED
+      FORCE_REINIT_INI_FILE: $FORCE_REINIT_INI_FILE
+      USE_FOREIGN_CERT_MANAGER: $USE_FOREIGN_CERT_MANAGER
+      ENABLE_CERTS_MONITORING: $ENABLE_CERTS_MONITORING
+      CERTS_MONITORING_TIMEOUT: $CERTS_MONITORING_TIMEOUT
+      IS_DEVELOPMENT_INSTANCE: $IS_DEVELOPMENT_INSTANCE
+      CMDEPLOY_STAGES: ${CMDEPLOY_STAGES:-}
+    network_mode: "host"
+    volumes:
+      ## system
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw # required for systemd
+      - ./:/opt/chatmail
+
+      ## data
+      - ./data/chatmail:/home
+      - ./data/chatmail-dkimkeys:/etc/dkimkeys
+      - ./data/chatmail-acme:/var/lib/acme
+
+      ## custom resources
+      # - ./custom/www/src/index.md:/opt/chatmail/www/src/index.md
+
+      ## debug
+      # - ./docker/files/setup_chatmail_docker.sh:/setup_chatmail_docker.sh
+      # - ./docker/files/entrypoint.sh:/entrypoint.sh
+      # - ./docker/files/update_ini.sh:/update_ini.sh

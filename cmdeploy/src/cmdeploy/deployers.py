@@ -25,6 +25,7 @@ from .basedeploy import (
     activate_remote_units,
     configure_remote_units,
     get_resource,
+    has_systemd,
 )
 from .dovecot.deployer import DovecotDeployer
 from .filtermail.deployer import FiltermailDeployer
@@ -65,6 +66,8 @@ def _build_chatmaild(dist_dir) -> None:
 
 
 def remove_legacy_artifacts():
+    if not has_systemd():
+        return
     # disable legacy doveauth-dictproxy.service
     if host.get_fact(SystemdEnabled).get("doveauth-dictproxy.service"):
         systemd.service(
@@ -299,7 +302,7 @@ class LegacyRemoveDeployer(Deployer):
             present=False,
         )
         # remove echobot if it is still running
-        if host.get_fact(SystemdEnabled).get("echobot.service"):
+        if has_systemd() and host.get_fact(SystemdEnabled).get("echobot.service"):
             systemd.service(
                 name="Disable echobot.service",
                 service="echobot.service",
@@ -535,12 +538,13 @@ class GithashDeployer(Deployer):
         )
 
 
-def deploy_chatmail(config_path: Path, disable_mail: bool, website_only: bool) -> None:
+def deploy_chatmail(config_path: Path, disable_mail: bool, website_only: bool, docker: bool) -> None:
     """Deploy a chat-mail instance.
 
     :param config_path: path to chatmail.ini
     :param disable_mail: whether to disable postfix & dovecot
     :param website_only: if True, only deploy the website
+    :param docker: whether it is running in a docker container
     """
     config = read_config(config_path)
     check_config(config)
@@ -566,34 +570,35 @@ def deploy_chatmail(config_path: Path, disable_mail: bool, website_only: bool) -
             Out().red(f"Deploy failed: mtail_address {config.mtail_address} is not available (VPN up?).\n")
             exit(1)
 
-    port_services = [
-        (["master", "smtpd"], 25),
-        ("unbound", 53),
-        ("acmetool", 80),
-        (["imap-login", "dovecot"], 143),
-        ("nginx", 443),
-        (["master", "smtpd"], 465),
-        (["master", "smtpd"], 587),
-        (["imap-login", "dovecot"], 993),
-        ("iroh-relay", 3340),
-        ("mtail", 3903),
-        ("stats", 3904),
-        ("nginx", 8443),
-        (["master", "smtpd"], config.postfix_reinject_port),
-        (["master", "smtpd"], config.postfix_reinject_port_incoming),
-        ("filtermail", config.filtermail_smtp_port),
-        ("filtermail", config.filtermail_smtp_port_incoming),
-    ]
-    for service, port in port_services:
-        print(f"Checking if port {port} is available for {service}...")
-        running_service = host.get_fact(Port, port=port)
-        services = [service] if isinstance(service, str) else service
-        if running_service:
-            if running_service not in services:
-                Out().red(
-                    f"Deploy failed: port {port} is occupied by: {running_service}"
-                )
-                exit(1)
+    if not docker:
+        port_services = [
+            (["master", "smtpd"], 25),
+            ("unbound", 53),
+            ("acmetool", 80),
+            (["imap-login", "dovecot"], 143),
+            ("nginx", 443),
+            (["master", "smtpd"], 465),
+            (["master", "smtpd"], 587),
+            (["imap-login", "dovecot"], 993),
+            ("iroh-relay", 3340),
+            ("mtail", 3903),
+            ("stats", 3904),
+            ("nginx", 8443),
+            (["master", "smtpd"], config.postfix_reinject_port),
+            (["master", "smtpd"], config.postfix_reinject_port_incoming),
+            ("filtermail", config.filtermail_smtp_port),
+            ("filtermail", config.filtermail_smtp_port_incoming),
+        ]
+        for service, port in port_services:
+            print(f"Checking if port {port} is available for {service}...")
+            running_service = host.get_fact(Port, port=port)
+            services = [service] if isinstance(service, str) else service
+            if running_service:
+                if running_service not in services:
+                    Out().red(
+                        f"Deploy failed: port {port} is occupied by: {running_service}"
+                    )
+                    exit(1)
 
     tls_domains = [mail_domain, f"mta-sts.{mail_domain}", f"www.{mail_domain}"]
 

@@ -1,0 +1,84 @@
+#!/bin/bash
+
+set -eo pipefail
+export INI_FILE="${INI_FILE:-chatmail.ini}"
+export ENABLE_CERTS_MONITORING="${ENABLE_CERTS_MONITORING:-true}"
+export CERTS_MONITORING_TIMEOUT="${CERTS_MONITORING_TIMEOUT:-60}"
+export PATH_TO_SSL="${PATH_TO_SSL:-/var/lib/acme/live/${MAIL_DOMAIN}}"
+export CHANGE_KERNEL_SETTINGS=${CHANGE_KERNEL_SETTINGS:-"False"}
+export RECREATE_VENV=${RECREATE_VENV:-"false"}
+
+if [ -z "$MAIL_DOMAIN" ]; then
+    echo "ERROR: Environment variable 'MAIL_DOMAIN' must be set!" >&2
+    exit 1
+fi
+
+debug_commands() {
+    echo "Executing debug commands"
+    # git config --global --add safe.directory /opt/chatmail
+    # ./scripts/initenv.sh
+}
+
+calculate_hash() {
+    find "$PATH_TO_SSL" -type f -exec sha1sum {} \; | sort | sha1sum | awk '{print $1}'
+}
+
+monitor_certificates() {
+    if [ "$ENABLE_CERTS_MONITORING" != "true" ]; then
+        echo "Certs monitoring disabled."
+        exit 0
+    fi
+
+    current_hash=$(calculate_hash)
+    previous_hash=$current_hash
+
+    while true; do
+        current_hash=$(calculate_hash)
+        if [[ "$current_hash" != "$previous_hash" ]]; then
+        # TODO: add an option to restart at a specific time interval 
+            echo "[INFO] Certificate's folder hash was changed, reloading nginx, dovecot and postfix services."
+            systemctl reload nginx.service
+            systemctl reload dovecot.service
+            systemctl reload postfix.service
+            previous_hash=$current_hash
+        fi
+        sleep $CERTS_MONITORING_TIMEOUT
+    done
+}
+
+### MAIN
+
+if [ "$DEBUG_COMMANDS_ENABLED" = true ]; then
+    debug_commands
+fi
+
+if [ "$FORCE_REINIT_INI_FILE" = true ]; then 
+    INI_CMD_ARGS=--force
+fi
+
+if [ ! -f /etc/dkimkeys/opendkim.private ]; then
+    /usr/sbin/opendkim-genkey -D /etc/dkimkeys -d $MAIL_DOMAIN -s opendkim
+fi
+chown opendkim:opendkim /etc/dkimkeys/opendkim.private
+chown opendkim:opendkim /etc/dkimkeys/opendkim.txt
+
+# TODO: Move to debug_commands after git clone is moved to dockerfile. 
+git config --global --add safe.directory /opt/chatmail
+if [ "$RECREATE_VENV" = true ]; then
+    rm -rf venv
+fi
+# Skip venv creation if it already exists
+if [ ! -x venv/bin/python ] || [ ! -x venv/bin/cmdeploy ]; then
+    ./scripts/initenv.sh
+fi
+
+./scripts/cmdeploy init --config "${INI_FILE}" $INI_CMD_ARGS $MAIL_DOMAIN || true
+bash /update_ini.sh
+
+export CMDEPLOY_STAGES="${CMDEPLOY_STAGES:-configure,activate}"
+./scripts/cmdeploy run --ssh-host @docker
+
+echo "ForwardToConsole=yes" >> /etc/systemd/journald.conf
+systemctl restart systemd-journald
+
+monitor_certificates &
