@@ -49,9 +49,17 @@ docker compose build chatmail
 
 The build bakes all binaries, Python packages, and the install stage into the image. After building, only `docker-compose.yaml` and `.env` are needed to run the container.
 
-TODO: upload the image to a registry, for now, you can upload the image to your server directly with
+Pre-built images are available from GitHub Container Registry. The `main` branch and tagged releases are pushed automatically by CI:
+
 ```shell
-time docker save chatmail-relay:latest | pigz | ssh chat.example.com 'pigz -d | docker load' # pigz is multithreaded gzip
+docker pull ghcr.io/chatmail/relay:main      # latest main branch
+docker pull ghcr.io/chatmail/relay:1.2.3     # tagged release
+docker pull ghcr.io/chatmail/relay:j4n-docker # feature branch (for testing)
+```
+
+You can also transfer a locally built image to your server directly:
+```shell
+docker save chatmail-relay:latest | pigz | ssh chat.example.com 'pigz -d | docker load'
 ```
 ## Running with Docker Compose
 
