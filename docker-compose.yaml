@@ -33,6 +33,8 @@ services:
     environment:
       MAIL_DOMAIN: $MAIL_DOMAIN
       CMDEPLOY_STAGES: ${CMDEPLOY_STAGES:-}
+      CHATMAIL_NOSYSCTL: ${CHATMAIL_NOSYSCTL:-True}
+      CHATMAIL_NOPORTCHECK: ${CHATMAIL_NOPORTCHECK:-True}
       CHATMAIL_NOACME: ${CHATMAIL_NOACME:-}
     network_mode: "host"
     volumes:
