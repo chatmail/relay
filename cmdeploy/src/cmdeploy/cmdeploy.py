@@ -88,7 +88,7 @@ def run_cmd_options(parser):
 def run_cmd(args, out):
     """Deploy chatmail services on the remote server."""
 
-    ssh_host = args.ssh_host if args.ssh_host else args.config.mail_domain
+    ssh_host = args.ssh_host if args.ssh_host else args.config.ssh_host
     sshexec = get_sshexec(ssh_host)
     require_iroh = args.config.enable_iroh_relay
     if not args.dns_check_disabled:
@@ -108,7 +108,7 @@ def run_cmd(args, out):
     pyinf = "pyinfra --dry" if args.dry_run else "pyinfra"
 
     cmd = f"{pyinf} --ssh-user root {ssh_host} {deploy_path} -y"
-    if ssh_host in ["localhost", "@docker"]:
+    if ssh_host in ["localhost", "@local", "@docker"]:
         cmd = f"{pyinf} @local {deploy_path} -y"
 
     if version.parse(pyinfra.__version__) < version.parse("3"):
@@ -149,7 +149,7 @@ def dns_cmd_options(parser):
 
 def dns_cmd(args, out):
     """Check DNS entries and optionally generate dns zone file."""
-    ssh_host = args.ssh_host if args.ssh_host else args.config.mail_domain
+    ssh_host = args.ssh_host if args.ssh_host else args.config.ssh_host
     sshexec = get_sshexec(ssh_host, verbose=args.verbose)
     remote_data = dns.get_initial_remote_data(sshexec, args.config.mail_domain)
     if not remote_data:
@@ -183,7 +183,7 @@ def status_cmd_options(parser):
 def status_cmd(args, out):
     """Display status for online chatmail instance."""
 
-    ssh_host = args.ssh_host if args.ssh_host else args.config.mail_domain
+    ssh_host = args.ssh_host if args.ssh_host else args.config.ssh_host
     sshexec = get_sshexec(ssh_host, verbose=args.verbose)
 
     out.green(f"chatmail domain: {args.config.mail_domain}")
