@@ -1,3 +1,9 @@
+## 0.4.0 - 2026-02-17
+
+### Features
+
+- [**breaking**] DKIM verifier (#35)
+- Support addresses using domain literals (#42)
 ## 0.3.0 - 2026-02-14
 
 ### Features
