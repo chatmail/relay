@@ -42,6 +42,9 @@ stream {
 }
 
 http {
+{% if config.tls_cert == "self" %}
+	limit_req_zone $binary_remote_addr zone=newaccount:10m rate=2r/s;
+{% endif %}
 	sendfile on;
 	tcp_nopush on;
 
@@ -87,6 +90,8 @@ http {
 				# which will in turn do a POST request.
 				return 301 dcaccount:https://{{ config.mail_domain }}/new;
 			}
+{% else %}
+			limit_req zone=newaccount burst=5 nodelay;
 {% endif %}
 
 			fastcgi_pass unix:/run/fcgiwrap.socket;
