@@ -96,9 +96,18 @@ async fn main() {
             process::exit(1);
         }
     } else {
+        // Skip DKIM verification (used for tests).
+        let skip_dkim = env::var("FILTERMAIL_SKIP_DKIM")
+            .map(|val| val == "1" || val.eq_ignore_ascii_case("true"))
+            .unwrap_or(false);
+
+        if skip_dkim {
+            log::warn!("DKIM verification DISABLED! This should not be used in production.");
+        }
+
         let handler = Arc::new(
             // We want to panic here if the handler cannot be created.
-            IncomingBeforeQueueHandler::new(config.clone()).unwrap(),
+            IncomingBeforeQueueHandler::new(config.clone(), skip_dkim).unwrap(),
         );
         let addr = format!("127.0.0.1:{}", config.filtermail_smtp_port_incoming);
         let max_size = config.max_message_size;
