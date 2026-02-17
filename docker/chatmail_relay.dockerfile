@@ -47,7 +47,10 @@ WORKDIR /opt/chatmail
 
 RUN printf '[params]\nmail_domain = build.local\n' > /tmp/chatmail.ini
 
-RUN python3 -m venv /opt/cmdeploy && \
+# Dummy git repo init: .git/ is excluded from the build context (.dockerignore)
+# but setuptools calls `git ls-files` when building the sdist.
+RUN git init && \
+    python3 -m venv /opt/cmdeploy && \
     /opt/cmdeploy/bin/pip install --no-cache-dir \
         -e chatmaild/ -e cmdeploy/
 
