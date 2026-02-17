@@ -168,4 +168,5 @@ chatmail.zone
 # docker
 /data/
 /custom/
+docker-compose.override.yaml
 .env

@@ -1,4 +1,6 @@
-# Copy docker/example.env to .env and set MAIL_DOMAIN before starting.
+# Base compose file — do not edit. Put customizations (data paths, extra
+# volumes, env overrides) in docker-compose.override.yaml instead.
+# See docker/docker-compose.override.yaml.example for a starting point.
 #
 # Security note: this container uses network_mode:host (chatmail needs many
 # ports: 25, 53, 80, 143, 443, 465, 587, 993, 3340, 8443) and cgroup:host
@@ -32,18 +34,14 @@ services:
       CHATMAIL_NOACME: ${CHATMAIL_NOACME:-}
     network_mode: "host"
     volumes:
-      ## system
-      - /sys/fs/cgroup:/sys/fs/cgroup:rw # required for systemd
+      ## system (required)
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+      ## data (defaults — override in docker-compose.override.yaml)
+      - chatmail-mail:/home
+      - chatmail-dkimkeys:/etc/dkimkeys
+      - chatmail-acme:/var/lib/acme
 
-      ## data
-      - ./data/chatmail:/home
-      - ./data/chatmail-dkimkeys:/etc/dkimkeys
-      - ./data/chatmail-acme:/var/lib/acme
-
-      ## optional overrides
-      # - ./chatmail.ini:/etc/chatmail/chatmail.ini   # use your own config
-      # - ./custom/www:/opt/chatmail-www              # custom website
-
-      ## debug
-      # - ./docker/files/setup_chatmail_docker.sh:/setup_chatmail_docker.sh
-      # - ./docker/files/entrypoint.sh:/entrypoint.sh
+volumes:
+  chatmail-mail:
+  chatmail-dkimkeys:
+  chatmail-acme:

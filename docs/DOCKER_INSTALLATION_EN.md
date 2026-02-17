@@ -76,6 +76,12 @@ If you are running from the cloned repo directory, just copy the env file:
 cp ./docker/example.env .env
 ```
 
+   All local customizations (data paths, extra volumes, config mounts) go in `docker-compose.override.yaml`, which Compose merges automatically with the base file. Copy the example to get started:
+
+```shell
+cp docker/docker-compose.override.yaml.example docker-compose.override.yaml
+```
+
 2. Configure the `.env` file. Only `MAIL_DOMAIN` is required:
 
 - `MAIL_DOMAIN` – The domain name of the future server. (required)
@@ -120,13 +126,12 @@ mkdir -p ./custom/www/src
 nano ./custom/www/src/index.md
 ```
 
-2. In `docker-compose.yaml`, uncomment or add the website volume mount:
+2. Add the volume mount in `docker-compose.override.yaml`:
 
 ```yaml
 services:
   chatmail:
     volumes:
-      ...
       - ./custom/www:/opt/chatmail-www
 ```
 
@@ -153,13 +158,12 @@ docker cp chatmail:/etc/chatmail/chatmail.ini ./chatmail.ini
 
 2. Edit `chatmail.ini` as needed.
 
-3. In `docker-compose.yaml`, uncomment or add the ini volume mount:
+3. Add the volume mount in `docker-compose.override.yaml`:
 
 ```yaml
 services:
   chatmail:
     volumes:
-      ...
       - ./chatmail.ini:/etc/chatmail/chatmail.ini
 ```
 

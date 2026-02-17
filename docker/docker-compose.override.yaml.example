@@ -1,0 +1,29 @@
+# Local overrides — copy to docker-compose.override.yaml in the repo root.
+# Compose automatically merges this with docker-compose.yaml.
+#
+#   cp docker/docker-compose.override.yaml.example docker-compose.override.yaml
+#
+# Volumes listed here are APPENDED to the base file's volumes.
+# Scalar values (environment, image, etc.) are REPLACED.
+services:
+  chatmail:
+    volumes:
+      ## Data paths — bind-mount to host directories for easy access/backup.
+      ## Uncomment and adjust paths as needed. These override the named
+      ## volumes in the base docker-compose.yaml.
+      # - ./data/chatmail:/home
+      # - ./data/chatmail-dkimkeys:/etc/dkimkeys
+      # - ./data/chatmail-acme:/var/lib/acme
+
+      ## Or mount mail storage from an existing bare-metal install:
+      # - /home/vmail:/home/vmail
+
+      ## Mount your own chatmail.ini (skips auto-generation):
+      # - ./chatmail.ini:/etc/chatmail/chatmail.ini
+
+      ## Custom website:
+      # - ./custom/www:/opt/chatmail-www
+
+      ## Debug — mount scripts from the repo for live editing:
+      # - ./docker/files/setup_chatmail_docker.sh:/setup_chatmail_docker.sh
+      # - ./docker/files/entrypoint.sh:/entrypoint.sh
