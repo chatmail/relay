@@ -62,8 +62,12 @@ RUN cp -a www/ /opt/chatmail-www/
 
 RUN rm -f /tmp/chatmail.ini
 
-# Record image version for upgrade detection at runtime
-RUN git rev-parse HEAD > /etc/chatmail-image-version 2>/dev/null || echo "unknown" > /etc/chatmail-image-version
+# Record image version for upgrade detection at runtime.
+# GIT_HASH is passed as a build arg (from docker-compose or CI) so that
+# .git/ can be excluded from the build context via .dockerignore.
+ARG GIT_HASH=unknown
+RUN echo "$GIT_HASH" > /etc/chatmail-image-version && \
+    echo "$GIT_HASH" > /etc/chatmail-version
 # --- End build-time install ---
 
 ENV CHATMAIL_INI=/etc/chatmail/chatmail.ini

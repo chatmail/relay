@@ -12,6 +12,8 @@ services:
     build:
       context: ./
       dockerfile: docker/chatmail_relay.dockerfile
+      args:
+        GIT_HASH: ${GIT_HASH:-unknown}
     image: chatmail-relay:latest
     restart: unless-stopped
     container_name: chatmail
