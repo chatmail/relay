@@ -89,6 +89,11 @@ class LocalExec:
         self.verbose = verbose
         self.docker = docker
 
+    def __call__(self, call, kwargs=None, log_callback=None):
+        if kwargs is None:
+            kwargs = {}
+        return call(**kwargs)
+
     def logged(self, call, kwargs: dict):
         where = "locally"
         if self.docker:

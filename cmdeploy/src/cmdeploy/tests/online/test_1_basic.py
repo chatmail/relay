@@ -16,12 +16,12 @@ class TestSSHExecutor:
         return get_sshexec(sshdomain)
 
     def test_ls(self, sshexec):
-        out = sshexec.logged(call=remote.rdns.shell, kwargs=dict(command="ls"))
-        out2 = sshexec.logged(call=remote.rdns.shell, kwargs=dict(command="ls"))
+        out = sshexec(call=remote.rdns.shell, kwargs=dict(command="ls"))
+        out2 = sshexec(call=remote.rdns.shell, kwargs=dict(command="ls"))
         assert out == out2
 
     def test_perform_initial(self, sshexec, maildomain):
-        res = sshexec.logged(
+        res = sshexec(
             remote.rdns.perform_initial_checks, kwargs=dict(mail_domain=maildomain)
         )
         assert res["A"] or res["AAAA"]
@@ -61,7 +61,7 @@ class TestSSHExecutor:
     def test_opendkim_restarted(self, sshexec):
         """check that opendkim is not running for longer than a day."""
         cmd = "systemctl show opendkim --timestamp=utc --property=ActiveEnterTimestamp"
-        out = sshexec.logged(call=remote.rshell.shell, kwargs=dict(command=cmd))
+        out = sshexec(call=remote.rshell.shell, kwargs=dict(command=cmd))
         datestring = out.split("=")[1]
         since_date = datetime.datetime.strptime(datestring, "%a %Y-%m-%d %H:%M:%S %Z")
         now = datetime.datetime.now(since_date.tzinfo)
