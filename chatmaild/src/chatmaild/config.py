@@ -18,6 +18,7 @@ class Config:
         self._inipath = inipath
         raw_domain = params["mail_domain"]
         self.mail_domain_bare = raw_domain
+        self.ssh_host = params.get("ssh_host", raw_domain)
 
         if is_valid_ipv4(raw_domain):
             self.ipv4_relay = raw_domain
