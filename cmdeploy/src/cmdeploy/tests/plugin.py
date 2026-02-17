@@ -4,6 +4,7 @@ import itertools
 import os
 import random
 import smtplib
+import ssl
 import subprocess
 import time
 from pathlib import Path
@@ -144,15 +145,26 @@ def pytest_terminal_summary(terminalreporter):
             tr.write_line(line)
 
 
-@pytest.fixture
-def imap(maildomain):
-    return ImapConn(maildomain)
+
+@pytest.fixture(scope="session")
+def ssl_context(chatmail_config):
+    if chatmail_config.tls_cert == "self":
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        return ctx
+    return None
 
 
 @pytest.fixture
-def make_imap_connection(maildomain):
+def imap(maildomain, ssl_context):
+    return ImapConn(maildomain, ssl_context=ssl_context)
+
+
+@pytest.fixture
+def make_imap_connection(maildomain, ssl_context):
     def make_imap_connection():
-        conn = ImapConn(maildomain)
+        conn = ImapConn(maildomain, ssl_context=ssl_context)
         conn.connect()
         return conn
 
@@ -164,12 +176,13 @@ class ImapConn:
     logcmd = "journalctl -f -u dovecot"
     name = "dovecot"
 
-    def __init__(self, host):
+    def __init__(self, host, ssl_context=None):
         self.host = host
+        self.ssl_context = ssl_context
 
     def connect(self):
         print(f"imap-connect {self.host}")
-        self.conn = imaplib.IMAP4_SSL(self.host)
+        self.conn = imaplib.IMAP4_SSL(self.host, ssl_context=self.ssl_context)
 
     def login(self, user, password):
         print(f"imap-login {user!r} {password!r}")
@@ -195,14 +208,14 @@ class ImapConn:
 
 
 @pytest.fixture
-def smtp(maildomain):
-    return SmtpConn(maildomain)
+def smtp(maildomain, ssl_context):
+    return SmtpConn(maildomain, ssl_context=ssl_context)
 
 
 @pytest.fixture
-def make_smtp_connection(maildomain):
+def make_smtp_connection(maildomain, ssl_context):
     def make_smtp_connection():
-        conn = SmtpConn(maildomain)
+        conn = SmtpConn(maildomain, ssl_context=ssl_context)
         conn.connect()
         return conn
 
@@ -214,12 +227,14 @@ class SmtpConn:
     logcmd = "journalctl -f -t postfix/smtpd -t postfix/smtp -t postfix/lmtp"
     name = "postfix"
 
-    def __init__(self, host):
+    def __init__(self, host, ssl_context=None):
         self.host = host
+        self.ssl_context = ssl_context
 
     def connect(self):
         print(f"smtp-connect {self.host}")
-        self.conn = smtplib.SMTP_SSL(self.host)
+        context = self.ssl_context or ssl.create_default_context()
+        self.conn = smtplib.SMTP_SSL(self.host, context=context)
 
     def login(self, user, password):
         print(f"smtp-login {user!r} {password!r}")
@@ -270,11 +285,12 @@ def gencreds(chatmail_config):
 class ChatmailTestProcess:
     """Provider for chatmail instance accounts as used by deltachat.testplugin.acfactory"""
 
-    def __init__(self, pytestconfig, maildomain, gencreds):
+    def __init__(self, pytestconfig, maildomain, gencreds, chatmail_config):
         self.pytestconfig = pytestconfig
         self.maildomain = maildomain
         assert "." in self.maildomain, maildomain
         self.gencreds = gencreds
+        self.chatmail_config = chatmail_config
         self._addr2files = {}
 
     def get_liveconfig_producer(self):
@@ -287,6 +303,9 @@ class ChatmailTestProcess:
             # speed up account configuration
             config["mail_server"] = self.maildomain
             config["send_server"] = self.maildomain
+            if self.chatmail_config.tls_cert == "self":
+                # Accept self-signed TLS certificates
+                config["imap_certificate_checks"] = "3"
             yield config
 
     def cache_maybe_retrieve_configured_db_files(self, cache_addr, db_target_path):
@@ -297,18 +316,26 @@ class ChatmailTestProcess:
 
 
 @pytest.fixture
-def cmfactory(request, gencreds, tmpdir, maildomain):
+def cmfactory(request, gencreds, tmpdir, maildomain, chatmail_config):
     # cloned from deltachat.testplugin.amfactory
     pytest.importorskip("deltachat")
     from deltachat.testplugin import ACFactory
 
-    testproc = ChatmailTestProcess(request.config, maildomain, gencreds)
+    testproc = ChatmailTestProcess(
+        request.config, maildomain, gencreds, chatmail_config
+    )
 
     class Data:
         def read_path(self, path):
             return
 
     am = ACFactory(request=request, tmpdir=tmpdir, testprocess=testproc, data=Data())
+
+    if chatmail_config.tls_cert == "self":
+        # Skip upstream's init_imap which creates a DirectImap with
+        # strict SSL that fails on self-signed certs.  Chatmail tests
+        # use fresh throwaway accounts, so folder cleanup is unnecessary.
+        am._acsetup.init_imap = lambda acc: None
 
     # nb. a bit hacky
     # would probably be better if deltachat's test machinery grows native support
@@ -363,38 +390,40 @@ def lp(request):
 
 
 @pytest.fixture
-def cmsetup(maildomain, gencreds):
-    return CMSetup(maildomain, gencreds)
+def cmsetup(maildomain, gencreds, ssl_context):
+    return CMSetup(maildomain, gencreds, ssl_context)
 
 
 class CMSetup:
-    def __init__(self, maildomain, gencreds):
+    def __init__(self, maildomain, gencreds, ssl_context):
         self.maildomain = maildomain
         self.gencreds = gencreds
+        self.ssl_context = ssl_context
 
     def gen_users(self, num):
         print(f"Creating {num} online users")
         users = []
         for i in range(num):
             addr, password = self.gencreds()
-            user = CMUser(self.maildomain, addr, password)
+            user = CMUser(self.maildomain, addr, password, self.ssl_context)
             assert user.smtp
             users.append(user)
         return users
 
 
 class CMUser:
-    def __init__(self, maildomain, addr, password):
+    def __init__(self, maildomain, addr, password, ssl_context=None):
         self.maildomain = maildomain
         self.addr = addr
         self.password = password
+        self.ssl_context = ssl_context
         self._smtp = None
         self._imap = None
 
     @property
     def smtp(self):
         if not self._smtp:
-            handle = SmtpConn(self.maildomain)
+            handle = SmtpConn(self.maildomain, ssl_context=self.ssl_context)
             handle.connect()
             handle.login(self.addr, self.password)
             self._smtp = handle
@@ -403,7 +432,7 @@ class CMUser:
     @property
     def imap(self):
         if not self._imap:
-            imap = ImapConn(self.maildomain)
+            imap = ImapConn(self.maildomain, ssl_context=self.ssl_context)
             imap.connect()
             imap.login(self.addr, self.password)
             self._imap = imap

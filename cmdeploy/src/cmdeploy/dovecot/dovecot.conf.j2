@@ -228,8 +228,8 @@ service anvil {
 }
 
 ssl = required
-ssl_cert = </var/lib/acme/live/{{ config.mail_domain }}/fullchain
-ssl_key = </var/lib/acme/live/{{ config.mail_domain }}/privkey
+ssl_cert = <{{ config.tls_cert_path }}
+ssl_key = <{{ config.tls_key_path }}
 ssl_dh = </usr/share/dovecot/dh.pem
 ssl_min_protocol = TLSv1.3
 ssl_prefer_server_ciphers = yes

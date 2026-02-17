@@ -60,6 +60,19 @@ class Config:
         self.privacy_pdo = params.get("privacy_pdo")
         self.privacy_supervisor = params.get("privacy_supervisor")
 
+        # TLS certificate management: "acme" (letsencrypt) or "self" (self-signed)
+        self.tls_cert = params.get("tls_cert", "acme")
+        if self.tls_cert == "acme":
+            self.tls_cert_path = f"/var/lib/acme/live/{self.mail_domain}/fullchain"
+            self.tls_key_path = f"/var/lib/acme/live/{self.mail_domain}/privkey"
+        elif self.tls_cert == "self":
+            self.tls_cert_path = "/etc/ssl/certs/mailserver.pem"
+            self.tls_key_path = "/etc/ssl/private/mailserver.key"
+        else:
+            raise ValueError(
+                f"invalid tls_cert option {self.tls_cert!r}, must be 'acme' or 'self'"
+            )
+
         # deprecated option
         mbdir = params.get("mailboxes_dir", f"/home/vmail/mail/{self.mail_domain}")
         self.mailboxes_dir = Path(mbdir.strip())

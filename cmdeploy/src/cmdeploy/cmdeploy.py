@@ -151,11 +151,13 @@ def dns_cmd(args, out):
     """Check DNS entries and optionally generate dns zone file."""
     ssh_host = args.ssh_host if args.ssh_host else args.config.mail_domain
     sshexec = get_sshexec(ssh_host, verbose=args.verbose)
+    tls_cert = args.config.tls_cert
+    strict_tls = tls_cert != "self"
     remote_data = dns.get_initial_remote_data(sshexec, args.config.mail_domain)
-    if not remote_data:
+    if not dns.check_initial_remote_data(remote_data, strict_tls=strict_tls):
         return 1
 
-    if not remote_data["acme_account_url"]:
+    if strict_tls and not remote_data["acme_account_url"]:
         out.red("could not get letsencrypt account url, please run 'cmdeploy run'")
         return 1
 
@@ -163,6 +165,7 @@ def dns_cmd(args, out):
         out.red("could not determine dkim_entry, please run 'cmdeploy run'")
         return 1
 
+    remote_data["strict_tls"] = strict_tls
     zonefile = dns.get_filled_zone_file(remote_data)
 
     if args.zonefile:

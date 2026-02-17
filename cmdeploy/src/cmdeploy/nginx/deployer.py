@@ -70,7 +70,7 @@ def _configure_nginx(config: Config, debug: bool = False) -> bool:
         user="root",
         group="root",
         mode="644",
-        config={"domain_name": config.mail_domain},
+        config=config,
         disable_ipv6=config.disable_ipv6,
     )
     need_restart |= main_config.changed
@@ -81,7 +81,7 @@ def _configure_nginx(config: Config, debug: bool = False) -> bool:
         user="root",
         group="root",
         mode="644",
-        config={"domain_name": config.mail_domain},
+        config=config,
     )
     need_restart |= autoconfig.changed
 
@@ -91,7 +91,7 @@ def _configure_nginx(config: Config, debug: bool = False) -> bool:
         user="root",
         group="root",
         mode="644",
-        config={"domain_name": config.mail_domain},
+        config=config,
     )
     need_restart |= mta_sts_config.changed
 
