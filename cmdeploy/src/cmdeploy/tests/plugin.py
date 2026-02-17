@@ -361,8 +361,13 @@ class Remote:
 
     def iter_output(self, logcmd=""):
         getjournal = "journalctl -f" if not logcmd else logcmd
+        print(self.sshdomain)
+        match self.sshdomain:
+            case "@local": command = [getjournal]
+            case "localhost": command = [getjournal]
+            case _: command = ["ssh", f"root@{self.sshdomain}", getjournal]
         self.popen = subprocess.Popen(
-            ["ssh", f"root@{self.sshdomain}", getjournal],
+            command,
             stdout=subprocess.PIPE,
         )
         while 1:

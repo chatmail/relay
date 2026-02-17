@@ -207,6 +207,7 @@ def test_cmd_options(parser):
         action="store_true",
         help="also run slow tests",
     )
+    add_ssh_host_option(parser)
 
 
 def test_cmd(args, out):
@@ -218,6 +219,9 @@ def test_cmd(args, out):
     x = importlib.util.find_spec("deltachat")
     if x is None:
         out.check_call(f"{sys.executable} -m pip install deltachat")
+    env = os.environ.copy()
+    if args.ssh_host:
+        env["CHATMAIL_SSH"] = args.ssh_host
 
     pytest_path = shutil.which("pytest")
     pytest_args = [
@@ -231,7 +235,7 @@ def test_cmd(args, out):
     ]
     if args.slow:
         pytest_args.append("--slow")
-    ret = out.run_ret(pytest_args)
+    ret = out.run_ret(pytest_args, env=env)
     return ret
 
 
