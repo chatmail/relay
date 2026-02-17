@@ -85,6 +85,8 @@ class SSHExec:
 
 
 class LocalExec:
+    FuncError = FuncError
+
     def __init__(self, verbose=False, docker=False):
         self.verbose = verbose
         self.docker = docker
