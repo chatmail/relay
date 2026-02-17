@@ -1,3 +1,8 @@
+## 0.4.1 - 2026-02-17
+
+### Miscellaneous Tasks
+
+- *(tests)* Add a way to disable DKIM for tests (#50)
 ## 0.4.0 - 2026-02-17
 
 ### Features
