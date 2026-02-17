@@ -15,8 +15,8 @@ fi
 if [ ! -f /etc/dkimkeys/opendkim.private ]; then
     /usr/sbin/opendkim-genkey -D /etc/dkimkeys -d "$MAIL_DOMAIN" -s opendkim
 fi
-chown opendkim:opendkim /etc/dkimkeys/opendkim.private
-chown opendkim:opendkim /etc/dkimkeys/opendkim.txt
+# Fix ownership for bind-mounted keys (host opendkim UID may differ from container)
+chown -R opendkim:opendkim /etc/dkimkeys
 
 # Create chatmail.ini (skips if file already exists, e.g. volume-mounted)
 mkdir -p "$(dirname "$CHATMAIL_INI")"

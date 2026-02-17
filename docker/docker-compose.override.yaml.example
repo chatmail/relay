@@ -15,7 +15,9 @@ services:
       # - ./data/chatmail-dkimkeys:/etc/dkimkeys
       # - ./data/chatmail-acme:/var/lib/acme
 
-      ## Or mount data from an existing bare-metal install:
+      ## Or mount data from an existing bare-metal install.
+      ## Note: DKIM key ownership is fixed automatically on startup
+      ## (the host's opendkim UID may differ from the container's).
       # - /home/vmail:/home/vmail
       # - /etc/dkimkeys:/etc/dkimkeys
       # - /var/lib/acme:/var/lib/acme
