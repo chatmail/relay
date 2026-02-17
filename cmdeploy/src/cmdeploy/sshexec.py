@@ -95,6 +95,7 @@ class LocalExec:
         return call(**kwargs)
 
     def logged(self, call, kwargs: dict):
+        title = call.__doc__
         where = "locally"
         if self.docker:
             if call == remote.rdns.perform_initial_checks:
@@ -102,4 +103,9 @@ class LocalExec:
                 where = "in docker"
         if self.verbose:
             print(f"Running {where}: {call.__name__}(**{kwargs})")
-        return call(**kwargs)
+            return self(call, kwargs, log_callback=print_stderr)
+        else:
+            print_stderr(title, end="")
+            res = self(call, kwargs, log_callback=remote.rshell.log_progress)
+            print_stderr()
+            return res
