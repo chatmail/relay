@@ -85,16 +85,31 @@ class SSHExec:
 
 
 class LocalExec:
+    FuncError = FuncError
+
     def __init__(self, verbose=False, docker=False):
         self.verbose = verbose
         self.docker = docker
 
+    def __call__(self, call, kwargs=None, log_callback=None):
+        if kwargs is None:
+            kwargs = {}
+        return call(**kwargs)
+
     def logged(self, call, kwargs: dict):
+        title = call.__doc__
+        if not title:
+            title = call.__name__
         where = "locally"
         if self.docker:
             if call == remote.rdns.perform_initial_checks:
                 kwargs["pre_command"] = "docker exec chatmail "
                 where = "in docker"
         if self.verbose:
-            print(f"Running {where}: {call.__name__}(**{kwargs})")
-        return call(**kwargs)
+            print_stderr(f"Running {where}: {title}(**{kwargs})")
+            return self(call, kwargs, log_callback=print_stderr)
+        else:
+            print_stderr(title, end="")
+            res = self(call, kwargs, log_callback=remote.rshell.log_progress)
+            print_stderr()
+            return res
