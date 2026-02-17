@@ -15,13 +15,15 @@ use std::str::FromStr;
 pub struct IncomingBeforeQueueHandler {
     config: Config,
     dkim_verifier: DkimVerifier,
+    skip_dkim: bool,
 }
 
 impl IncomingBeforeQueueHandler {
-    pub fn new(config: Config) -> Result<Self, crate::error::Error> {
+    pub fn new(config: Config, skip_dkim: bool) -> Result<Self, crate::error::Error> {
         Ok(Self {
             config,
             dkim_verifier: DkimVerifier::new()?,
+            skip_dkim,
         })
     }
 }
@@ -67,7 +69,9 @@ impl SmtpHandler for IncomingBeforeQueueHandler {
                 }
             }
             AddressDomain::Name(domain) => {
-                self.dkim_verifier.verify(&envelope.data, &domain).await?;
+                if !self.skip_dkim {
+                    self.dkim_verifier.verify(&envelope.data, &domain).await?;
+                }
             }
         }
 
