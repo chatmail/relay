@@ -71,26 +71,35 @@ jobs:
       - name: run deploy-chatmail offline tests 
         run: pytest --pyargs cmdeploy 
 
-      - run: |
-          cmdeploy init staging-ipv4.testrun.org
-          sed -i 's#disable_ipv6 = False#disable_ipv6 = True#' chatmail.ini
-          sed -i 's/#\s*mtail_address/mtail_address/' chatmail.ini
+      - name: setup dependencies
+        run: |
+          ssh root@staging-ipv4.testrun.org apt update
+          ssh root@staging-ipv4.testrun.org apt install -y git python3.11-venv python3-dev gcc
+          ssh root@staging-ipv4.testrun.org git clone https://github.com/chatmail/relay
+          ssh root@staging-ipv4.testrun.org "cd relay && git checkout " ${{ github.head_ref }}
+          ssh root@staging-ipv4.testrun.org "cd relay && scripts/initenv.sh"
 
-      - run: cmdeploy run --verbose --skip-dns-check
+      - name: initialize config
+        run: |
+          ssh root@staging-ipv4.testrun.org "cd relay && scripts/cmdeploy init staging-ipv4.testrun.org"
+          ssh root@staging-ipv4.testrun.org "sed -i 's#disable_ipv6 = False#disable_ipv6 = True#' relay/chatmail.ini"
+          ssh root@staging-ipv4.testrun.org "sed -i 's/#\s*mtail_address/mtail_address/' relay/chatmail.ini"
+
+      - run: ssh root@staging-ipv4.testrun.org "cd relay && scripts/cmdeploy run --verbose --skip-dns-check"
 
       - name: set DNS entries
         run: |
-          ssh -o StrictHostKeyChecking=accept-new -v root@staging-ipv4.testrun.org chown opendkim:opendkim -R /etc/dkimkeys
-          cmdeploy dns --zonefile staging-generated.zone
-          cat staging-generated.zone >> .github/workflows/staging-ipv4.testrun.org-default.zone
+          ssh root@staging-ipv4.testrun.org chown opendkim:opendkim -R /etc/dkimkeys
+          ssh root@staging-ipv4.testrun.org "cd relay && scripts/cmdeploy dns --zonefile staging-generated.zone"
+          ssh root@staging-ipv4.testrun.org cat relay/staging-generated.zone >> .github/workflows/staging-ipv4.testrun.org-default.zone
           cat .github/workflows/staging-ipv4.testrun.org-default.zone
           scp .github/workflows/staging-ipv4.testrun.org-default.zone root@ns.testrun.org:/etc/nsd/staging-ipv4.testrun.org.zone
           ssh root@ns.testrun.org nsd-checkzone staging-ipv4.testrun.org /etc/nsd/staging-ipv4.testrun.org.zone
           ssh root@ns.testrun.org systemctl reload nsd
 
       - name: cmdeploy test
-        run: CHATMAIL_DOMAIN2=ci-chatmail.testrun.org cmdeploy test --slow
+        run: ssh root@staging-ipv4.testrun.org "cd relay && CHATMAIL_DOMAIN2=ci-chatmail.testrun.org scripts/cmdeploy test --slow"
 
       - name: cmdeploy dns
-        run: cmdeploy dns -v
+        run: ssh root@staging-ipv4.testrun.org "cd relay && scripts/cmdeploy dns -v"
 

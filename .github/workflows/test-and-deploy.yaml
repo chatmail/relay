@@ -76,6 +76,7 @@ jobs:
 
       - run: |
           cmdeploy init staging2.testrun.org
+          sed -i 's/^ssh_host/#ssh_host/' chatmail.ini
           sed -i 's/#\s*mtail_address/mtail_address/' chatmail.ini
 
       - run: cmdeploy run --verbose --skip-dns-check
