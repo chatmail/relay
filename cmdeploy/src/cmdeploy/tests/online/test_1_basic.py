@@ -1,4 +1,3 @@
-import datetime
 import smtplib
 import socket
 import subprocess
@@ -57,15 +56,6 @@ class TestSSHExecutor:
             assert "AssertionError" in str(e)
         else:
             pytest.fail("didn't raise exception")
-
-    def test_opendkim_restarted(self, sshexec):
-        """check that opendkim is not running for longer than a day."""
-        cmd = "systemctl show opendkim --timestamp=utc --property=ActiveEnterTimestamp"
-        out = sshexec(call=remote.rshell.shell, kwargs=dict(command=cmd))
-        datestring = out.split("=")[1]
-        since_date = datetime.datetime.strptime(datestring, "%a %Y-%m-%d %H:%M:%S %Z")
-        now = datetime.datetime.now(since_date.tzinfo)
-        assert (now - since_date).total_seconds() < 60 * 60 * 51
 
 
 def test_timezone_env(remote):
@@ -146,7 +136,7 @@ def test_reject_missing_dkim(cmsetup, maildata, from_addr):
     conn.starttls()
 
     with conn as s:
-        with pytest.raises(smtplib.SMTPDataError, match="No valid DKIM signature"):
+        with pytest.raises(smtplib.SMTPDataError, match="No DKIM signature found"):
             s.sendmail(from_addr=from_addr, to_addrs=recipient.addr, msg=msg)
 
 

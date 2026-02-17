@@ -24,7 +24,7 @@ def test_status_cmd(chatmail_config, capsys, request):
         "filtermail",
         "lastlogin",
         "nginx",
-        "opendkim",
+        "dkim-milter",
         "postfix@-",
         "systemd-journald",
         "turnserver",
