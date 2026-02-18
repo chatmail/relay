@@ -13,6 +13,7 @@ Contributions and feedback welcome through the https://github.com/chatmail/relay
     :maxdepth: 5
 
     getting_started
+    docker
     proxy
     migrate
     overview

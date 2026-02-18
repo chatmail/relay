@@ -83,9 +83,8 @@ steps. Please substitute it with your own domain.
 Docker installation
 -------------------
 
-We have experimental support for `docker compose <https://github.com/chatmail/relay/blob/docker-rebase/docs/DOCKER_INSTALLATION_EN.md>`_,
-but it is not covered by automated tests yet,
-so don't expect everything to work.
+There is experimental support for running chatmail via Docker Compose.
+See :doc:`docker` for full setup instructions.
 
 Other helpful commands
 ----------------------
