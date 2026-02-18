@@ -47,6 +47,12 @@ steps. Please substitute it with your own domain.
        www.chat.example.org. 3600 IN CNAME chat.example.org.
        mta-sts.chat.example.org. 3600 IN CNAME chat.example.org.
 
+   .. note::
+
+      For ``tls_cert = self`` deployments (see step 3),
+      the ``mta-sts`` CNAME and ``_mta-sts`` TXT records
+      are not needed.
+
 2. On your local PC, clone the repository and bootstrap the Python
    virtualenv.
 
@@ -62,6 +68,14 @@ steps. Please substitute it with your own domain.
    ::
 
        scripts/cmdeploy init chat.example.org  # <-- use your domain
+
+   To use self-signed TLS certificates
+   instead of Let's Encrypt,
+   set ``tls_cert = self`` in ``chatmail.ini``.
+   This is useful for private or test deployments
+   and does not require a publicly resolvable domain.
+   See the :doc:`overview`
+   for details on certificate provisioning.
 
 4. Verify that SSH root login to the deployment server server works:
 
