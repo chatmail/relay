@@ -66,7 +66,6 @@ postfix_reinject_port_incoming = 10026
 # if set to "True" IPv6 is disabled
 disable_ipv6 = False
 
-
 # Your email adress, which will be used in acmetool to manage Let's Encrypt SSL certificates
 acme_email = 
 
