@@ -18,7 +18,7 @@ If you are viewing this page on a different device
 without a Delta Chat app,
 you can also **scan this QR code** with Delta Chat:
 
-<div id="qr-code"></div>
+<a id="qr-link" href="#"><div id="qr-code"></div></a>
 
 <script src="qrcode-svg.min.js"></script>
 <script src="dclogin.js"></script>

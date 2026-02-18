@@ -14,12 +14,7 @@ goes beyond what classic email servers offer:
 -  **Instant/Realtime:** sub-second message delivery, realtime P2P
    streaming, privacy-preserving Push Notifications for Apple, Google, and `Ubuntu Touch <https://docs.ubports.com/en/latest/appdev/guides/pushnotifications.html>`_;
 
--  **Security Enforcement**: only strict TLS, DKIM and
-   OpenPGP with minimized metadata accepted.
-   Relays using ``tls_cert = self``
-   still enforce TLS encryption for transport
-   while relying on OpenPGP end-to-end encryption
-   for message content protection.
+-  **Security Enforcement**: only strict TLS, DKIM and OpenPGP with minimized metadata accepted
 
 -  **Reliable Federation and Decentralization:** No spam or IP reputation checks, federating
    depends on established IETF standards and protocols.
@@ -48,13 +43,16 @@ self-funded by respective operators. All chatmail relays are
 automatically deployed and updated using `the chatmail relay
 repository <https://github.com/chatmail/relay>`__. Chatmail relays are
 composed of proven standard email server components, Postfix and
-Dovecot, and are configured to run unattended without much maintenance
-effort. Chatmail relays happily run on low-end hardware
-like a Raspberry Pi.
-Setting ``tls_cert = self`` in ``chatmail.ini``
-enables running a relay with self-signed certificates,
-making it possible to operate on a LAN
-or behind a firewall
+Dovecot, and are configured to run unattended without much maintenance effort.
+Chatmail relays happily run on low-end hardware like a Raspberry Pi.
+
+
+Can i run a relay without using letsencrypt for TLS certificates?
+-----------------------------------------------------------------
+
+You can set ``tls_cert = self`` in ``chatmail.ini``
+to enable running a relay with self-signed certificates,
+making it possible to operate on a LAN or behind a firewall
 without needing Let's Encrypt or a public domain.
 
 

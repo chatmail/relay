@@ -186,6 +186,6 @@ def test_hide_senders_ip_address(cmfactory, ssl_context):
     pw = user2.get_config("mail_pw")
     mailbox = imap_tools.MailBox(host, ssl_context=ssl_context)
     mailbox.login(addr, pw)
-    msgs = list(mailbox.fetch())
+    msgs = list(mailbox.fetch(mark_seen=False))
     assert msgs, "expected at least one message"
     assert public_ip not in msgs[0].obj.as_string()

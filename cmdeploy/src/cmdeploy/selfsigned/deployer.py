@@ -21,11 +21,13 @@ class SelfSignedTlsDeployer(Deployer):
         server.shell(
             name="Generate self-signed TLS certificate if not present",
             commands=[
-                f"[ -f {self.cert_path} ] || openssl req -x509 -newkey rsa:4096"
-                f" -nodes -days 3650"
+                f"[ -f {self.cert_path} ] || openssl req -x509"
+                f" -newkey ec -pkeyopt ec_paramgen_curve:P-256"
+                f" -noenc -days 36500"
                 f" -keyout {self.key_path}"
                 f" -out {self.cert_path}"
                 f' -subj "/CN={self.mail_domain}"'
+                f' -addext "extendedKeyUsage=serverAuth,clientAuth"'
                 f' -addext "subjectAltName=DNS:{self.mail_domain},DNS:www.{self.mail_domain},DNS:mta-sts.{self.mail_domain}"',
             ],
         )

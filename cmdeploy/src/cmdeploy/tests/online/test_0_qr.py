@@ -25,14 +25,15 @@ def test_newemail_configure(maildomain, rpc, chatmail_config):
         if chatmail_config.tls_cert == "self":
             # deltachat core's rustls rejects self-signed HTTPS certs during
             # set_config_from_qr, so fetch credentials via requests instead
-            verify = False
-            res = requests.post(f"https://{maildomain}/new", verify=verify)
+            res = requests.post(f"https://{maildomain}/new", verify=False)
             data = res.json()
-            rpc.set_config(account_id, "addr", data["email"])
-            rpc.set_config(account_id, "mail_pw", data["password"])
-            rpc.set_config(account_id, "mail_server", maildomain)
-            rpc.set_config(account_id, "send_server", maildomain)
-            rpc.set_config(account_id, "imap_certificate_checks", "3")
+            rpc.add_or_update_transport(account_id, {
+                "addr": data["email"],
+                "password": data["password"],
+                "imapServer": maildomain,
+                "smtpServer": maildomain,
+                "certificateChecks": "acceptInvalidCertificates",
+            })
         else:
             rpc.set_config_from_qr(account_id, url)
         rpc.configure(account_id)
