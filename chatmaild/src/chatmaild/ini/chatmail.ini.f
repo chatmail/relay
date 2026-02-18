@@ -55,7 +55,10 @@ passthrough_recipients =
 # Deployment Details
 #
 
-# SMTP outgoing filtermail and reinjection 
+# Path to the TURN server Unix socket
+turn_socket_path = /run/chatmail-turn/turn.socket
+
+# SMTP outgoing filtermail and reinjection
 filtermail_smtp_port = 10080
 postfix_reinject_port = 10025
 
