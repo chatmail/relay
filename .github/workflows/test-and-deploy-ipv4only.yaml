@@ -71,12 +71,21 @@ jobs:
       - name: run deploy-chatmail offline tests 
         run: pytest --pyargs cmdeploy 
 
-      - run: |
+      - name: deploy and test tls_cert=self
+        run: |
           cmdeploy init staging-ipv4.testrun.org
           sed -i 's#disable_ipv6 = False#disable_ipv6 = True#' chatmail.ini
           sed -i 's/#\s*mtail_address/mtail_address/' chatmail.ini
+          sed -i 's/tls_cert = acme/tls_cert = self/' chatmail.ini
+          cmdeploy run --verbose --skip-dns-check
+          cmdeploy test --slow
 
-      - run: cmdeploy run --verbose --skip-dns-check
+      - name: deploy and test tls_cert=acme
+        run: |
+          cmdeploy init staging-ipv4.testrun.org
+          sed -i 's#disable_ipv6 = False#disable_ipv6 = True#' chatmail.ini
+          sed -i 's/#\s*mtail_address/mtail_address/' chatmail.ini
+          cmdeploy run --verbose --skip-dns-check
 
       - name: set DNS entries
         run: |
@@ -88,9 +97,8 @@ jobs:
           ssh root@ns.testrun.org nsd-checkzone staging-ipv4.testrun.org /etc/nsd/staging-ipv4.testrun.org.zone
           ssh root@ns.testrun.org systemctl reload nsd
 
-      - name: cmdeploy test
+      - name: cmdeploy test acme
         run: CHATMAIL_DOMAIN2=ci-chatmail.testrun.org cmdeploy test --slow
 
       - name: cmdeploy dns
         run: cmdeploy dns -v
-
