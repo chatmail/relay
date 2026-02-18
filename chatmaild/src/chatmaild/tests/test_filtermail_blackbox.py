@@ -1,8 +1,14 @@
+import shutil
 import smtplib
 import subprocess
 import sys
 
 import pytest
+
+pytestmark = pytest.mark.skipif(
+    shutil.which("filtermail") is None,
+    reason="filtermail binary not found",
+)
 
 
 @pytest.fixture
