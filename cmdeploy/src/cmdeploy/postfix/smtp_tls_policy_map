@@ -1,2 +1,3 @@
 /^\[[^]]+\]$/ encrypt
+/^_/          encrypt
 /^nauta\.cu$/    may

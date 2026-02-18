@@ -43,17 +43,9 @@ self-funded by respective operators. All chatmail relays are
 automatically deployed and updated using `the chatmail relay
 repository <https://github.com/chatmail/relay>`__. Chatmail relays are
 composed of proven standard email server components, Postfix and
-Dovecot, and are configured to run unattended without much maintenance effort.
-Chatmail relays happily run on low-end hardware like a Raspberry Pi.
-
-
-Can i run a relay without using letsencrypt for TLS certificates?
------------------------------------------------------------------
-
-You can set ``tls_cert = self`` in ``chatmail.ini``
-to enable running a relay with self-signed certificates,
-making it possible to operate on a LAN or behind a firewall
-without needing Let's Encrypt or a public domain.
+Dovecot, and are configured to run unattended without much maintenance
+effort. Chatmail relays happily run on low-end hardware like a Raspberry
+Pi.
 
 
 How trustable are chatmail relays?

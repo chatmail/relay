@@ -145,10 +145,9 @@ def pytest_terminal_summary(terminalreporter):
             tr.write_line(line)
 
 
-
 @pytest.fixture(scope="session")
 def ssl_context(chatmail_config):
-    if chatmail_config.tls_cert == "self":
+    if chatmail_config.tls_cert_mode == "self":
         ctx = ssl.create_default_context()
         ctx.check_hostname = False
         ctx.verify_mode = ssl.CERT_NONE
@@ -303,7 +302,7 @@ class ChatmailTestProcess:
             # speed up account configuration
             config["mail_server"] = self.maildomain
             config["send_server"] = self.maildomain
-            if self.chatmail_config.tls_cert == "self":
+            if self.chatmail_config.tls_cert_mode == "self":
                 # Accept self-signed TLS certificates
                 config["imap_certificate_checks"] = "3"
             yield config
@@ -331,11 +330,9 @@ def cmfactory(request, gencreds, tmpdir, maildomain, chatmail_config):
 
     am = ACFactory(request=request, tmpdir=tmpdir, testprocess=testproc, data=Data())
 
-    if chatmail_config.tls_cert == "self":
-        # Skip upstream's init_imap which creates a DirectImap with
-        # strict SSL that fails on self-signed certs.  Chatmail tests
-        # use fresh throwaway accounts, so folder cleanup is unnecessary.
-        am._acsetup.init_imap = lambda acc: None
+    # Skip upstream's init_imap to prevent extra imap connections not
+    # needed for relay testing
+    am._acsetup.init_imap = lambda acc: None
 
     # nb. a bit hacky
     # would probably be better if deltachat's test machinery grows native support

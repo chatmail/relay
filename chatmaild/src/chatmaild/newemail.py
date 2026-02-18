@@ -38,7 +38,7 @@ def print_new_account():
     creds = create_newemail_dict(config)
 
     result = dict(email=creds["email"], password=creds["password"])
-    if config.tls_cert == "self":
+    if config.tls_cert_mode == "self":
         result["dclogin_url"] = create_dclogin_url(creds["email"], creds["password"])
 
     print("Content-Type: application/json")

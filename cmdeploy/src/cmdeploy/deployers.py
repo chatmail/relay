@@ -571,7 +571,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool, website_only: bool) -
         (["master", "smtpd"], 25),
         ("unbound", 53),
     ]
-    if config.tls_cert == "acme":
+    if config.tls_cert_mode == "acme":
         port_services.append(("acmetool", 80))
     port_services += [
         (["imap-login", "dovecot"], 143),
@@ -601,7 +601,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool, website_only: bool) -
 
     tls_domains = [mail_domain, f"mta-sts.{mail_domain}", f"www.{mail_domain}"]
 
-    if config.tls_cert == "acme":
+    if config.tls_cert_mode == "acme":
         tls_deployer = AcmetoolDeployer(config.acme_email, tls_domains)
     else:
         tls_deployer = SelfSignedTlsDeployer(mail_domain)

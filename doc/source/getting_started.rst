@@ -49,9 +49,11 @@ steps. Please substitute it with your own domain.
 
    .. note::
 
-      For ``tls_cert = self`` deployments (see step 3),
-      the ``mta-sts`` CNAME and ``_mta-sts`` TXT records
-      are not needed.
+      For experimental deployments using self-signed certificates,
+      use a domain name starting with ``_``
+      (e.g. ``_chat.example.org``).
+      The ``mta-sts`` CNAME and ``_mta-sts`` TXT records
+      are not needed for such domains.
 
 2. On your local PC, clone the repository and bootstrap the Python
    virtualenv.
@@ -71,9 +73,11 @@ steps. Please substitute it with your own domain.
 
    To use self-signed TLS certificates
    instead of Let's Encrypt,
-   set ``tls_cert = self`` in ``chatmail.ini``.
-   This is useful for private or test deployments
-   and does not require a publicly resolvable domain.
+   use a domain name starting with ``_``
+   (e.g. ``scripts/cmdeploy init _chat.example.org``).
+   Domains starting with ``_`` cannot obtain WebPKI certificates,
+   so self-signed mode is derived automatically.
+   This is useful for private or test deployments.
    See the :doc:`overview`
    for details on certificate provisioning.
 
@@ -182,6 +186,17 @@ creating addresses, login with ssh to the deployment machine and run:
 
 Chatmail address creation will be denied while this file is present.
 
+
+Running a relay with self-signed certificates
+----------------------------------------------
+
+Use a domain name starting with ``_`` (e.g. ``_chat.example.org``)
+to run a relay with self-signed certificates.
+Domains starting with ``_`` cannot obtain WebPKI certificates
+so the relay automatically uses self-signed certificates
+and all other relays will accept connections from it
+without requiring certificate verification.
+This is useful for experimental setups and testing.
 
 Migrating to a new build machine
 ----------------------------------

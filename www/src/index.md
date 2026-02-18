@@ -11,7 +11,7 @@ for Delta Chat users.  For details how it avoids storing personal information
 please see our [privacy policy](privacy.html). 
 {% endif %}
 
-{% if config.tls_cert == "self" %}
+{% if config.tls_cert_mode == "self" %}
 <a class="cta-button" id="dclogin-link" href="#">Get a {{config.mail_domain}} chat profile</a>
 
 If you are viewing this page on a different device

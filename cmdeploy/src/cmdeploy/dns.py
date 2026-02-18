@@ -19,7 +19,7 @@ def check_initial_remote_data(remote_data, *, strict_tls=True, print=print):
     elif strict_tls and remote_data["MTA_STS"] != f"{mail_domain}.":
         print("Missing MTA-STS CNAME record:")
         print(f"mta-sts.{mail_domain}.   CNAME  {mail_domain}.")
-    elif remote_data["WWW"] != f"{mail_domain}.":
+    elif strict_tls and remote_data["WWW"] != f"{mail_domain}.":
         print("Missing www CNAME record:")
         print(f"www.{mail_domain}.   CNAME  {mail_domain}.")
     else:
