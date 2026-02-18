@@ -110,6 +110,9 @@ def run_cmd(args, out):
 
     cmd = f"{pyinf} --ssh-user root {ssh_host} {deploy_path} -y"
     if ssh_host in ["localhost", "@docker"]:
+        if ssh_host == "@docker":
+            env["CHATMAIL_NOPORTCHECK"] = "True"
+            env["CHATMAIL_NOSYSCTL"] = "True"
         cmd = f"{pyinf} @local {deploy_path} -y"
 
     if version.parse(pyinfra.__version__) < version.parse("3"):
@@ -336,7 +339,7 @@ def add_config_option(parser):
         "--config",
         dest="inipath",
         action="store",
-        default=Path("chatmail.ini"),
+        default=Path(os.environ.get("CHATMAIL_INI", "chatmail.ini")),
         type=Path,
         help="path to the chatmail.ini file",
     )
