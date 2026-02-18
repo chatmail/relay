@@ -57,10 +57,19 @@ def test_one_mail(
     path = str(config._inipath)
 
     popen = make_popen(["filtermail", path, filtermail_mode])
-    line = popen.stderr.readline().strip()
-    if b"loop" not in line:
-        print(line.decode("ascii"), file=sys.stderr)
-        pytest.fail("starting filtermail failed")
+
+    # Wait for filtermail to start accepting connections
+    import socket
+    import time
+    for _ in range(50):  # 5 second timeout
+        try:
+            sock = socket.create_connection(("127.0.0.1", smtp_inject_port), timeout=0.1)
+            sock.close()
+            break
+        except (ConnectionRefusedError, OSError):
+            time.sleep(0.1)
+    else:
+        pytest.fail("filtermail failed to start accepting connections")
 
     addr = f"user1@{config.mail_domain}"
     config.get_user(addr).set_password("l1k2j3l1k2j3l")
