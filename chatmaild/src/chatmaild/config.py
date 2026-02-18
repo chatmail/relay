@@ -44,6 +44,7 @@ class Config:
         )
         self.mtail_address = params.get("mtail_address")
         self.disable_ipv6 = params.get("disable_ipv6", "false").lower() == "true"
+        self.noacme = os.environ.get("CHATMAIL_NOACME", "false").lower() == "true"
         self.addr_v4 = os.environ.get("CHATMAIL_ADDR_V4", "")
         self.addr_v6 = os.environ.get("CHATMAIL_ADDR_V6", "")
         self.acme_email = params.get("acme_email", "")
