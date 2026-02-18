@@ -80,8 +80,9 @@ jobs:
           cmdeploy run --verbose --skip-dns-check
           cmdeploy test --slow
 
-      - name: deploy and test tls_cert=acme
+      - name: deploy tls_cert=acme
         run: |
+          rm chatmail.ini
           cmdeploy init staging-ipv4.testrun.org
           sed -i 's#disable_ipv6 = False#disable_ipv6 = True#' chatmail.ini
           sed -i 's/#\s*mtail_address/mtail_address/' chatmail.ini

@@ -27,10 +27,10 @@ def create_newemail_dict(config: Config):
 def create_dclogin_url(email, password):
     """Build a dclogin: URL with credentials and self-signed cert acceptance.
 
-    Uses ic=3 (AcceptInvalidCertificates) so Delta Chat clients
+    Uses ic=3 and sc=3 (AcceptInvalidCertificates) so Delta Chat clients
     can connect to servers with self-signed TLS certificates.
     """
-    return f"dclogin:{quote(email, safe='')}?p={quote(password, safe='')}&v=1&ic=3"
+    return f"dclogin:{quote(email, safe='')}?p={quote(password, safe='')}&v=1&ic=3&sc=3"
 
 
 def print_new_account():

@@ -24,6 +24,7 @@ def test_create_dclogin_url():
     assert url.startswith("dclogin:")
     assert "v=1" in url
     assert "ic=3" in url
+    assert "sc=3" in url
     # email @ must be encoded
     assert "user%40example.org" in url
     # password special chars must be encoded
@@ -56,4 +57,5 @@ def test_print_new_account_self_signed(capsys, monkeypatch, make_config):
     url = dic["dclogin_url"]
     assert url.startswith("dclogin:")
     assert "ic=3" in url
+    assert "sc=3" in url
     assert dic["email"].split("@")[0] in url
