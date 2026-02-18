@@ -25,8 +25,7 @@ def test_create_dclogin_url():
     assert "v=1" in url
     assert "ic=3" in url
 
-    # email @ must be encoded
-    assert "user%40example.org" in url
+    assert "user@example.org" in url
     # password special chars must be encoded
     assert "p%40ss" in url
     assert "w%2Brd" in url

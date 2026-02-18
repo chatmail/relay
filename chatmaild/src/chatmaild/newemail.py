@@ -30,7 +30,7 @@ def create_dclogin_url(email, password):
     Uses ic=3 (AcceptInvalidCertificates) so chatmail clients
     can connect to servers with self-signed TLS certificates.
     """
-    return f"dclogin:{quote(email, safe='')}?p={quote(password, safe='')}&v=1&ic=3"
+    return f"dclogin:{quote(email, safe='@')}?p={quote(password, safe='')}&v=1&ic=3"
 
 
 def print_new_account():
