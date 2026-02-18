@@ -1,0 +1,76 @@
+name: Docker Build
+
+on:
+  pull_request:
+    paths:
+      - 'docker/**'
+      - 'docker-compose.yaml'
+      - '.dockerignore'
+      - 'chatmaild/**'
+      - 'cmdeploy/**'
+      - '.github/workflows/docker-build.yaml'
+  push:
+    branches:
+      - main
+      - j4n/docker
+    paths:
+      - 'docker/**'
+      - 'docker-compose.yaml'
+      - '.dockerignore'
+      - 'chatmaild/**'
+      - 'cmdeploy/**'
+      - '.github/workflows/docker-build.yaml'
+    tags:
+      - 'v*'
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build:
+    name: Build Docker image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        if: github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            # Tagged releases: v1.2.3 → :1.2.3, :1.2, :latest
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            # Branch pushes: j4n/docker → :j4n-docker
+            type=ref,event=branch
+            # Always: :sha-<hash>
+            type=sha
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/chatmail_relay.dockerfile
+          push: ${{ github.event_name == 'push' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            GIT_HASH=${{ github.sha }}

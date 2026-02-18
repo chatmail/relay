@@ -1,0 +1,18 @@
+data/
+venv/
+__pycache__
+*.pyc
+*.orig
+*.ini
+.pytest_cache
+.env
+
+# Slim build context — .git/ alone can be 100s of MB
+.git
+.github/
+docs/
+tests/
+
+# Exclude markdown files but keep www/src/*.md (used by WebsiteDeployer)
+*.md
+!www/**/*.md
