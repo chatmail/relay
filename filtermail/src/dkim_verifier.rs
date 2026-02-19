@@ -198,7 +198,7 @@ impl DkimVerifier {
     /// Verifies the DKIM signature of a raw email message and its alignment with the provided
     /// domain.
     pub async fn verify(&self, raw_mail: &[u8], from_domain: &str) -> Result<(), String> {
-        let mail_data = String::from_utf8_lossy(raw_mail);
+        let mail_data = str::from_utf8(raw_mail).or(Err("554 Non-UTF-8 message"))?;
         let (header, body) = mail_data
             .split_once("\r\n\r\n")
             .ok_or("554 Malformed data")?;
