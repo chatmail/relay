@@ -11,6 +11,18 @@ for Delta Chat users.  For details how it avoids storing personal information
 please see our [privacy policy](privacy.html). 
 {% endif %}
 
+{% if config.tls_cert_mode == "self" %}
+<a class="cta-button" id="dclogin-link" href="#">Get a {{config.mail_domain}} chat profile</a>
+
+If you are viewing this page on a different device
+without a Delta Chat app,
+you can also **scan this QR code** with Delta Chat:
+
+<a id="qr-link" href="#"><div id="qr-code"></div></a>
+
+<script src="qrcode-svg.min.js"></script>
+<script src="dclogin.js"></script>
+{% else %}
 <a class="cta-button" href="DCACCOUNT:https://{{ config.mail_domain }}/new">Get a {{config.mail_domain}} chat profile</a>
 
 If you are viewing this page on a different device
@@ -19,6 +31,7 @@ you can also **scan this QR code** with Delta Chat:
 
 <a href="DCACCOUNT:https://{{ config.mail_domain }}/new">
     <img width=300 style="float: none;" src="qr-chatmail-invite-{{config.mail_domain}}.png" /></a>
+{% endif %}
 
 🐣 **Choose** your Avatar and Name
 

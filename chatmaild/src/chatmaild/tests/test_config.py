@@ -73,3 +73,17 @@ def test_config_userstate_paths(make_config, tmp_path):
 def test_config_max_message_size(make_config, tmp_path):
     config = make_config("something.testrun.org", dict(max_message_size="10000"))
     assert config.max_message_size == 10000
+
+
+def test_config_tls_default_acme(make_config):
+    config = make_config("chat.example.org")
+    assert config.tls_cert_mode == "acme"
+    assert config.tls_cert_path == "/var/lib/acme/live/chat.example.org/fullchain"
+    assert config.tls_key_path == "/var/lib/acme/live/chat.example.org/privkey"
+
+
+def test_config_tls_self(make_config):
+    config = make_config("_test.example.org")
+    assert config.tls_cert_mode == "self"
+    assert config.tls_cert_path == "/etc/ssl/certs/mailserver.pem"
+    assert config.tls_key_path == "/etc/ssl/private/mailserver.key"

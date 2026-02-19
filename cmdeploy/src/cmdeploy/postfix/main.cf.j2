@@ -15,12 +15,12 @@ readme_directory = no
 compatibility_level = 3.6
 
 # TLS parameters
-smtpd_tls_cert_file=/var/lib/acme/live/{{ config.mail_domain }}/fullchain
-smtpd_tls_key_file=/var/lib/acme/live/{{ config.mail_domain }}/privkey
+smtpd_tls_cert_file={{ config.tls_cert_path }}
+smtpd_tls_key_file={{ config.tls_key_path }}
 smtpd_tls_security_level=may
 
 smtp_tls_CApath=/etc/ssl/certs
-smtp_tls_security_level=verify
+smtp_tls_security_level={{ "verify" if config.tls_cert_mode == "acme" else "encrypt" }}
 # Send SNI extension when connecting to other servers.
 # <https://www.postfix.org/postconf.5.html#smtp_tls_servername>
 smtp_tls_servername = hostname

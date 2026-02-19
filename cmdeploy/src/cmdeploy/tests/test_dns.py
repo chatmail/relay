@@ -91,6 +91,16 @@ class TestPerformInitialChecks:
         assert not res
         assert len(l) == 2
 
+    def test_perform_initial_checks_no_mta_sts_self_signed(self, mockdns):
+        del mockdns["CNAME"]["mta-sts.some.domain"]
+        remote_data = remote.rdns.perform_initial_checks("some.domain")
+        assert not remote_data["MTA_STS"]
+
+        l = []
+        res = check_initial_remote_data(remote_data, strict_tls=False, print=l.append)
+        assert res
+        assert not l
+
 
 def parse_zonefile_into_dict(zonefile, mockdns_base, only_required=False):
     for zf_line in zonefile.split("\n"):

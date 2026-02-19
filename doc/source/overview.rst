@@ -297,8 +297,7 @@ TLS requirements
 
 Postfix is configured to require valid TLS by setting
 `smtp_tls_security_level <https://www.postfix.org/postconf.5.html#smtp_tls_security_level>`_
-to ``verify``. If emails don’t arrive at your chatmail relay server, the
-problem is likely that your relay does not have a valid TLS certificate.
+to ``verify``.
 
 You can test it by resolving ``MX`` records of your relay domain and
 then connecting to MX relays (e.g ``mx.example.org``) with
@@ -316,6 +315,14 @@ default Exim does not log sessions that are closed before sending the
 ``MAIL`` command. This happens if certificate is not recognized as valid
 by Postfix, so you might think that connection is not established while
 actually it is a problem with your TLS certificate.
+
+If emails don’t arrive at your chatmail relay server, the
+problem is likely that your relay does not have a valid TLS certificate.
+
+Note that connections to relays with underscore-prefixed test domains
+(e.g. ``_chat.example.org``) use ``encrypt`` tls security level,
+because such domains cannot obtain valid Let's Encrypt certificates
+and run with self-signed certificates.
 
 
 .. _dovecot: https://dovecot.org

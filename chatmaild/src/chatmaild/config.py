@@ -60,6 +60,18 @@ class Config:
         self.privacy_pdo = params.get("privacy_pdo")
         self.privacy_supervisor = params.get("privacy_supervisor")
 
+        # TLS certificate management: derived from the domain name.
+        # Domains starting with "_" use self-signed certificates
+        # All other domains use ACME.
+        if self.mail_domain.startswith("_"):
+            self.tls_cert_mode = "self"
+            self.tls_cert_path = "/etc/ssl/certs/mailserver.pem"
+            self.tls_key_path = "/etc/ssl/private/mailserver.key"
+        else:
+            self.tls_cert_mode = "acme"
+            self.tls_cert_path = f"/var/lib/acme/live/{self.mail_domain}/fullchain"
+            self.tls_key_path = f"/var/lib/acme/live/{self.mail_domain}/privkey"
+
         # deprecated option
         mbdir = params.get("mailboxes_dir", f"/home/vmail/mail/{self.mail_domain}")
         self.mailboxes_dir = Path(mbdir.strip())

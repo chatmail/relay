@@ -91,9 +91,10 @@ def run_cmd(args, out):
     ssh_host = args.ssh_host if args.ssh_host else args.config.mail_domain
     sshexec = get_sshexec(ssh_host)
     require_iroh = args.config.enable_iroh_relay
+    strict_tls = args.config.tls_cert_mode == "acme"
     if not args.dns_check_disabled:
         remote_data = dns.get_initial_remote_data(sshexec, args.config.mail_domain)
-        if not dns.check_initial_remote_data(remote_data, print=out.red):
+        if not dns.check_initial_remote_data(remote_data, strict_tls=strict_tls, print=out.red):
             return 1
 
     env = os.environ.copy()
@@ -124,7 +125,7 @@ def run_cmd(args, out):
                 out.red("Website deployment failed.")
         elif retcode == 0:
             out.green("Deploy completed, call `cmdeploy dns` next.")
-        elif not args.dns_check_disabled and not remote_data["acme_account_url"]:
+        elif not args.dns_check_disabled and strict_tls and not remote_data["acme_account_url"]:
             out.red("Deploy completed but letsencrypt not configured")
             out.red("Run 'cmdeploy run' again")
             retcode = 0
@@ -151,11 +152,13 @@ def dns_cmd(args, out):
     """Check DNS entries and optionally generate dns zone file."""
     ssh_host = args.ssh_host if args.ssh_host else args.config.mail_domain
     sshexec = get_sshexec(ssh_host, verbose=args.verbose)
+    tls_cert_mode = args.config.tls_cert_mode
+    strict_tls = tls_cert_mode == "acme"
     remote_data = dns.get_initial_remote_data(sshexec, args.config.mail_domain)
-    if not remote_data:
+    if not dns.check_initial_remote_data(remote_data, strict_tls=strict_tls):
         return 1
 
-    if not remote_data["acme_account_url"]:
+    if strict_tls and not remote_data["acme_account_url"]:
         out.red("could not get letsencrypt account url, please run 'cmdeploy run'")
         return 1
 
@@ -163,6 +166,7 @@ def dns_cmd(args, out):
         out.red("could not determine dkim_entry, please run 'cmdeploy run'")
         return 1
 
+    remote_data["strict_tls"] = strict_tls
     zonefile = dns.get_filled_zone_file(remote_data)
 
     if args.zonefile:
