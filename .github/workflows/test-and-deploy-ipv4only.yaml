@@ -87,7 +87,7 @@ jobs:
           ssh root@ns.testrun.org nsd-checkzone staging-ipv4.testrun.org /etc/nsd/staging-ipv4.testrun.org.zone
           ssh root@ns.testrun.org systemctl reload nsd
 
-      - name: cmdeploy test acme
+      - name: cmdeploy test
         run: CHATMAIL_DOMAIN2=ci-chatmail.testrun.org cmdeploy test --slow
 
       - name: cmdeploy dns
