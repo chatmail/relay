@@ -103,3 +103,11 @@ jobs:
       - name: cmdeploy dns
         run: ssh root@staging-ipv4.testrun.org "cd relay && scripts/cmdeploy dns -v --ssh-host localhost"
 
+  test-tls-external:
+    needs: deploy
+    uses: ./.github/workflows/reusable-test-tls-external.yaml
+    with:
+      domain: staging-ipv4.testrun.org
+    secrets:
+      STAGING_SSH_KEY: ${{ secrets.STAGING_SSH_KEY }}
+

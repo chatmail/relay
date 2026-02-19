@@ -308,6 +308,11 @@ When providing a TLS certificate to your chatmail relay server, make
 sure to provide the full certificate chain and not just the last
 certificate.
 
+If you use an external certificate manager (e.g. Traefik or certbot),
+set ``tls_external_cert_and_key`` in ``chatmail.ini``
+to provide the certificate and key paths.
+See :ref:`external-tls` for details.
+
 If you are running an Exim server and don’t see incoming connections
 from a chatmail relay server in the logs, make sure ``smtp_no_mail`` log
 item is enabled in the config with ``log_selector = +smtp_no_mail``. By
