@@ -55,8 +55,8 @@ def maildomain(chatmail_config):
 
 
 @pytest.fixture(scope="session")
-def sshdomain(maildomain):
-    return os.environ.get("CHATMAIL_SSH", maildomain)
+def sshdomain(chatmail_config):
+    return os.environ.get("CHATMAIL_SSH", chatmail_config.ssh_host)
 
 
 @pytest.fixture
