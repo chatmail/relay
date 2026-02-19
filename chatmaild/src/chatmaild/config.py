@@ -61,10 +61,24 @@ class Config:
         self.privacy_pdo = params.get("privacy_pdo")
         self.privacy_supervisor = params.get("privacy_supervisor")
 
-        # TLS certificate management: derived from the domain name.
-        # Domains starting with "_" use self-signed certificates
-        # All other domains use ACME.
-        if self.mail_domain.startswith("_"):
+        # TLS certificate management.
+        # If tls_external_cert_and_key is set, use externally managed certs.
+        # Otherwise derived from the domain name:
+        # - Domains starting with "_" use self-signed certificates
+        # - All other domains use ACME.
+        external = params.get("tls_external_cert_and_key", "").strip()
+
+        if external:
+            parts = external.split()
+            if len(parts) != 2:
+                raise ValueError(
+                    "tls_external_cert_and_key must have two space-separated"
+                    " paths: CERT_PATH KEY_PATH"
+                )
+            self.tls_cert_mode = "external"
+            self.tls_cert_path = parts[0]
+            self.tls_key_path = parts[1]
+        elif self.mail_domain.startswith("_"):
             self.tls_cert_mode = "self"
             self.tls_cert_path = "/etc/ssl/certs/mailserver.pem"
             self.tls_key_path = "/etc/ssl/private/mailserver.key"

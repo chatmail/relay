@@ -204,6 +204,40 @@ and all other relays will accept connections from it
 without requiring certificate verification.
 This is useful for experimental setups and testing.
 
+.. _external-tls:
+
+Running a relay with externally managed certificates
+-----------------------------------------------------
+
+If you already have a TLS certificate manager
+(e.g. Traefik, certbot, or another ACME client)
+running on the deployment server,
+you can configure the relay to use those certificates
+instead of the built-in ``acmetool``.
+
+Set the following in ``chatmail.ini``::
+
+    tls_external_cert_and_key = /path/to/fullchain.pem /path/to/privkey.pem
+
+The paths must point to certificate and key files
+on the deployment server.
+During ``cmdeploy run``, these paths are written into
+the Postfix, Dovecot, and Nginx configurations.
+No certificate files are transferred from the build machine —
+they must already exist on the server,
+managed by your external certificate tool.
+
+The deploy will verify that both files exist on the server.
+``acmetool`` is **not** installed or run in this mode.
+
+.. note::
+
+   You are responsible for certificate renewal.
+   When the certificate file changes on disk,
+   all relay services pick up the new certificate automatically
+   (via a systemd path watcher installed during deploy).
+
+
 Migrating to a new build machine
 ----------------------------------
 
