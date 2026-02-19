@@ -18,8 +18,8 @@ services:
     restart: unless-stopped
     container_name: chatmail
     # Required for systemd — use only one of the following:
-    cgroup: host          # compose v2 only
-    # privileged: true    # compose v1 (not tested)
+    cgroup: host          # compose v2
+    # privileged: true    # compose v1 (less restricted)
     tty: true # required for logs
     tmpfs: # required for systemd
       - /tmp

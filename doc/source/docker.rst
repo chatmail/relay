@@ -6,37 +6,24 @@ using Docker Compose.
 
 .. note::
 
-   Docker support is experimental and not yet covered by automated tests, please report bugs.
+    - Docker support is experimental and not yet covered by automated tests, please report bugs.
+    - This preliminary image simply wraps the cmdeploy process detailed in the :doc:`getting_started` instructions in a full Debian-systemd image with r/w access to `/sys/fs`
+    - Currently, the image has only been tested and built on amd64, though arm64 should theoretically work as well.
 
 
-Known limitations
------------------
-
-- Requires cgroups v2 on the host. Operation with cgroups v1 has not been tested.
-- This preliminary image simply wraps the cmdeploy process detailed in the :doc:`getting_started` instructions in a full Debian-systemd image. 
-- Currently, the image has only been tested and built on amd64, though arm64 should theoretically work as well.
-
-
-Prerequisites
--------------
-
-- **Docker Compose v2** (``docker compose``, not ``docker-compose``) is
-  required for its ``cgroup: host`` support (`Install instructions <https://docs.docker.com/engine/install/debian/#install-using-the-repository>`_:)
-
-- **DNS records** for your domain (see step 1 below).
-
-- **Kernel parameters** — ``fs.inotify.max_user_instances`` and
-  ``fs.inotify.max_user_watches`` must be raised on the host because they
-  cannot be changed inside the container (see step 2 below).
-
-
-Preliminary setup
+Setup Preparation
 -----------------
 
 We use ``chat.example.org`` as the chatmail domain in the following
 steps. Please substitute it with your own domain.
 
-1. Setup the initial DNS records.
+1. Install docker and docker compose v2 (check with `docker compose version`), install, e.g., through
+    - Debian 12 through the `official install instructions <https://docs.docker.com/engine/install/debian/#install-using-the-repository>`_:
+    - Debian 13+ with `apt install docker docker-compose`
+
+   If you must use v1 (EOL since 2023), use `docker-compose` in the following and modify the `docker-compose.yaml` to use `privileged: true` instead of `cgroup: host`, though that will run give the container all priviledges.
+
+2. Setup the initial DNS records.
    The following is an example in the familiar BIND zone file format with
    a TTL of 1 hour (3600 seconds).
    Please substitute your domain and IP addresses.
@@ -48,7 +35,7 @@ steps. Please substitute it with your own domain.
        www.chat.example.org. 3600 IN CNAME chat.example.org.
        mta-sts.chat.example.org. 3600 IN CNAME chat.example.org.
 
-2. Configure kernel parameters on the host, as these can not be set from the container::
+3. Configure kernel parameters on the host, as these can not be set from the container::
 
        echo "fs.inotify.max_user_instances=65536" | sudo tee -a /etc/sysctl.d/99-inotify.conf
        echo "fs.inotify.max_user_watches=65536" | sudo tee -a /etc/sysctl.d/99-inotify.conf
@@ -96,6 +83,7 @@ Customize and start
 
        cp docker/docker-compose.override.yaml.example docker-compose.override.yaml
        # and edit docker-compose.override.yaml
+
 
 
 2. Configure the ``.env`` file. Only ``MAIL_DOMAIN`` is required, the domain
