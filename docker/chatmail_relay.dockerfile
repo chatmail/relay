@@ -73,7 +73,6 @@ RUN echo "$GIT_HASH" > /etc/chatmail-image-version && \
     echo "$GIT_HASH" > /etc/chatmail-version
 # --- End build-time install ---
 
-ENV CHATMAIL_INI=/etc/chatmail/chatmail.ini
 ENV TZ=:/etc/localtime
 ENV PATH="/opt/cmdeploy/bin:${PATH}"
 RUN ln -s /etc/chatmail/chatmail.ini /opt/chatmail/chatmail.ini
