@@ -116,17 +116,67 @@ impl LookupTxt for CachedResolver {
     }
 }
 
+/// Dummy resolver that always returns the same TXT record, for testing purposes.
+#[derive(Clone)]
+struct MockResolver(String);
+
+impl LookupTxt for MockResolver {
+    type Answer = Box<dyn Iterator<Item = io::Result<Vec<u8>>>>;
+    type Query<'a> = Pin<Box<dyn Future<Output = io::Result<Self::Answer>> + Send + 'a>>;
+
+    fn lookup_txt(&self, _domain: &str) -> Self::Query<'_> {
+        Box::pin(async move {
+            let txts: Self::Answer = Box::new(std::iter::once(Ok(self.0.clone().into_bytes())));
+            Ok(txts)
+        })
+    }
+}
+
+/// Either a real resolver or a mock.
+#[allow(clippy::large_enum_variant)]
+#[derive(Clone)]
+enum Resolver {
+    /// A [`CachedResolver`]
+    Real(CachedResolver),
+    /// A [`MockResolver`]
+    Mock(MockResolver),
+}
+
+impl LookupTxt for Resolver {
+    type Answer = Box<dyn Iterator<Item = io::Result<Vec<u8>>>>;
+    type Query<'a> = Pin<Box<dyn Future<Output = io::Result<Self::Answer>> + Send + 'a>>;
+
+    fn lookup_txt(&self, domain: &str) -> Self::Query<'_> {
+        match self {
+            Resolver::Real(resolver) => resolver.lookup_txt(domain),
+            Resolver::Mock(resolver) => resolver.lookup_txt(domain),
+        }
+    }
+}
+
+impl From<CachedResolver> for Resolver {
+    fn from(value: CachedResolver) -> Self {
+        Resolver::Real(value)
+    }
+}
+
+impl From<MockResolver> for Resolver {
+    fn from(value: MockResolver) -> Self {
+        Resolver::Mock(value)
+    }
+}
+
 /// DKIM verifier using a pre-configured [`viadkim`] verifier, a [`CachedResolver`] for DNS lookups,
 /// and strict domain name alignment check.
 pub struct DkimVerifier {
-    resolver: CachedResolver,
+    resolver: Resolver,
     config: viadkim::Config,
 }
 
 impl DkimVerifier {
     /// Creates a new [`DkimVerifier`] with the provided resolver.
     pub fn new() -> Result<Self, crate::error::Error> {
-        let resolver = CachedResolver::new()?;
+        let resolver = CachedResolver::new()?.into();
         let config = viadkim::Config {
             lookup_timeout: Duration::from_secs(60),
             ..Default::default()
@@ -134,44 +184,34 @@ impl DkimVerifier {
         Ok(Self { resolver, config })
     }
 
+    /// Creates a new [`DkimVerifier`] with a mock resolver that always returns the provided TXT record.
+    #[cfg(test)]
+    fn mock(txt: String) -> Self {
+        let resolver = MockResolver(txt).into();
+        let config = viadkim::Config {
+            lookup_timeout: Duration::from_secs(60),
+            ..Default::default()
+        };
+        Self { resolver, config }
+    }
+
     /// Verifies the DKIM signature of a raw email message and its alignment with the provided
     /// domain.
     pub async fn verify(&self, raw_mail: &[u8], from_domain: &str) -> Result<(), String> {
-        let (headers, body_start) = {
-            use viadkim::{FieldBody, FieldName, HeaderField};
+        let mail_data = String::from_utf8_lossy(raw_mail);
+        let (header, body) = mail_data
+            .split_once("\r\n\r\n")
+            .ok_or("554 Malformed data")?;
 
-            let Ok((headers, body_start)) = mailparse::parse_headers(raw_mail) else {
-                return Err("500 Failed to parse message headers".to_string());
-            };
-
-            let mut viadkim_headers: Vec<HeaderField> = Vec::new();
-            for header in headers {
-                match (
-                    FieldName::new(header.get_key()),
-                    FieldBody::new(header.get_value_raw()),
-                ) {
-                    (Ok(name), Ok(body)) => viadkim_headers.push((name, body)),
-                    (Err(e), _) | (_, Err(e)) => {
-                        log::debug!("Failed to parse header {header:?}, skipping: {e}");
-                    }
-                }
-            }
-
-            let viadkim_headers = viadkim::HeaderFields::new(viadkim_headers).map_err(|e| {
-                log::error!("Failed to parse headers for DKIM verification: {e}");
-                "500 Failed to parse message headers".to_string()
-            })?;
-
-            (viadkim_headers, body_start)
-        };
+        let header = header.parse().map_err(|_| "554 Malformed header")?;
 
         let Some(mut verifier) =
-            viadkim::Verifier::verify_header(&self.resolver, &headers, &self.config).await
+            viadkim::Verifier::verify_header(&self.resolver, &header, &self.config).await
         else {
             return Err("554 5.7.1 No DKIM signature found".to_string());
         };
 
-        'hasher: for chunk in raw_mail.get(body_start..).unwrap_or_default().chunks(8192) {
+        'hasher: for chunk in body.as_bytes().chunks(8192) {
             if verifier.process_body_chunk(chunk) == BodyHasherStance::Done {
                 break 'hasher;
             }
@@ -189,8 +229,10 @@ impl DkimVerifier {
                 log::debug!("Signature {}: Verification failed, skipping", res.index);
                 // We only invalidate cache on actual validation error, and not alignment error.
                 // TODO: ideally we should retry without cache and swap cached value only on success.
-                self.resolver
-                    .invalidate_cache(signature.selector.as_ref(), signature.domain.as_ref());
+                if let Resolver::Real(resolver) = &self.resolver {
+                    resolver
+                        .invalidate_cache(signature.selector.as_ref(), signature.domain.as_ref());
+                }
                 continue;
             }
 
@@ -210,5 +252,19 @@ impl DkimVerifier {
         }
 
         Err("554 5.7.1 No valid DKIM signature found".to_string())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_dkim_verifier() {
+        let verifier = DkimVerifier::mock(
+            r#"v=DKIM1;k=rsa;p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA5krC4Xi5Wkr6eMlla38LCFmV645E3FLAgsRl2YJ0SrZ4N2Vw1/yH0mefvtk7HYE7ytV7RQl/er2CkSsaHLJSYLmPCBw5CO6PSsBSXuh6DBqdylh/1t9vVQ9p38fTwn9gU1QvplcpRQL9eepRra1k24VMIaVy2ZZcu3LI9zkPsR7o7TyNaeMhsL8ouWInWc1NSid+p0SgliQuwHIejZhlTPE60JLbJE0OR9I4wmq3377H6z/QrO8XeabCgtmTuzE/hTRyIyNS40jql/99pjlhIcjM2U+P2B0FjwYt7BwLHsgANr74ctlnKY+SdH25rNwVpPmkotaULG5SJCByKBkfCwIDAQAB;s=email;t=s"#.to_string()
+        );
+        let raw_mail = include_bytes!("../test_data/dkim-abjadiyah.eml");
+        verifier.verify(raw_mail, "abjadiyah.xyz").await.unwrap();
     }
 }
