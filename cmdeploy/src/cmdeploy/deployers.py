@@ -20,6 +20,7 @@ from pyinfra.operations import apt, files, pip, server, systemd
 from cmdeploy.cmdeploy import Out
 
 from .acmetool import AcmetoolDeployer
+from .external.deployer import ExternalTlsDeployer
 from .basedeploy import (
     Deployer,
     Deployment,

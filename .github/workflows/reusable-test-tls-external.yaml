@@ -1,0 +1,33 @@
+name: test tls_external_cert_and_key
+
+on:
+  workflow_call:
+    inputs:
+      domain:
+        required: true
+        type: string
+    secrets:
+      STAGING_SSH_KEY:
+        required: true
+
+jobs:
+  test-tls-external:
+    name: test tls_external_cert_and_key
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: ${{ inputs.domain }}
+    concurrency: ${{ inputs.domain }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: scripts/initenv.sh
+      - name: append venv/bin to PATH
+        run: echo venv/bin >>$GITHUB_PATH
+      - name: prepare SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.STAGING_SSH_KEY }}" >> ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan ${{ inputs.domain }} >> ~/.ssh/known_hosts 2>/dev/null
+      - name: run tls_external e2e test
+        run: python -m cmdeploy.tests.setup_tls_external ${{ inputs.domain }}
