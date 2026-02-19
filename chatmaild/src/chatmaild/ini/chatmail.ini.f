@@ -48,6 +48,13 @@ passthrough_senders =
 # (space-separated, item may start with "@" to whitelist whole recipient domains)
 passthrough_recipients =
 
+# Use externally managed TLS certificates instead of built-in acmetool.
+# Paths refer to files on the deployment server (not the build machine).
+# Both files must already exist before running cmdeploy.
+# Certificate renewal is your responsibility; changed files are
+# picked up automatically by all relay services.
+# tls_external_cert_and_key = /path/to/fullchain.pem /path/to/privkey.pem
+
 # path to www directory - documented here: https://chatmail.at/doc/relay/getting_started.html#custom-web-pages
 #www_folder = www
 

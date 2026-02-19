@@ -1,0 +1,15 @@
+# Reload services that cache the TLS certificate.
+#
+# dovecot: caches the cert at startup; reload re-reads SSL certs
+#          without dropping existing connections.
+# nginx:   caches the cert at startup; reload gracefully picks up
+#          the new cert for new connections.
+# postfix: reads the cert fresh on each TLS handshake,
+#          does NOT need a reload/restart.
+[Unit]
+Description=Reload TLS services after certificate change
+
+[Service]
+Type=oneshot
+ExecStart=/bin/systemctl reload dovecot
+ExecStart=/bin/systemctl reload nginx

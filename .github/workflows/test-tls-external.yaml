@@ -1,0 +1,37 @@
+name: test tls_external_cert_and_key on staging2.testrun.org
+
+on:
+  workflow_run:
+    workflows:
+      - "deploy on staging2.testrun.org, and run tests"
+    types:
+      - completed
+
+jobs:
+  test-tls-external:
+    name: test tls_external_cert_and_key
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    concurrency: staging2.testrun.org
+    environment:
+      name: staging2.testrun.org
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: prepare SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.STAGING_SSH_KEY }}" >> ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan staging2.testrun.org >> ~/.ssh/known_hosts 2>/dev/null
+
+      - run: scripts/initenv.sh
+
+      - name: append venv/bin to PATH
+        run: echo venv/bin >>$GITHUB_PATH
+
+      - name: run tls_external e2e test
+        run: |
+          python -m cmdeploy.tests.setup_tls_external \
+            staging2.testrun.org
