@@ -18,7 +18,7 @@ We use ``chat.example.org`` as the chatmail domain in the following
 steps. Please substitute it with your own domain.
 
 1. Install docker and docker compose v2 (check with `docker compose version`), install, e.g., through
-    - Debian 12 through the `official install instructions <https://docs.docker.com/engine/install/debian/#install-using-the-repository>`_:
+    - Debian 12 through the `official install instructions <https://docs.docker.com/engine/install/debian/#install-using-the-repository>`_
     - Debian 13+ with `apt install docker docker-compose`
 
    If you must use v1 (EOL since 2023), use `docker-compose` in the following and modify the `docker-compose.yaml` to use `privileged: true` instead of `cgroup: host`, though that will run give the container all priviledges.
