@@ -3,7 +3,7 @@ Description=acmetool HTTP redirector
 
 [Service]
 Type=notify
-ExecStart=/usr/bin/acmetool redirector --service.uid=daemon
+ExecStart=/usr/bin/acmetool redirector --service.uid=daemon --bind=127.0.0.1:402
 Restart=always
 RestartSec=30
 

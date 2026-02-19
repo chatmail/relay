@@ -145,4 +145,25 @@ http {
 		return 301 $scheme://{{ config.mail_domain }}$request_uri;
 		access_log syslog:server=unix:/dev/log,facility=local7;
 	}
+
+	server {
+		listen 80;
+		{% if not disable_ipv6 %}
+		listen [::]:80;
+		{% endif %}
+
+		{% if config.tls_cert_mode == "acme" %}
+		location /.well-known/acme-challenge/ {
+			proxy_pass http://acmetool;
+		}
+		{% endif %}
+
+		return 301 https://$host$request_uri;
+	}
+
+	{% if config.tls_cert_mode == "acme" %}
+	upstream acmetool {
+		server 127.0.0.1:402;
+	}
+	{% endif %}
 }
