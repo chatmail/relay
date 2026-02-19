@@ -5,7 +5,11 @@ from cmdeploy.cmdeploy import main
 
 def test_status_cmd(chatmail_config, capsys, request):
     os.chdir(request.config.invocation_params.dir)
-    assert main(["status"]) == 0
+    command = ["status"]
+    if os.getenv("CHATMAIL_SSH"):
+        command.append("--ssh-host")
+        command.append(os.getenv("CHATMAIL_SSH"))
+    assert main(command) == 0
     status_out = capsys.readouterr()
     print(status_out.out)
 

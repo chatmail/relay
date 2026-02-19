@@ -7,7 +7,7 @@ import pytest
 import requests
 
 from cmdeploy.remote import rshell
-from cmdeploy.sshexec import SSHExec
+from cmdeploy.cmdeploy import get_sshexec
 
 
 @pytest.fixture
@@ -91,7 +91,7 @@ class TestEndToEndDeltaChat:
         lp.sec(f"filling remote inbox for {user}")
         fn = f"7743102289.M843172P2484002.c20,S={quota},W=2398:2,"
         path = chatmail_config.mailboxes_dir.joinpath(user, "cur", fn)
-        sshexec = SSHExec(sshdomain)
+        sshexec = get_sshexec(sshdomain)
         sshexec(call=rshell.write_numbytes, kwargs=dict(path=str(path), num=120))
         res = sshexec(call=rshell.dovecot_recalc_quota, kwargs=dict(user=user))
         assert res["percent"] >= 100

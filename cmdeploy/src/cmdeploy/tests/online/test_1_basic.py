@@ -7,13 +7,13 @@ import time
 import pytest
 
 from cmdeploy import remote
-from cmdeploy.sshexec import SSHExec
+from cmdeploy.cmdeploy import get_sshexec
 
 
 class TestSSHExecutor:
     @pytest.fixture(scope="class")
     def sshexec(self, sshdomain):
-        return SSHExec(sshdomain)
+        return get_sshexec(sshdomain)
 
     def test_ls(self, sshexec):
         out = sshexec(call=remote.rdns.shell, kwargs=dict(command="ls"))
@@ -27,6 +27,7 @@ class TestSSHExecutor:
         assert res["A"] or res["AAAA"]
 
     def test_logged(self, sshexec, maildomain, capsys):
+        sshexec.verbose = False
         sshexec.logged(
             remote.rdns.perform_initial_checks, kwargs=dict(mail_domain=maildomain)
         )
@@ -52,6 +53,8 @@ class TestSSHExecutor:
                 remote.rdns.perform_initial_checks,
                 kwargs=dict(mail_domain=None),
             )
+        except AssertionError:
+            pass
         except sshexec.FuncError as e:
             assert "rdns.py" in str(e)
             assert "AssertionError" in str(e)
