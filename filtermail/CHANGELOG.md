@@ -1,3 +1,16 @@
+## 0.5.0 - 2026-02-20
+
+### Bug Fixes
+
+- *(dkim)* Make simple header canonicalization work properly (#53)
+
+### Features
+
+- Save rejected messages to `/tmp` (#55)
+
+### Refactor
+
+- Do not copy the mail in memory for DKIM verification (#54)
 ## 0.4.1 - 2026-02-17
 
 ### Miscellaneous Tasks
