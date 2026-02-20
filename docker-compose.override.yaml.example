@@ -9,17 +9,13 @@ services:
   chatmail:
     volumes:
       ## Data paths — bind-mount to host directories for easy access/backup.
-      ## These override the named volumes in the base docker-compose.yaml.
-      # - ./data/mail:/home/vmail
+
       # - ./data/dkim:/etc/dkimkeys
       # - ./data/certs:/var/lib/acme
 
+      # - ./data/mail:/home/vmail
       ## Or mount from an existing bare-metal install.
-      ## Note: DKIM key ownership is fixed automatically on startup
-      ## (the host's opendkim UID may differ from the container's).
       # - /home/vmail:/home/vmail
-      # - /etc/dkimkeys:/etc/dkimkeys
-      # - /var/lib/acme:/var/lib/acme
 
       ## Mount your own chatmail.ini (skips auto-generation):
       # - ./chatmail.ini:/etc/chatmail/chatmail.ini
@@ -32,14 +28,13 @@ services:
       # - ./docker/files/entrypoint.sh:/entrypoint.sh
 
     # environment:
-      ## --- External TLS certificates ---
       ## Mount certs (above) and set TLS_EXTERNAL_CERT_AND_KEY to in-container paths.
       ## Changed certs are picked up automatically (inotify via tls-cert-reload.path).
       ##
-      ## Host acmetool (bare-metal migration) — also add volume:
-      ##   - /var/lib/acme/live:/var/lib/acme/live:ro
+      ## Host acmetool (bare-metal migration): create mount above, and
+      ##   rsync -a /var/lib/acme/live data/certs
       # TLS_EXTERNAL_CERT_AND_KEY: "/var/lib/acme/live/${MAIL_DOMAIN}/fullchain /var/lib/acme/live/${MAIL_DOMAIN}/privkey"
       ##
-      ## Traefik certs-dumper (see docker/docker-compose-traefik.yaml) — also add volume:
+      ## (Untested) Traefik certs-dumper (see docker/docker-compose-traefik.yaml) - also add volume:
       ##   - traefik-certs:/certs:ro
       # TLS_EXTERNAL_CERT_AND_KEY: "/certs/${MAIL_DOMAIN}/certificate.crt /certs/${MAIL_DOMAIN}/privatekey.key"
