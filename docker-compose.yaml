@@ -32,8 +32,6 @@ services:
         max-file: "3"
     environment:
       MAIL_DOMAIN: $MAIL_DOMAIN
-      CHATMAIL_NOSYSCTL: ${CHATMAIL_NOSYSCTL:-True}
-      CHATMAIL_NOPORTCHECK: ${CHATMAIL_NOPORTCHECK:-True}
     network_mode: "host"
     volumes:
       ## system (required)
