@@ -98,6 +98,12 @@ steps. Please substitute it with your own domain.
    configure at your DNS provider (it can take some time until they are
    public).
 
+Docker installation
+-------------------
+
+There is experimental support for running chatmail via Docker Compose.
+See :doc:`docker` for full setup instructions.
+
 Other helpful commands
 ----------------------
 

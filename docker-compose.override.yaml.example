@@ -1,0 +1,39 @@
+# Local overrides: copy to docker-compose.override.yaml in the repo root.
+# Compose automatically merges this with docker-compose.yaml.
+#
+#   cp docker-compose.override.yaml.example docker-compose.override.yaml
+#
+# Volumes are APPENDED to the base file's volumes list, environment and other scalar keys are MERGED by key.
+services:
+  chatmail:
+    volumes:
+      ## Data paths — bind-mount to host directories for easy access/backup.
+
+      # - ./data/dkim:/etc/dkimkeys
+      # - ./data/certs:/var/lib/acme
+
+      # - ./data/mail:/home/vmail
+      ## Or mount from an existing bare-metal install.
+      # - /home/vmail:/home/vmail
+
+      ## Mount your own chatmail.ini (skips auto-generation):
+      # - ./chatmail.ini:/etc/chatmail/chatmail.ini
+
+      ## Custom website:
+      # - ./custom/www:/opt/chatmail-www
+
+      ## Debug — mount scripts from the repo for live editing:
+      # - ./docker/files/setup_chatmail_docker.sh:/setup_chatmail_docker.sh
+      # - ./docker/files/entrypoint.sh:/entrypoint.sh
+
+    # environment:
+      ## Mount certs (above) and set TLS_EXTERNAL_CERT_AND_KEY to in-container paths.
+      ## Changed certs are picked up automatically (inotify via tls-cert-reload.path).
+      ##
+      ## Host acmetool (bare-metal migration): create mount above, and
+      ##   rsync -a /var/lib/acme/live data/certs
+      # TLS_EXTERNAL_CERT_AND_KEY: "/var/lib/acme/live/${MAIL_DOMAIN}/fullchain /var/lib/acme/live/${MAIL_DOMAIN}/privkey"
+      ##
+      ## (Untested) Traefik certs-dumper (see docker/docker-compose-traefik.yaml) - also add volume:
+      ##   - traefik-certs:/certs:ro
+      # TLS_EXTERNAL_CERT_AND_KEY: "/certs/${MAIL_DOMAIN}/certificate.crt /certs/${MAIL_DOMAIN}/privatekey.key"

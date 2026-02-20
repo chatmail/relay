@@ -1,0 +1,8 @@
+[Unit]
+Description=Check TLS certificate changes and reload services
+After=setup_chatmail.service
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash /chatmail-certmon.sh
+PassEnvironment=MAIL_DOMAIN PATH_TO_SSL

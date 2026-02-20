@@ -1,0 +1,51 @@
+# Base compose file — do not edit. Put customizations (data paths, extra
+# volumes, env overrides) in docker-compose.override.yaml instead.
+# See docker/docker-compose.override.yaml.example for a starting point.
+#
+# Security note: this container uses network_mode:host (chatmail needs many
+# ports: 25, 53, 80, 143, 443, 465, 587, 993, 3340, 8443) and cgroup:host
+# (required for systemd). Together these give the container near-host-level
+# access. This is acceptable for a dedicated mail server, but be aware that
+# the container can bind any port and see all host network traffic.
+services:
+  chatmail:
+    build:
+      context: ./
+      dockerfile: docker/chatmail_relay.dockerfile
+      args:
+        GIT_HASH: ${GIT_HASH:-unknown}
+    image: chatmail-relay:latest
+    restart: unless-stopped
+    container_name: chatmail
+    # Required for systemd — use only one of the following:
+    cgroup: host          # compose v2
+    # privileged: true    # compose v1 (less restricted)
+    tty: true # required for logs
+    tmpfs: # required for systemd
+      - /tmp
+      - /run
+      - /run/lock
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    environment:
+      MAIL_DOMAIN: $MAIL_DOMAIN
+      CMDEPLOY_STAGES: ${CMDEPLOY_STAGES:-}
+      CHATMAIL_NOSYSCTL: ${CHATMAIL_NOSYSCTL:-True}
+      CHATMAIL_NOPORTCHECK: ${CHATMAIL_NOPORTCHECK:-True}
+      TLS_EXTERNAL_CERT_AND_KEY: ${TLS_EXTERNAL_CERT_AND_KEY:-}
+    network_mode: "host"
+    volumes:
+      ## system (required)
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+      ## data (defaults — override in docker-compose.override.yaml)
+      - mail:/home/vmail
+      - dkim:/etc/dkimkeys
+      - certs:/var/lib/acme
+
+volumes:
+  mail:
+  dkim:
+  certs:
