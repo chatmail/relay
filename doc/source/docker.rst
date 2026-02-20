@@ -60,38 +60,31 @@ Either:
 - Create a service directory, e.g., `/srv/chatmail-relay`::
 
     mkdir -p /srv/chatmail-relay && cd /srv/chatmail-relay
-    wget https://raw.githubusercontent.com/chatmail/relay/refs/heads/main/docker-compose.yaml https://raw.githubusercontent.com/chatmail/relay/refs/heads/main/docker-compose.override.yaml.example
-    wget https://raw.githubusercontent.com/chatmail/relay/refs/heads/main/docker/env.example -O .env
-    
+    wget https://raw.githubusercontent.com/chatmail/relay/refs/heads/main/docker-compose.yaml
+    wget https://raw.githubusercontent.com/chatmail/relay/refs/heads/main/docker-compose.override.yaml.example -O docker-compose.override.yaml
 
 - or clone the chatmail repo ::
 
    git clone https://github.com/chatmail/relay
    cd relay
-   cp example.env .env
-
 
 
 Customize and start
 ^^^^^^^^^^^^^^^^^^^
 
-1. All local customizations (data paths, extra volumes, config mounts) go in
-   ``docker-compose.override.yaml``, which Compose merges automatically with
-   the base file. By default, all data is stored in docker volumes, you will
-   likely want to at least create and configure the mail storage location. Copy
-   the example to get started::
+1. Set the fully qualified domain name of the relay::
 
-       cp docker/docker-compose.override.yaml.example docker-compose.override.yaml
-       # and edit docker-compose.override.yaml
-
-
-
-2. Configure the ``.env`` file. Only ``MAIL_DOMAIN`` is required, the domain
-   name of the future server.
+       echo 'MAIL_DOMAIN=chat.example.org' > .env
 
    The container generates a ``chatmail.ini`` with defaults from
    ``MAIL_DOMAIN`` on first start. To customize chatmail settings, mount
    your own ``chatmail.ini`` instead (see `Custom chatmail.ini`_ below).
+
+2. All local customizations (data paths, extra volumes, config mounts) go in
+   ``docker-compose.override.yaml``, which Compose merges automatically with
+   the base file. By default, all data is stored in docker volumes, you will
+   likely want to at least create and configure the mail storage location, but
+   you might also want to configure external TLS certificates there.
 
 3. Start the container::
 
@@ -101,26 +94,36 @@ Customize and start
 4. After installation is complete, open ``https://chat.example.org`` in
    your browser.
 
+Finish install and test
+-----------------------
 
-Managing the server
--------------------
+You can test the installation with::
 
-Use ``docker exec`` to run cmdeploy commands inside the container::
+        pip install cmping chat.example.org # or
+        uvx cmping chat.example.org # if you use https://docs.astral.sh/uv/
+
+You should check and extend your DNS records for better interoperability::
 
     # Show required DNS records
     docker exec chatmail /opt/cmdeploy/bin/cmdeploy dns --ssh-host @local
 
-    # Check server status
+You can check server status with::
+
     docker exec chatmail /opt/cmdeploy/bin/cmdeploy status --ssh-host @local
 
-    # Run benchmarks (can also run from any machine with cmdeploy installed)
+You can run some benchmarks (can also run from any machine with cmdeploy installed)
+
     docker exec chatmail /opt/cmdeploy/bin/cmdeploy bench chat.example.org
+
+You can run the test suite with
+
+    docker exec chatmail /opt/cmdeploy/bin/cmdeploy test chat.example.org --ssh-host localhost
 
 
 Customization
 -------------
 
-Custom website
+Website
 ^^^^^^^^^^^^^^
 
 You can customize the chatmail landing page by mounting a directory with
@@ -147,14 +150,8 @@ your own website source files.
 Custom chatmail.ini
 ^^^^^^^^^^^^^^^^^^^
 
-There are two configuration modes:
-
-**Simple (default):** Set ``MAIL_DOMAIN`` in ``.env``. The container
-auto-generates ``chatmail.ini`` with defaults on first start. This is
-sufficient for most deployments.
-
-**Advanced:** Generate a ``chatmail.ini``, edit it, and mount it into
-the container. This gives you full control over all chatmail settings.
+If you want to go beyond simply setting the ``MAIL_DOMAIN`` in ``.env``, you
+can use a regular `chatmail.ini` to give you full control.
 
 1. Extract the generated config from a running container::
 
@@ -172,6 +169,16 @@ the container. This gives you full control over all chatmail settings.
 4. Restart the container, the container skips generating a new one: ::
 
        docker compose down && docker compose up -d
+
+
+External TLS certificates
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+If TLS certificates are managed outside the container (e.g. by certbot,
+acmetool, or Traefik on the host), mount them into the container and set
+``TLS_EXTERNAL_CERT_AND_KEY`` in ``docker-compose.override.yaml``.
+Changed certificates are picked up automatically via inotify.
+See the examples in the example override and :ref:`external-tls` in the getting started guide for details.
 
 
 Migrating from a bare-metal install
@@ -196,16 +203,19 @@ switch to Docker:
 
 3. Copy persistent data into the ``./data/`` subdirectories (for example, as configured in `Customize and start`_) ::
 
-       mkdir -p data/chatmail-dkimkeys data/chatmail-acme data/chatmail
+       mkdir -p data/dkim data/certs data/mail
 
        # DKIM keys
-       cp -a /etc/dkimkeys/* data/chatmail-dkimkeys/
+       cp -a /etc/dkimkeys/* data/dkim/
 
-       # ACME certificates and account
-       rsync -a /var/lib/acme/ data/chatmail-acme/
+       # TLS certificates
+       rsync -a /var/lib/acme/ data/certs/
 
-       # Mail data
-       rsync -a /home/ data/chatmail/
+   Note that ownership of dkim and acme is adjusted on container start.
+
+   For the mail directory::
+
+       rsync -a /home/vmail/ data/mail/
 
    Alternatively, mount ``/home/vmail`` directly by changing the volume
    in ``docker-compose-override.yaml``::
@@ -226,8 +236,8 @@ Clone the repository and build the Docker image::
     docker compose build chatmail
 
 The build bakes all binaries, Python packages, and the install stage
-into the image. After building, only ``docker-compose.yaml`` and ``.env``
-are needed to run the container.
+into the image. After building, only ``docker-compose.yaml`` and a ``.env`` with
+``MAIL_DOMAIN`` are needed to run the container.
 
 You can transfer a locally built image to your server directly (pigz is parallel `gzip` which can be used instead as well) ::
 
