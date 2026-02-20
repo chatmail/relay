@@ -32,20 +32,18 @@ services:
         max-file: "3"
     environment:
       MAIL_DOMAIN: $MAIL_DOMAIN
-      CMDEPLOY_STAGES: ${CMDEPLOY_STAGES:-}
       CHATMAIL_NOSYSCTL: ${CHATMAIL_NOSYSCTL:-True}
       CHATMAIL_NOPORTCHECK: ${CHATMAIL_NOPORTCHECK:-True}
-      TLS_EXTERNAL_CERT_AND_KEY: ${TLS_EXTERNAL_CERT_AND_KEY:-}
     network_mode: "host"
     volumes:
       ## system (required)
       - /sys/fs/cgroup:/sys/fs/cgroup:rw
       ## data (defaults — override in docker-compose.override.yaml)
-      - chatmail-data:/home/vmail
-      - chatmail-dkimkeys:/etc/dkimkeys
-      - chatmail-acme:/var/lib/acme
+      - mail:/home/vmail
+      - dkim:/etc/dkimkeys
+      - certs:/var/lib/acme
 
 volumes:
-  chatmail-data:
-  chatmail-dkimkeys:
-  chatmail-acme:
+  mail:
+  dkim:
+  certs:
