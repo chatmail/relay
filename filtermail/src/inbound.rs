@@ -6,7 +6,7 @@ use crate::dkim_verifier::DkimVerifier;
 use crate::message::{check_encrypted, is_securejoin};
 pub use crate::smtp_server::Envelope;
 use crate::smtp_server::SmtpHandler;
-use crate::utils::{AddressDomain, extract_address};
+use crate::utils::{AddressDomain, extract_address, log_eml};
 use async_trait::async_trait;
 use mailparse::{MailHeaderMap, parse_mail};
 use std::str::FromStr;
@@ -69,8 +69,18 @@ impl SmtpHandler for IncomingBeforeQueueHandler {
                 }
             }
             AddressDomain::Name(domain) => {
-                if !self.skip_dkim {
-                    self.dkim_verifier.verify(&envelope.data, &domain).await?;
+                if !self.skip_dkim
+                    && let Err(e) = self.dkim_verifier.verify(&envelope.data, &domain).await
+                {
+                    let eml_path = log_eml("dkim-verify", &envelope.data)
+                        .await
+                        .map(|path| path.to_string_lossy().to_string())
+                        .unwrap_or_else(|e| {
+                            log::error!("Failed to save rejected message to file: {e}");
+                            "ERR".to_string()
+                        });
+                    log::info!("Rejected message stored at: {eml_path}");
+                    return Err(e);
                 }
             }
         }

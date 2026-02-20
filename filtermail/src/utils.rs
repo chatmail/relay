@@ -1,4 +1,5 @@
 use mailparse::MailAddr;
+use std::path::PathBuf;
 use std::str::FromStr;
 
 /// Extracts the first email address found in SMTP command or email header.
@@ -73,6 +74,23 @@ impl FromStr for AddressDomain {
             ))
         }
     }
+}
+
+/// Logs email to `/tmp/filtermail-rejected/<reason>/<timestamp>.eml`
+/// and returns the file path.
+///
+/// Returns [`crate::error::Error`] on IO error.
+pub async fn log_eml(reason: &str, data: &[u8]) -> Result<PathBuf, crate::error::Error> {
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    let filename = format!("{timestamp}.eml");
+    let mut path = PathBuf::from(format!("/tmp/filtermail-rejected/{reason}"));
+    tokio::fs::create_dir_all(&path).await?;
+    path.push(filename);
+    tokio::fs::write(&path, data).await?;
+    Ok(path)
 }
 
 #[cfg(test)]
