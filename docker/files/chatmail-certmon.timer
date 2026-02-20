@@ -1,9 +1,0 @@
-[Unit]
-Description=Periodically check TLS certificate changes
-
-[Timer]
-OnBootSec=120
-OnUnitActiveSec=60
-
-[Install]
-WantedBy=timers.target

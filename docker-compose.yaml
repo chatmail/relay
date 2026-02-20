@@ -35,7 +35,7 @@ services:
       CMDEPLOY_STAGES: ${CMDEPLOY_STAGES:-}
       CHATMAIL_NOSYSCTL: ${CHATMAIL_NOSYSCTL:-True}
       CHATMAIL_NOPORTCHECK: ${CHATMAIL_NOPORTCHECK:-True}
-      CHATMAIL_NOACME: ${CHATMAIL_NOACME:-}
+      TLS_EXTERNAL_CERT_AND_KEY: ${TLS_EXTERNAL_CERT_AND_KEY:-}
     network_mode: "host"
     volumes:
       ## system (required)

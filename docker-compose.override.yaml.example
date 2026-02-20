@@ -5,6 +5,22 @@
 #
 # Volumes listed here are APPENDED to the base file's volumes.
 # Scalar values (environment, image, etc.) are REPLACED.
+#
+# --- External TLS certificates ---
+# Use when certs are managed outside the container (certbot, acmetool, Traefik, ...).
+# Mount the cert files and set TLS_EXTERNAL_CERT_AND_KEY to the in-container paths.
+# Changed certs are picked up automatically (inotify via tls-cert-reload.path).
+#
+# Host acmetool (bare-metal migration):
+#   volumes:  - /var/lib/acme/live:/var/lib/acme/live:ro
+#   environment:
+#     TLS_EXTERNAL_CERT_AND_KEY: "/var/lib/acme/live/${MAIL_DOMAIN}/fullchain /var/lib/acme/live/${MAIL_DOMAIN}/privkey"
+#
+# Traefik certs-dumper (see docker/docker-compose-traefik.yaml):
+#   volumes:  - traefik-certs:/certs:ro
+#   environment:
+#     TLS_EXTERNAL_CERT_AND_KEY: "/certs/${MAIL_DOMAIN}/certificate.crt /certs/${MAIL_DOMAIN}/privatekey.key"
+
 services:
   chatmail:
     volumes:

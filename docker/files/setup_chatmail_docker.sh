@@ -29,6 +29,13 @@ if [ ! -f "$CHATMAIL_INI" ]; then
     $CMDEPLOY init --config "$CHATMAIL_INI" "$MAIL_DOMAIN"
 fi
 
+# Inject external TLS paths from env var (unless user mounted their own ini)
+if [ -n "${TLS_EXTERNAL_CERT_AND_KEY:-}" ]; then
+    if ! grep -q '^tls_external_cert_and_key' "$CHATMAIL_INI"; then
+        echo "tls_external_cert_and_key = $TLS_EXTERNAL_CERT_AND_KEY" >> "$CHATMAIL_INI"
+    fi
+fi
+
 # --- Deploy fingerprint: skip cmdeploy run if nothing changed ---
 # On restart with identical image+config, systemd already brings up all
 # enabled services — the full cmdeploy run is redundant (~30s saved).
