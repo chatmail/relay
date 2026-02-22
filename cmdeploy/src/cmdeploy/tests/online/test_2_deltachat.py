@@ -6,8 +6,8 @@ import imap_tools
 import pytest
 import requests
 
-from cmdeploy.remote import rshell
 from cmdeploy.cmdeploy import get_sshexec
+from cmdeploy.remote import rshell
 
 
 @pytest.fixture
