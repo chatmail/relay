@@ -92,7 +92,7 @@ def cm_data(request):
 
 @pytest.fixture
 def benchmark(request):
-    def bench(func, num, name=None, reportfunc=None):
+    def bench(func, num, name=None, reportfunc=None, cooldown=0.0):
         if name is None:
             name = func.__name__
         durations = []
@@ -100,6 +100,9 @@ def benchmark(request):
             now = time.time()
             func()
             durations.append(time.time() - now)
+            if cooldown > 0 and i + 1 < num:
+                # Keep post-run cooldown out of measured benchmark duration.
+                time.sleep(cooldown)
         durations.sort()
         request.config._benchresults[name] = (reportfunc, durations)
 
