@@ -110,6 +110,7 @@ def test_config_tls_external_overrides_underscore(make_config):
     )
     assert config.tls_cert_mode == "external"
     assert config.tls_cert_path == "/certs/fullchain.pem"
+    assert config.tls_key_path == "/certs/privkey.pem"
 
 
 def test_config_tls_external_bad_format(make_config):
