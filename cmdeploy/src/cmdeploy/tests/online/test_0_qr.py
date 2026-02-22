@@ -30,12 +30,15 @@ def test_newemail_configure(maildomain, rpc, chatmail_config):
             # set_config_from_qr, so fetch credentials via requests instead
             res = requests.post(f"https://{maildomain}/new", verify=False)
             data = res.json()
-            rpc.add_or_update_transport(account_id, {
-                "addr": data["email"],
-                "password": data["password"],
-                "imapServer": maildomain,
-                "smtpServer": maildomain,
-                "certificateChecks": "acceptInvalidCertificates",
-            })
+            rpc.add_or_update_transport(
+                account_id,
+                {
+                    "addr": data["email"],
+                    "password": data["password"],
+                    "imapServer": maildomain,
+                    "smtpServer": maildomain,
+                    "certificateChecks": "acceptInvalidCertificates",
+                },
+            )
         else:
             rpc.add_transport_from_qr(account_id, url)

@@ -10,8 +10,8 @@ from pathlib import Path
 
 from chatmaild.config import read_config
 from pyinfra import facts, host, logger
-from pyinfra.facts import hardware
 from pyinfra.api import FactBase
+from pyinfra.facts import hardware
 from pyinfra.facts.files import Sha256File
 from pyinfra.facts.systemd import SystemdEnabled
 from pyinfra.operations import apt, files, pip, server, systemd
@@ -19,7 +19,6 @@ from pyinfra.operations import apt, files, pip, server, systemd
 from cmdeploy.cmdeploy import Out
 
 from .acmetool import AcmetoolDeployer
-from .external.deployer import ExternalTlsDeployer
 from .basedeploy import (
     Deployer,
     Deployment,
@@ -28,6 +27,7 @@ from .basedeploy import (
     get_resource,
 )
 from .dovecot.deployer import DovecotDeployer
+from .external.deployer import ExternalTlsDeployer
 from .filtermail.deployer import FiltermailDeployer
 from .mtail.deployer import MtailDeployer
 from .nginx.deployer import NginxDeployer
@@ -575,11 +575,17 @@ def deploy_chatmail(config_path: Path, disable_mail: bool, website_only: bool) -
         )
 
     # Check if mtail_address interface is available (if configured)
-    if config.mtail_address and config.mtail_address not in ('127.0.0.1', '::1', 'localhost'):
+    if config.mtail_address and config.mtail_address not in (
+        "127.0.0.1",
+        "::1",
+        "localhost",
+    ):
         ipv4_addrs = host.get_fact(hardware.Ipv4Addrs)
         all_addresses = [addr for addrs in ipv4_addrs.values() for addr in addrs]
         if config.mtail_address not in all_addresses:
-            Out().red(f"Deploy failed: mtail_address {config.mtail_address} is not available (VPN up?).\n")
+            Out().red(
+                f"Deploy failed: mtail_address {config.mtail_address} is not available (VPN up?).\n"
+            )
             exit(1)
 
     port_services = [

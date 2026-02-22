@@ -75,8 +75,7 @@ class Config:
                     " paths: CERT_PATH KEY_PATH"
                 )
             self.tls_cert_mode = "external"
-            self.tls_cert_path = parts[0]
-            self.tls_key_path = parts[1]
+            self.tls_cert_path, self.tls_key_path = parts
         elif self.mail_domain.startswith("_"):
             self.tls_cert_mode = "self"
             self.tls_cert_path = "/etc/ssl/certs/mailserver.pem"

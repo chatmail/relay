@@ -37,7 +37,11 @@ class DovecotDeployer(Deployer):
         restart = False if self.disable_mail else self.need_restart
 
         systemd.service(
-            name="Disable dovecot for now" if self.disable_mail else "Start and enable Dovecot",
+            name=(
+                "Disable dovecot for now"
+                if self.disable_mail
+                else "Start and enable Dovecot"
+            ),
             service="dovecot.service",
             running=False if self.disable_mail else True,
             enabled=False if self.disable_mail else True,

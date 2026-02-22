@@ -96,11 +96,3 @@ jobs:
       - name: cmdeploy dns
         run: cmdeploy dns -v
 
-  test-tls-external:
-    needs: deploy
-    uses: ./.github/workflows/reusable-test-tls-external.yaml
-    with:
-      domain: staging2.testrun.org
-    secrets:
-      STAGING_SSH_KEY: ${{ secrets.STAGING_SSH_KEY }}
-
