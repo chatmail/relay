@@ -91,10 +91,14 @@ def cm_data(request):
 
 
 @pytest.fixture
-def benchmark(request):
+def benchmark(request, chatmail_config):
     def bench(func, num, name=None, reportfunc=None, cooldown=0.0):
         if name is None:
             name = func.__name__
+        if cooldown == "auto":
+            per_minute = max(chatmail_config.max_user_send_per_minute, 1)
+            cooldown = chatmail_config.max_user_send_burst_size * 60 / per_minute
+
         durations = []
         for i in range(num):
             now = time.time()
