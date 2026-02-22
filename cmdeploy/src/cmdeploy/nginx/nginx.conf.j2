@@ -84,7 +84,7 @@ http {
 		}
 
 		location /new {
-{% if config.tls_cert_mode == "acme" %}
+{% if config.tls_cert_mode != "self" %}
 			if ($request_method = GET) {
 				# Redirect to Delta Chat,
 				# which will in turn do a POST request.
@@ -106,7 +106,7 @@ http {
 		#
 		# Redirects are only for browsers.
 		location /cgi-bin/newemail.py {
-{% if config.tls_cert_mode == "acme" %}
+{% if config.tls_cert_mode != "self" %}
 			if ($request_method = GET) {
 				return 301 dcaccount:https://{{ config.mail_domain }}/new;
 			}

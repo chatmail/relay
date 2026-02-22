@@ -97,7 +97,9 @@ class PostfixDeployer(Deployer):
             server.shell(
                 name="Validate postfix configuration",
                 # Extract stderr and quit with error if non-zero
-                commands=["""bash -c 'w=$(postconf 2>&1 >/dev/null); [[ -z "$w" ]] || { echo "$w"; false; }'"""],
+                commands=[
+                    """bash -c 'w=$(postconf 2>&1 >/dev/null); [[ -z "$w" ]] || { echo "$w"; false; }'"""
+                ],
             )
         self.need_restart = need_restart
 
@@ -105,9 +107,11 @@ class PostfixDeployer(Deployer):
         restart = False if self.disable_mail else self.need_restart
 
         systemd.service(
-            name="disable postfix for now"
-            if self.disable_mail
-            else "Start and enable Postfix",
+            name=(
+                "disable postfix for now"
+                if self.disable_mail
+                else "Start and enable Postfix"
+            ),
             service="postfix.service",
             running=False if self.disable_mail else True,
             enabled=False if self.disable_mail else True,

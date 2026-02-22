@@ -87,3 +87,37 @@ def test_config_tls_self(make_config):
     assert config.tls_cert_mode == "self"
     assert config.tls_cert_path == "/etc/ssl/certs/mailserver.pem"
     assert config.tls_key_path == "/etc/ssl/private/mailserver.key"
+
+
+def test_config_tls_external(make_config):
+    config = make_config(
+        "chat.example.org",
+        {
+            "tls_external_cert_and_key": "/custom/fullchain.pem /custom/privkey.pem",
+        },
+    )
+    assert config.tls_cert_mode == "external"
+    assert config.tls_cert_path == "/custom/fullchain.pem"
+    assert config.tls_key_path == "/custom/privkey.pem"
+
+
+def test_config_tls_external_overrides_underscore(make_config):
+    config = make_config(
+        "_test.example.org",
+        {
+            "tls_external_cert_and_key": "/certs/fullchain.pem /certs/privkey.pem",
+        },
+    )
+    assert config.tls_cert_mode == "external"
+    assert config.tls_cert_path == "/certs/fullchain.pem"
+    assert config.tls_key_path == "/certs/privkey.pem"
+
+
+def test_config_tls_external_bad_format(make_config):
+    with pytest.raises(ValueError, match="two space-separated"):
+        make_config(
+            "chat.example.org",
+            {
+                "tls_external_cert_and_key": "/only/one/path.pem",
+            },
+        )
