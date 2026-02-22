@@ -48,7 +48,7 @@ class TestDC:
 
         benchmark(dc_ping_pong, 5)
 
-    def test_send_10_receive_10(self, request, cmfactory, chatmail_config, lp):
+    def test_send_10_receive_10(self, benchmark, cmfactory, lp):
         ac1, ac2 = cmfactory.get_online_accounts(2)
         chat = cmfactory.get_accepted_chat(ac1, ac2)
 
@@ -58,16 +58,4 @@ class TestDC:
             for i in range(10):
                 ac2._evtracker.wait_next_incoming_message()
 
-        per_minute = max(chatmail_config.max_user_send_per_minute, 1)
-        cooldown = chatmail_config.max_user_send_burst_size * 60 / per_minute
-        durations = []
-        num = 5
-        for i in range(num):
-            now = time.time()
-            dc_send_10_receive_10()
-            durations.append(time.time() - now)
-            if i + 1 < num:
-                # Keep post-run cooldown out of measured benchmark duration.
-                time.sleep(cooldown)
-        durations.sort()
-        request.config._benchresults["dc_send_10_receive_10"] = (None, durations)
+        benchmark(dc_send_10_receive_10, 5, cooldown="auto")
