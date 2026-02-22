@@ -1,3 +1,4 @@
+import time
 def test_tls_imap(benchmark, imap):
     def imap_connect():
         imap.connect()
@@ -57,4 +58,4 @@ class TestDC:
             for i in range(10):
                 ac2._evtracker.wait_next_incoming_message()
 
-        benchmark(dc_send_10_receive_10, 5)
+        benchmark(dc_send_10_receive_10, 5, cooldown="auto")
