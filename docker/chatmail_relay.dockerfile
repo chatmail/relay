@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 FROM jrei/systemd-debian:12 AS base
 
 ENV LANG=en_US.UTF-8
