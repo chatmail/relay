@@ -63,11 +63,13 @@ def get_dkim_entry(mail_domain, pre_command, dkim_selector):
     )
 
 
-def query_dns(typ, domain):
+def query_dns(typ, domain, shell_exec=None):
+    if shell_exec is None:
+        shell_exec = shell
     # Get autoritative nameserver from the SOA record.
     soa_answers = [
         x.split()
-        for x in shell(
+        for x in shell_exec(
             f"dig -r -q {domain} -t SOA +noall +authority +answer", print=log_progress
         ).split("\n")
     ]
@@ -77,8 +79,27 @@ def query_dns(typ, domain):
     ns = soa[0][4]
 
     # Query authoritative nameserver directly to bypass DNS cache.
-    res = shell(f"dig @{ns} -r -q {domain} -t {typ} +short", print=log_progress)
-    return next((line for line in res.split("\n") if not line.startswith(";")), "")
+    return _dig_authoritative(ns, domain, typ, shell_exec=shell_exec)
+
+
+def _parse_dig_result(output):
+    """Return first non-comment, non-empty line from dig output, or empty string."""
+    lines = [line for line in output.split("\n") if not line.startswith(";")]
+    return next((line for line in lines if line.strip()), "")
+
+
+def _dig_authoritative(ns, domain, typ, shell_exec=None):
+    """Query authoritative NS, falling back to IPv4-only if default fails."""
+    if shell_exec is None:
+        shell_exec = shell
+
+    # limit timeout and tries to not hang on a broken default NS
+    cmd = f"dig @{ns} -r -q {domain} -t {typ} +short +timeout=10 +tries=2"
+    result = _parse_dig_result(shell_exec(cmd, print=log_progress))
+    if result:
+        return result
+    # Fallback: force IPv4 transport (handles broken IPv6 to NS)
+    return _parse_dig_result(shell_exec(cmd + " -4", print=log_progress))
 
 
 def check_zonefile(zonefile, verbose=True):
