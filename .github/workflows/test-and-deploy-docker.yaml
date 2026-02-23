@@ -1,0 +1,149 @@
+name: deploy dockerized chatmail on staging2.testrun.org, and run tests
+
+on:
+  push:
+    branches:
+      - main
+      - j4n/docker
+    paths:
+      - 'docker/**'
+      - 'docker-compose.yaml'
+      - '.dockerignore'
+      - 'chatmaild/**'
+      - 'cmdeploy/**'
+      - '.github/workflows/test-and-deploy-docker.yaml'
+
+jobs:
+  deploy:
+    name: deploy dockerized chatmail on staging2.testrun.org, and run tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: staging2.testrun.org
+      url: https://staging2.testrun.org/
+    concurrency: staging2.testrun.org
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: prepare SSH
+        run: |
+          mkdir ~/.ssh
+          echo "${{ secrets.STAGING_SSH_KEY }}" >> ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan staging2.testrun.org > ~/.ssh/known_hosts
+          # save previous acme & dkim state
+          rsync -avz root@staging2.testrun.org:/var/lib/acme . || true
+          rsync -avz root@staging2.testrun.org:/etc/dkimkeys . || true
+          # store previous acme & dkim state on ns.testrun.org, if it contains useful certs
+          if [ -f dkimkeys/opendkim.private ]; then rsync -avz -e "ssh -o StrictHostKeyChecking=accept-new" dkimkeys root@ns.testrun.org:/tmp/ || true; fi
+          if [ "$(ls -A acme/certs)" ]; then rsync -avz -e "ssh -o StrictHostKeyChecking=accept-new" acme root@ns.testrun.org:/tmp/ || true; fi
+          # make sure CAA record isn't set
+          scp -o StrictHostKeyChecking=accept-new .github/workflows/staging.testrun.org-default.zone root@ns.testrun.org:/etc/nsd/staging2.testrun.org.zone
+          ssh root@ns.testrun.org sed -i '/CAA/d' /etc/nsd/staging2.testrun.org.zone
+          ssh root@ns.testrun.org nsd-checkzone staging2.testrun.org /etc/nsd/staging2.testrun.org.zone
+          ssh root@ns.testrun.org systemctl reload nsd
+
+      - name: rebuild staging2.testrun.org to have a clean VPS
+        run: |
+            curl -X POST \
+            -H "Authorization: Bearer ${{ secrets.HETZNER_API_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{"image":"debian-12"}' \
+            "https://api.hetzner.cloud/v1/servers/${{ secrets.STAGING_SERVER_ID }}/actions/rebuild"
+
+      - name: wait for VPS rebuild
+        run: |
+          rm ~/.ssh/known_hosts
+          while ! ssh -o ConnectTimeout=180 -o StrictHostKeyChecking=accept-new root@staging2.testrun.org id -u ; do sleep 1 ; done
+
+      - run: scripts/initenv.sh
+      - name: append venv/bin to PATH
+        run: echo venv/bin >>$GITHUB_PATH
+
+      - name: install Docker on VPS
+        run: |
+          ssh root@staging2.testrun.org 'apt-get update && apt-get install -y ca-certificates curl'
+          ssh root@staging2.testrun.org 'install -m 0755 -d /etc/apt/keyrings'
+          ssh root@staging2.testrun.org 'curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc && chmod a+r /etc/apt/keyrings/docker.asc'
+          ssh root@staging2.testrun.org 'echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian $(. /etc/os-release && echo $VERSION_CODENAME) stable" > /etc/apt/sources.list.d/docker.list'
+          ssh root@staging2.testrun.org 'apt-get update && apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin'
+
+      - name: restore ACME & DKIM state
+        run: |
+          # download from ns.testrun.org
+          rsync -e "ssh -o StrictHostKeyChecking=accept-new" -avz root@ns.testrun.org:/tmp/acme acme-restore || true
+          rsync -avz root@ns.testrun.org:/tmp/dkimkeys dkimkeys-restore || true
+          # restore to VPS host paths (will be bind-mounted into container)
+          ssh root@staging2.testrun.org mkdir -p /srv/chatmail/dkim /srv/chatmail/certs
+          rsync -avz acme-restore/acme/ root@staging2.testrun.org:/srv/chatmail/certs/ || true
+          rsync -avz dkimkeys-restore/dkimkeys/ root@staging2.testrun.org:/srv/chatmail/dkim/ || true
+
+      - name: generate chatmail.ini
+        run: |
+          cmdeploy init staging2.testrun.org
+          sed -i 's/#\s*mtail_address/mtail_address/' chatmail.ini
+          scp chatmail.ini root@staging2.testrun.org:/srv/chatmail/chatmail.ini
+
+      - name: upload repo and deploy with Docker
+        run: |
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          GHCR_IMAGE="ghcr.io/$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]'):sha-${SHORT_SHA}"
+          rsync -avz --exclude='.git' --exclude='venv' --exclude='__pycache__' ./ root@staging2.testrun.org:/srv/chatmail/relay/
+          # Override: bind-mount data dirs + custom chatmail.ini + pre-built image
+          ssh root@staging2.testrun.org "cat > /srv/chatmail/relay/docker-compose.override.yaml << EOF
+          services:
+            chatmail:
+              image: ${GHCR_IMAGE}
+              volumes:
+                - /srv/chatmail/dkim:/etc/dkimkeys
+                - /srv/chatmail/certs:/var/lib/acme
+                - /srv/chatmail/chatmail.ini:/etc/chatmail/chatmail.ini
+          EOF"
+          # Pull pre-built image from GHCR (falls back to local build if unavailable)
+          if ssh root@staging2.testrun.org "docker pull ${GHCR_IMAGE}"; then
+            ssh root@staging2.testrun.org 'cd /srv/chatmail/relay && MAIL_DOMAIN=staging2.testrun.org docker compose up -d'
+          else
+            echo "::warning::Pre-built image not available, building locally"
+            ssh root@staging2.testrun.org 'cd /srv/chatmail/relay && MAIL_DOMAIN=staging2.testrun.org GIT_HASH=${{ github.sha }} docker compose up -d --build'
+          fi
+
+      - name: wait for container to become healthy
+        run: |
+          for i in $(seq 1 60); do
+            status=$(ssh root@staging2.testrun.org 'docker inspect --format={{.State.Health.Status}} chatmail 2>/dev/null' || echo "missing")
+            echo "  [$i/60] status=$status"
+            if [ "$status" = "healthy" ]; then
+              echo "Container is healthy."
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "Container did not become healthy in time."
+          ssh root@staging2.testrun.org 'cd /srv/chatmail/relay && docker compose logs --tail=200'
+          exit 1
+
+      - name: add hpk42 key to staging server
+        run: ssh root@staging2.testrun.org 'curl -s https://github.com/hpk42.keys >> .ssh/authorized_keys'
+
+      - name: run deploy-chatmail offline tests
+        run: pytest --pyargs cmdeploy
+
+      - name: set DNS entries
+        run: |
+          ssh root@staging2.testrun.org chown opendkim:opendkim -R /srv/chatmail/dkim
+          # run cmdeploy dns inside the container
+          ssh root@staging2.testrun.org 'docker exec chatmail cmdeploy dns --ssh-host @local --zonefile /tmp/staging.zone --verbose'
+          ssh root@staging2.testrun.org 'docker cp chatmail:/tmp/staging.zone /tmp/staging.zone'
+          scp root@staging2.testrun.org:/tmp/staging.zone staging-generated.zone
+          cat staging-generated.zone >> .github/workflows/staging.testrun.org-default.zone
+          cat .github/workflows/staging.testrun.org-default.zone
+          scp .github/workflows/staging.testrun.org-default.zone root@ns.testrun.org:/etc/nsd/staging2.testrun.org.zone
+          ssh root@ns.testrun.org nsd-checkzone staging2.testrun.org /etc/nsd/staging2.testrun.org.zone
+          ssh root@ns.testrun.org systemctl reload nsd
+
+      - name: cmdeploy test
+        run: CHATMAIL_DOMAIN2=ci-chatmail.testrun.org cmdeploy test --slow
+
+      - name: cmdeploy dns
+        run: |
+          ssh root@staging2.testrun.org 'docker exec chatmail cmdeploy dns -v --ssh-host @local'
