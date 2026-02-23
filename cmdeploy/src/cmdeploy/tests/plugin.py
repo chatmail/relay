@@ -1,5 +1,4 @@
 import imaplib
-import io
 import itertools
 import os
 import random
@@ -35,17 +34,24 @@ def pytest_runtest_setup(item):
             pytest.skip("skipping slow test, use --slow to run")
 
 
-@pytest.fixture(scope="session")
-def chatmail_config(pytestconfig):
-    current = basedir = Path().resolve()
+def _get_chatmail_config():
+    current = Path().resolve()
     while 1:
         path = current.joinpath("chatmail.ini").resolve()
         if path.exists():
-            return read_config(path)
+            return read_config(path), path
         if current == current.parent:
             break
         current = current.parent
+    return None, None
 
+
+@pytest.fixture(scope="session")
+def chatmail_config(pytestconfig):
+    config, path = _get_chatmail_config()
+    if config:
+        return config
+    basedir = Path().resolve()
     pytest.skip(f"no chatmail.ini file found in {basedir} or parent dirs")
 
 
@@ -73,10 +79,17 @@ def sshdomain2(maildomain2):
 
 
 def pytest_report_header():
-    domain = os.environ.get("CHATMAIL_DOMAIN")
-    if domain:
-        text = f"chatmail test instance: {domain}"
-        return ["-" * len(text), text, "-" * len(text)]
+    config, path = _get_chatmail_config()
+    domain2 = os.environ.get("CHATMAIL_DOMAIN2", "NOT SET")
+    domain = config.mail_domain if config else "NOT SET"
+    path = path if path else "NOT SET"
+
+    lines = [
+        f"chatmail.ini {domain} location: {path}",
+        f"chatmail2: {domain2}",
+    ]
+    sep = "-" * max(map(len, lines))
+    return [sep, *lines, sep]
 
 
 @pytest.fixture
@@ -283,78 +296,86 @@ def gencreds(chatmail_config):
 
 
 #
-# Delta Chat testplugin re-use
+# Delta Chat RPC-based test support
 # use the cmfactory fixture to get chatmail instance accounts
 #
 
+from deltachat_rpc_client import DeltaChat, Rpc
 
-class ChatmailTestProcess:
-    """Provider for chatmail instance accounts as used by deltachat.testplugin.acfactory"""
 
-    def __init__(self, pytestconfig, maildomain, gencreds, chatmail_config):
-        self.pytestconfig = pytestconfig
-        self.maildomain = maildomain
-        assert "." in self.maildomain, maildomain
+class ChatmailACFactory:
+    """RPC-based account factory for chatmail testing."""
+
+    def __init__(self, rpc, maildomain, gencreds, chatmail_config):
+        self.dc = DeltaChat(rpc)
+        self.rpc = rpc
+        self._maildomain = maildomain
         self.gencreds = gencreds
         self.chatmail_config = chatmail_config
-        self._addr2files = {}
 
-    def get_liveconfig_producer(self):
-        while 1:
-            user, password = self.gencreds(self.maildomain)
-            config = {
-                "addr": user,
-                "mail_pw": password,
-            }
-            # speed up account configuration
-            config["mail_server"] = self.maildomain
-            config["send_server"] = self.maildomain
-            if self.chatmail_config.tls_cert_mode == "self":
-                # Accept self-signed TLS certificates
-                config["imap_certificate_checks"] = "3"
-            yield config
+    def _make_transport(self, domain):
+        """Build a transport config dict for the given domain."""
+        addr, password = self.gencreds(domain)
+        transport = {
+            "addr": addr,
+            "password": password,
+            "imapServer": domain,
+            "smtpServer": domain,
+        }
+        if self.chatmail_config.tls_cert_mode == "self":
+            transport["certificateChecks"] = "acceptInvalidCertificates"
+        return transport
 
-    def cache_maybe_retrieve_configured_db_files(self, cache_addr, db_target_path):
-        pass
+    def get_online_account(self, domain=None):
+        """Create, configure and bring online a single account."""
+        return self.get_online_accounts(1, domain)[0]
 
-    def cache_maybe_store_configured_db_files(self, acc):
-        pass
+    def get_online_accounts(self, num, domain=None):
+        """Create multiple online accounts in parallel."""
+        domain = domain or self._maildomain
+        accounts = []
+        for _ in range(num):
+            account = self.dc.add_account()
+            account.add_or_update_transport(self._make_transport(domain))
+
+            # ensure messages stay in INBOX so that they can be
+            # concurrently fetched via extra IMAP connections during tests
+            account.set_config("mvbox_move", "0")
+            account.set_config("delete_server_after", "10")
+            accounts.append(account)
+
+        for account in accounts:
+            account.bring_online()
+        return accounts
+
+    def get_accepted_chat(self, ac1, ac2):
+        """Create a 1:1 chat between ac1 and ac2 accepted on both sides."""
+        ac2.create_chat(ac1)
+        return ac1.create_chat(ac2)
+
+
+@pytest.fixture(scope="session")
+def rpc(tmp_path_factory):
+    """Start a deltachat-rpc-server process for the test session."""
+
+    # NB: accounts_dir must NOT already exist as directory --
+    # core-rust only creates accounts.toml if the dir doesn't exist yet.
+    accounts_dir = str(tmp_path_factory.mktemp("dc") / "accounts")
+    rpc = Rpc(accounts_dir=accounts_dir)
+    rpc.start()
+    yield rpc
+    rpc.close()
 
 
 @pytest.fixture
-def cmfactory(request, gencreds, tmpdir, maildomain, chatmail_config):
-    # cloned from deltachat.testplugin.amfactory
-    pytest.importorskip("deltachat")
-    from deltachat.testplugin import ACFactory
-
-    testproc = ChatmailTestProcess(
-        request.config, maildomain, gencreds, chatmail_config
+def cmfactory(rpc, gencreds, maildomain, chatmail_config):
+    """Return a ChatmailACFactory for creating online Delta Chat accounts."""
+    return ChatmailACFactory(
+        rpc=rpc,
+        maildomain=maildomain,
+        gencreds=gencreds,
+        chatmail_config=chatmail_config,
     )
-
-    class Data:
-        def read_path(self, path):
-            return
-
-    am = ACFactory(request=request, tmpdir=tmpdir, testprocess=testproc, data=Data())
-
-    # Skip upstream's init_imap to prevent extra imap connections not
-    # needed for relay testing
-    am._acsetup.init_imap = lambda acc: None
-
-    # nb. a bit hacky
-    # would probably be better if deltachat's test machinery grows native support
-    def switch_maildomain(maildomain2):
-        am.testprocess.maildomain = maildomain2
-
-    am.switch_maildomain = switch_maildomain
-
-    yield am
-    if hasattr(request.node, "rep_call") and request.node.rep_call.failed:
-        if testproc.pytestconfig.getoption("--extra-info"):
-            logfile = io.StringIO()
-            am.dump_imap_summary(logfile=logfile)
-            print(logfile.getvalue())
-            # request.node.add_report_section("call", "imap-server-state", s)
 
 
 @pytest.fixture

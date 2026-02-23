@@ -62,8 +62,8 @@ class TestEndToEndDeltaChat:
         chat.send_text("message0")
 
         lp.sec("wait for ac2 to receive message")
-        msg2 = ac2._evtracker.wait_next_incoming_message()
-        assert msg2.text == "message0"
+        msg2 = ac2.wait_for_incoming_msg()
+        assert msg2.get_snapshot().text == "message0"
 
     def test_exceed_quota(
         self, cmfactory, lp, tmpdir, remote, chatmail_config, sshdomain
@@ -110,26 +110,22 @@ class TestEndToEndDeltaChat:
                 return
 
     def test_securejoin(self, cmfactory, lp, maildomain2):
-        ac1 = cmfactory.new_online_configuring_account(cache=False)
-        cmfactory.switch_maildomain(maildomain2)
-        ac2 = cmfactory.new_online_configuring_account(cache=False)
-        cmfactory.bring_accounts_online()
+        ac1 = cmfactory.get_online_account()
+        ac2 = cmfactory.get_online_account(domain=maildomain2)
 
         lp.sec("ac1: create QR code and let ac2 scan it, starting the securejoin")
-        qr = ac1.get_setup_contact_qr()
+        qr = ac1.get_qr_code()
 
         lp.sec("ac2: start QR-code based setup contact protocol")
-        ch = ac2.qr_setup_contact(qr)
+        ch = ac2.secure_join(qr)
         assert ch.id >= 10
-        ac1._evtracker.wait_securejoin_inviter_progress(1000)
+        ac1.wait_for_securejoin_inviter_success()
 
     def test_dkim_header_stripped(self, cmfactory, maildomain2, lp, imap_mailbox):
         """Test that if a DC address receives a message, it has no
         DKIM-Signature and Authentication-Results headers."""
-        ac1 = cmfactory.new_online_configuring_account(cache=False)
-        cmfactory.switch_maildomain(maildomain2)
-        ac2 = cmfactory.new_online_configuring_account(cache=False)
-        cmfactory.bring_accounts_online()
+        ac1 = cmfactory.get_online_account()
+        ac2 = cmfactory.get_online_account(domain=maildomain2)
         chat = cmfactory.get_accepted_chat(ac1, imap_mailbox.dc_ac)
         chat.send_text("message0")
         chat2 = cmfactory.get_accepted_chat(ac2, imap_mailbox.dc_ac)
@@ -146,29 +142,28 @@ class TestEndToEndDeltaChat:
                 assert "dkim-signature" not in msg.headers
 
     def test_read_receipts_between_instances(self, cmfactory, lp, maildomain2):
-        ac1 = cmfactory.new_online_configuring_account(cache=False)
-        cmfactory.switch_maildomain(maildomain2)
-        ac2 = cmfactory.new_online_configuring_account(cache=False)
-        cmfactory.bring_accounts_online()
+        ac1 = cmfactory.get_online_account()
+        ac2 = cmfactory.get_online_account(domain=maildomain2)
 
         lp.sec("setup encrypted comms between ac1 and ac2 on different instances")
-        qr = ac1.get_setup_contact_qr()
-        ch = ac2.qr_setup_contact(qr)
+        qr = ac1.get_qr_code()
+        ch = ac2.secure_join(qr)
         assert ch.id >= 10
-        ac1._evtracker.wait_securejoin_inviter_progress(1000)
+        ac1.wait_for_securejoin_inviter_success()
 
         lp.sec("ac1 sends a message and ac2 marks it as seen")
         chat = ac1.create_chat(ac2)
         msg = chat.send_text("hi")
-        m = ac2._evtracker.wait_next_incoming_message()
+        m = ac2.wait_for_incoming_msg()
         m.mark_seen()
         # we can only indirectly wait for mark-seen to cause an smtp-error
         lp.sec("try to wait for markseen to complete and check error states")
         deadline = time.time() + 3.1
         while time.time() < deadline:
-            msgs = m.chat.get_messages()
+            m_snap = m.get_snapshot()
+            msgs = m_snap.chat.get_messages()
             for msg in msgs:
-                assert "error" not in m.get_message_info()
+                assert "error" not in m.get_info()
             time.sleep(1)
 
 
@@ -180,7 +175,7 @@ def test_hide_senders_ip_address(cmfactory, ssl_context):
     chat = cmfactory.get_accepted_chat(user1, user2)
 
     chat.send_text("testing submission header cleanup")
-    user2._evtracker.wait_next_incoming_message()
+    user2.wait_for_incoming_msg()
     addr = user2.get_config("addr")
     host = addr.split("@")[1]
     pw = user2.get_config("mail_pw")

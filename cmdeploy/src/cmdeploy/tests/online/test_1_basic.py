@@ -86,10 +86,8 @@ def test_remote(remote, imap_or_smtp):
 
 
 def test_use_two_chatmailservers(cmfactory, maildomain2):
-    ac1 = cmfactory.new_online_configuring_account(cache=False)
-    cmfactory.switch_maildomain(maildomain2)
-    ac2 = cmfactory.new_online_configuring_account(cache=False)
-    cmfactory.bring_accounts_online()
+    ac1 = cmfactory.get_online_account()
+    ac2 = cmfactory.get_online_account(domain=maildomain2)
     cmfactory.get_accepted_chat(ac1, ac2)
     domain1 = ac1.get_config("addr").split("@")[1]
     domain2 = ac2.get_config("addr").split("@")[1]

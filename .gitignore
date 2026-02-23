@@ -4,7 +4,7 @@ __pycache__/
 *$py.class
 *.swp
 *qr-*.png
-chatmail.ini
+chatmail*.ini
 
 
 # C extensions

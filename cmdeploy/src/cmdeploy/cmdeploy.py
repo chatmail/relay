@@ -5,7 +5,6 @@ along with command line option and subcommand parsing.
 
 import argparse
 import importlib.resources
-import importlib.util
 import os
 import pathlib
 import shutil
@@ -214,14 +213,8 @@ def test_cmd_options(parser):
 
 
 def test_cmd(args, out):
-    """Run local and online tests for chatmail deployment.
+    """Run local and online tests for chatmail deployment."""
 
-    This will automatically pip-install 'deltachat' if it's not available.
-    """
-
-    x = importlib.util.find_spec("deltachat")
-    if x is None:
-        out.check_call(f"{sys.executable} -m pip install deltachat")
     env = os.environ.copy()
     if args.ssh_host:
         env["CHATMAIL_SSH"] = args.ssh_host
