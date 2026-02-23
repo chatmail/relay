@@ -319,6 +319,8 @@ class ChatmailACFactory:
         transport = {
             "addr": addr,
             "password": password,
+            # Setting server explicitly skips requesting autoconfig XML,
+            # see https://datatracker.ietf.org/doc/draft-ietf-mailmaint-autoconfig/
             "imapServer": domain,
             "smtpServer": domain,
         }
@@ -333,16 +335,22 @@ class ChatmailACFactory:
     def get_online_accounts(self, num, domain=None):
         """Create multiple online accounts in parallel."""
         domain = domain or self._maildomain
+        futures = []
         accounts = []
         for _ in range(num):
             account = self.dc.add_account()
-            account.add_or_update_transport(self._make_transport(domain))
+            future = account.add_or_update_transport.future(
+                self._make_transport(domain)
+            )
+            futures.append(future)
 
             # ensure messages stay in INBOX so that they can be
             # concurrently fetched via extra IMAP connections during tests
-            account.set_config("mvbox_move", "0")
             account.set_config("delete_server_after", "10")
             accounts.append(account)
+
+        for future in futures:
+            future()
 
         for account in accounts:
             account.bring_online()
