@@ -77,14 +77,14 @@ ENV TZ=:/etc/localtime
 ENV PATH="/opt/cmdeploy/bin:${PATH}"
 RUN ln -s /etc/chatmail/chatmail.ini /opt/chatmail/chatmail.ini
 
-ARG SETUP_CHATMAIL_SERVICE_PATH=/lib/systemd/system/setup_chatmail.service
-COPY ./docker/files/setup_chatmail.service "$SETUP_CHATMAIL_SERVICE_PATH"
-RUN ln -sf "$SETUP_CHATMAIL_SERVICE_PATH" "/etc/systemd/system/multi-user.target.wants/setup_chatmail.service"
+ARG CHATMAIL_INIT_SERVICE_PATH=/lib/systemd/system/chatmail-init.service
+COPY ./docker/files/chatmail-init.service "$CHATMAIL_INIT_SERVICE_PATH"
+RUN ln -sf "$CHATMAIL_INIT_SERVICE_PATH" "/etc/systemd/system/multi-user.target.wants/chatmail-init.service"
 
 # Remove default nginx site config at build time (not in entrypoint)
 RUN rm -f /etc/nginx/sites-enabled/default
 
-COPY --chmod=555 ./docker/files/setup_chatmail_docker.sh /setup_chatmail_docker.sh
+COPY --chmod=555 ./docker/files/chatmail-init.sh /chatmail-init.sh
 COPY --chmod=555 ./docker/files/entrypoint.sh /entrypoint.sh
 
 # Certificate monitoring as a proper systemd timer (not a background process)

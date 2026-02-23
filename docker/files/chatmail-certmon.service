@@ -1,6 +1,6 @@
 [Unit]
 Description=Check TLS certificate changes and reload services
-After=setup_chatmail.service
+After=chatmail-init.service
 
 [Service]
 Type=oneshot

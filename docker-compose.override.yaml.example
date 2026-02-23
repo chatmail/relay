@@ -23,7 +23,7 @@ services:
       # - ./custom/www:/opt/chatmail-www
 
       ## Debug — mount scripts from the repo for live editing:
-      # - ./docker/files/setup_chatmail_docker.sh:/setup_chatmail_docker.sh
+      # - ./docker/files/chatmail-init.sh:/chatmail-init.sh
       # - ./docker/files/entrypoint.sh:/entrypoint.sh
 
     # environment:
