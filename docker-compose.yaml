@@ -30,10 +30,7 @@ services:
       - /run
       - /run/lock
     logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
+      driver: none
     environment:
       MAIL_DOMAIN: $MAIL_DOMAIN
     network_mode: "host"
