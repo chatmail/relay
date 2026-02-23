@@ -119,6 +119,10 @@ You can run the test suite with
 
     docker exec chatmail /opt/cmdeploy/bin/cmdeploy test --ssh-host localhost
 
+You can look at logs
+
+    docker exec chatmail journalctl -fu postfix@-
+
 
 Customization
 -------------
