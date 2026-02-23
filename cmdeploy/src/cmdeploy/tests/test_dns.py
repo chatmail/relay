@@ -14,11 +14,8 @@ def mockdns_base(monkeypatch):
         if command.startswith("dig"):
             if command == "dig":
                 return "."
-            if "SOA" in command:
-                return (
-                    "delta.chat. 21600 IN SOA ns1.first-ns.de. dns.hetzner.com."
-                    " 2025102800 14400 1800 604800 3600"
-                )
+            if "NS" in command and "+short" in command:
+                return "ns1.first-ns.de."
             command_chunks = command.split()
             domain, typ = command_chunks[4], command_chunks[6]
             try:
