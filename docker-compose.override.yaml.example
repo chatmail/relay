@@ -28,7 +28,12 @@ services:
 
     # environment:
       ## Mount certs (above) and set TLS_EXTERNAL_CERT_AND_KEY to in-container paths.
-      ## Changed certs are picked up automatically (inotify via tls-cert-reload.path).
+      ## A tls-cert-reload.path watcher inside the container reloads services
+      ## when the cert file changes. However, inotify does not cross bind-mount
+      ## boundaries, so host-side renewals (certbot, acmetool, etc.) must
+      ## notify the container explicitly. Add this to your renewal hook:
+      ##
+      ##   docker exec chatmail systemctl start tls-cert-reload.service
       ##
       ## Host acmetool (bare-metal migration): create mount above, and
       ##   rsync -a /var/lib/acme/live data/certs
