@@ -1,10 +1,15 @@
+import importlib.resources
 import io
+import shlex
 
 from pyinfra import host
 from pyinfra.facts.files import File
-from pyinfra.operations import files, systemd
+from pyinfra.operations import apt, files, server, systemd
 
-from cmdeploy.basedeploy import Deployer, get_resource
+from ..basedeploy import Deployer
+
+_acmetool_res = importlib.resources.files("cmdeploy.tls.acmetool")
+_external_res = importlib.resources.files("cmdeploy.tls.external")
 
 
 class ExternalTlsDeployer(Deployer):
@@ -23,45 +28,43 @@ class ExternalTlsDeployer(Deployer):
     def configure(self):
         # Verify cert and key exist on the remote host using pyinfra facts.
         for path in (self.cert_path, self.key_path):
-            info = host.get_fact(File, path=path)
-            if info is None:
-                raise Exception(f"External TLS file not found on server: {path}")
+                if host.get_fact(File, path=path) is None:
+                    raise Exception(f"External TLS file not found on server: {path}")
 
-        # Deploy the .path unit (templated with the cert path).
-        # pkg=__package__ is required here because the resource files
-        # live in cmdeploy.external, not the default cmdeploy package.
-        source = get_resource("tls-cert-reload.path.f", pkg=__package__)
-        content = source.read_text().format(cert_path=self.cert_path).encode()
+            source = _external_res.joinpath("tls-cert-reload.path.f")
+            content = source.read_text().format(cert_path=self.cert_path).encode()
+            path_src = io.BytesIO(content)
+            service_src = _external_res.joinpath("tls-cert-reload.service")
+        else:
+            path_src = service_src = None
 
-        path_unit = files.put(
-            name="Upload tls-cert-reload.path",
-            src=io.BytesIO(content),
+        self.put_file(
+            name="Setup tls-cert-reload.path",
+            src=path_src,
             dest="/etc/systemd/system/tls-cert-reload.path",
-            user="root",
-            group="root",
-            mode="644",
         )
-
-        service_unit = files.put(
-            name="Upload tls-cert-reload.service",
-            src=get_resource("tls-cert-reload.service", pkg=__package__),
+        self.put_file(
+            name="Setup tls-cert-reload.service",
+            src=service_src,
             dest="/etc/systemd/system/tls-cert-reload.service",
-            user="root",
-            group="root",
-            mode="644",
         )
-
-        if path_unit.changed or service_unit.changed:
-            self.need_restart = True
 
     def activate(self):
         systemd.service(
-            name="Enable tls-cert-reload path watcher",
+            name="Setup tls-cert-reload path watcher",
             service="tls-cert-reload.path",
-            running=True,
-            enabled=True,
+            running=self.enabled,
+            enabled=self.enabled,
             restarted=self.need_restart,
             daemon_reload=self.need_restart,
         )
-        # No explicit reload needed here: dovecot/nginx read the cert
-        # on startup, and the .path watcher handles live changes.
+        if not self.enabled:
+            systemd.service(
+                name="Stop tls-cert-reload.service",
+                service="tls-cert-reload.service",
+                running=False,
+                enabled=False,
+                daemon_reload=False,
+            )
+
+

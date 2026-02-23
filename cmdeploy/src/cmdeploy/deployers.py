@@ -252,7 +252,6 @@ class WebsiteDeployer(Deployer):
 
     def install(self):
         files.directory(
-            name="Ensure /var/www exists",
             path="/var/www",
             user="root",
             group="root",
@@ -305,7 +304,6 @@ class LegacyRemoveDeployer(Deployer):
 
         # prior relay versions used filelogging
         files.directory(
-            name="Ensure old logs on disk are deleted",
             path="/var/log/journal/",
             present=False,
         )
@@ -397,25 +395,16 @@ class IrohDeployer(Deployer):
             self.need_restart = True
 
     def configure(self):
-        systemd_unit = files.put(
+        self.put_file(
             name="Upload iroh-relay systemd unit",
             src=get_resource("iroh-relay.service"),
             dest="/etc/systemd/system/iroh-relay.service",
-            user="root",
-            group="root",
-            mode="644",
         )
-        self.need_restart |= systemd_unit.changed
-
-        iroh_config = files.put(
+        self.put_file(
             name="Upload iroh-relay config",
             src=get_resource("iroh-relay.toml"),
             dest="/etc/iroh-relay.toml",
-            user="root",
-            group="root",
-            mode="644",
         )
-        self.need_restart |= iroh_config.changed
 
     def activate(self):
         systemd.service(
@@ -430,15 +419,11 @@ class IrohDeployer(Deployer):
 
 class JournaldDeployer(Deployer):
     def configure(self):
-        journald_conf = files.put(
+        self.put_file(
             name="Configure journald",
             src=get_resource("journald.conf"),
             dest="/etc/systemd/journald.conf",
-            user="root",
-            group="root",
-            mode="644",
         )
-        self.need_restart = journald_conf.changed
 
     def activate(self):
         systemd.service(

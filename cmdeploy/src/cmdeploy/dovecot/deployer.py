@@ -120,6 +120,7 @@ def _download_dovecot_package(package: str, arch: str) -> tuple[str | None, bool
     arch = "amd64" if arch == "x86_64" else arch
     arch = "arm64" if arch == "aarch64" else arch
 
+
     pkg_name = f"dovecot-{package}"
     sha256 = DOVECOT_SHA256.get((package, arch))
     if sha256 is None:

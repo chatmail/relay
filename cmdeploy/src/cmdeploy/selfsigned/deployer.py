@@ -1,8 +1,12 @@
+import importlib.resources
 import shlex
 
-from pyinfra.operations import apt, server
+from pyinfra.operations import files, server
 
-from cmdeploy.basedeploy import Deployer
+from ..basedeploy import Deployer
+
+_acmetool_res = importlib.resources.files("cmdeploy.tls.acmetool")
+_external_res = importlib.resources.files("cmdeploy.tls.external")
 
 
 def openssl_selfsigned_args(domain, cert_path, key_path, days=36500):
@@ -34,21 +38,31 @@ class SelfSignedTlsDeployer(Deployer):
         self.cert_path = "/etc/ssl/certs/mailserver.pem"
         self.key_path = "/etc/ssl/private/mailserver.key"
 
-    def install(self):
-        apt.packages(
-            name="Install openssl",
-            packages=["openssl"],
-        )
+
 
     def configure(self):
-        args = openssl_selfsigned_args(
-            self.mail_domain, self.cert_path, self.key_path,
-        )
-        cmd = shlex.join(args)
-        server.shell(
-            name="Generate self-signed TLS certificate if not present",
-            commands=[f"[ -f {self.cert_path} ] || {cmd}"],
-        )
+        if self.enabled:
+            args = openssl_selfsigned_args(
+                self.mail_domain, self.cert_path, self.key_path,
+            )
+            cmd = shlex.join(args)
+            server.shell(
+                name="Generate self-signed TLS certificate if not present",
+                commands=[f"[ -f {self.cert_path} ] || {cmd}"],
+            )
+        else:
+            files.file(
+                name="Remove self-signed TLS certificate",
+                path=self.cert_path,
+                present=False,
+            )
+            files.file(
+                name="Remove self-signed TLS private key",
+                path=self.key_path,
+                present=False,
+            )
 
     def activate(self):
         pass
+
+

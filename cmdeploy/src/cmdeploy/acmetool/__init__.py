@@ -1,8 +1,12 @@
 import importlib.resources
+import io
 
 from pyinfra.operations import apt, files, server, systemd
 
 from ..basedeploy import Deployer
+
+_acmetool_res = importlib.resources.files("cmdeploy.tls.acmetool")
+_external_res = importlib.resources.files("cmdeploy.tls.external")
 
 
 class AcmetoolDeployer(Deployer):
@@ -13,99 +17,71 @@ class AcmetoolDeployer(Deployer):
         self.need_restart_reconcile_service = False
         self.need_restart_reconcile_timer = False
 
-    def install(self):
-        apt.packages(
-            name="Install acmetool",
-            packages=["acmetool"],
-        )
-
+    def remove_legacy_files(self):
         files.file(
-            name="Remove old acmetool cronjob, it is replaced with systemd timer.",
+            name="Remove old acmetool cronjob",
             path="/etc/cron.d/acmetool",
             present=False,
         )
-
-        files.put(
-            name="Install acmetool hook.",
-            src=importlib.resources.files(__package__)
-            .joinpath("acmetool.hook")
-            .open("rb"),
-            dest="/etc/acme/hooks/nginx",
-            user="root",
-            group="root",
-            mode="755",
-        )
         files.file(
-            name="Remove acmetool hook from the wrong location where it was previously installed.",
+            name="Remove acmetool hook from wrong location",
             path="/usr/lib/acme/hooks/nginx",
             present=False,
         )
 
+    def install(self):
+        self.remove_legacy_files()
+        apt.packages(
+            name="Install acmetool",
+            packages=["acmetool"],
+        )
+        self.put_file(
+            name="Deploy acmetool hook",
+            dest="/etc/acme/hooks/nginx",
+            src=_acmetool_res.joinpath("acmetool.hook").open("rb"),
+            executable=True,
+        )
+
     def configure(self):
-        files.template(
-            src=importlib.resources.files(__package__).joinpath(
-                "response-file.yaml.j2"
-            ),
-            dest="/var/lib/acme/conf/responses",
-            user="root",
-            group="root",
-            mode="644",
-            email=self.email,
-        )
-
-        files.template(
-            src=importlib.resources.files(__package__).joinpath("target.yaml.j2"),
-            dest="/var/lib/acme/conf/target",
-            user="root",
-            group="root",
-            mode="644",
-        )
-
         server.shell(
             name=f"Remove old acmetool desired files for {self.domains[0]}",
             commands=[f"rm -f /var/lib/acme/desired/{self.domains[0]}-*"],
         )
-        files.template(
-            src=importlib.resources.files(__package__).joinpath("desired.yaml.j2"),
-            dest=f"/var/lib/acme/desired/{self.domains[0]}",  # 0 is mailhost TLD
-            user="root",
-            group="root",
-            mode="644",
-            domains=self.domains,
-        )
 
-        service_file = files.put(
-            src=importlib.resources.files(__package__).joinpath(
-                "acmetool-redirector.service"
+        setup_targets = [
+            (
+                "Setup acmetool responses",
+                "response-file.yaml.j2",
+                "/var/lib/acme/conf/responses",
             ),
-            dest="/etc/systemd/system/acmetool-redirector.service",
-            user="root",
-            group="root",
-            mode="644",
-        )
-        self.need_restart_redirector = service_file.changed
+            (
+                "Setup acmetool target",
+                "target.yaml.j2",
+                "/var/lib/acme/conf/target",
+            ),
+            (
+                f"Setup acmetool desired domains for {self.domains[0]}",
+                "desired.yaml.j2",
+                f"/var/lib/acme/desired/{self.domains[0]}",
+            ),
+        ]
 
-        reconcile_service_file = files.put(
-            src=importlib.resources.files(__package__).joinpath(
-                "acmetool-reconcile.service"
-            ),
-            dest="/etc/systemd/system/acmetool-reconcile.service",
-            user="root",
-            group="root",
-            mode="644",
-        )
-        self.need_restart_reconcile_service = reconcile_service_file.changed
+        for name, src, dest in setup_targets:
+            self.put_template(
+                name=name,
+                src=_acmetool_res.joinpath(src),
+                dest=dest,
+                email=self.email,
+                domains=self.domains,
+            )
 
-        reconcile_timer_file = files.put(
-            src=importlib.resources.files(__package__).joinpath(
-                "acmetool-reconcile.timer"
-            ),
-            dest="/etc/systemd/system/acmetool-reconcile.timer",
-            user="root",
-            group="root",
-            mode="644",
-        )
-        self.need_restart_reconcile_timer = reconcile_timer_file.changed
+        for basename, _, _ in self.services:
+            res = self.put_file(
+                name=f"Setup {basename}",
+                src=_acmetool_res.joinpath(basename),
+                dest=f"/etc/systemd/system/{basename}",
+            )
+            self.service_changed[basename] = res.changed
 
     def activate(self):
         systemd.service(
@@ -139,3 +115,5 @@ class AcmetoolDeployer(Deployer):
             name=f"Reconcile certificates for: {', '.join(self.domains)}",
             commands=["acmetool --batch --xlog.severity=debug reconcile"],
         )
+
+

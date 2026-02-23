@@ -141,6 +141,7 @@ class Deployment:
 
 class Deployer:
     need_restart = False
+    daemon_reload = False
 
     def install(self):
         pass
@@ -150,3 +151,35 @@ class Deployer:
 
     def activate(self):
         pass
+
+    def put_file(self, name, dest, src=None, executable=False, owner="root"):
+        """Upload a file to *dest*, or remove it when the deployer is disabled."""
+        if self.enabled:
+            mode = "755" if executable else "644"
+            res = files.put(
+                name=name, src=src, dest=dest, user="root", group="root", mode=mode
+            )
+        else:
+            res = files.file(name=name, path=dest, present=False)
+
+        if res.changed:
+            self.need_restart = True
+        return res
+
+    def put_template(self, name, src, dest, owner="root", mode="644", **kwargs):
+        if self.enabled:
+            res = files.template(
+                name=name,
+                src=src,
+                dest=dest,
+                user=owner,
+                group=owner,
+                mode="644",
+                **kwargs,
+            )
+        else:
+            res = files.file(name=name, path=dest, present=False)
+
+        if res.changed:
+            self.need_restart = True
+        return res

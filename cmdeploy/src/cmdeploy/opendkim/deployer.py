@@ -50,7 +50,6 @@ class OpendkimDeployer(Deployer):
         need_restart |= final_script.changed
 
         files.directory(
-            name="Add opendkim directory to /etc",
             path="/etc/opendkim",
             user="opendkim",
             group="opendkim",
@@ -78,7 +77,6 @@ class OpendkimDeployer(Deployer):
         )
         need_restart |= signing_table.changed
         files.directory(
-            name="Add opendkim socket directory to /var/spool/postfix",
             path="/var/spool/postfix/opendkim",
             user="opendkim",
             group="opendkim",
