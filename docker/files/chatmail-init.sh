@@ -19,11 +19,6 @@ fi
 # Fix ownership for bind-mounted keys (host opendkim UID may differ from container)
 chown -R opendkim:opendkim /etc/dkimkeys
 
-# Journald: forward to console for docker logs
-grep -q '^ForwardToConsole=yes' /etc/systemd/journald.conf \
-    || echo "ForwardToConsole=yes" >> /etc/systemd/journald.conf
-systemctl restart systemd-journald
-
 # Create chatmail.ini (skips if file already exists, e.g. volume-mounted)
 mkdir -p "$(dirname "$CHATMAIL_INI")"
 if [ ! -f "$CHATMAIL_INI" ]; then
@@ -70,3 +65,8 @@ else
     $CMDEPLOY run --config "$CHATMAIL_INI" --ssh-host @local
     echo "$current_fp" > "$FINGERPRINT_FILE"
 fi
+
+# Journald: forward to console so `docker compose logs` works.
+grep -q '^ForwardToConsole=yes' /etc/systemd/journald.conf \
+    || echo "ForwardToConsole=yes" >> /etc/systemd/journald.conf
+systemctl restart systemd-journald
