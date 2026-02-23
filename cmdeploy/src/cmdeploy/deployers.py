@@ -19,7 +19,8 @@ from pyinfra.operations import apt, files, pip, server, systemd
 
 from cmdeploy.cmdeploy import Out
 
-from .acmetool import AcmetoolDeployer
+
+
 from .basedeploy import (
     Deployer,
     Deployment,
@@ -29,13 +30,12 @@ from .basedeploy import (
     has_systemd,
 )
 from .dovecot.deployer import DovecotDeployer
-from .external.deployer import ExternalTlsDeployer
 from .filtermail.deployer import FiltermailDeployer
 from .mtail.deployer import MtailDeployer
 from .nginx.deployer import NginxDeployer
 from .opendkim.deployer import OpendkimDeployer
 from .postfix.deployer import PostfixDeployer
-from .selfsigned.deployer import SelfSignedTlsDeployer
+from .tls.deployer import get_tls_deployers
 from .www import build_webpages, find_merge_conflict, get_paths
 
 
@@ -391,25 +391,16 @@ class IrohDeployer(Deployer):
             self.need_restart = True
 
     def configure(self):
-        systemd_unit = files.put(
+        self.put_file(
             name="Upload iroh-relay systemd unit",
             src=get_resource("iroh-relay.service"),
             dest="/etc/systemd/system/iroh-relay.service",
-            user="root",
-            group="root",
-            mode="644",
         )
-        self.need_restart |= systemd_unit.changed
-
-        iroh_config = files.put(
+        self.put_file(
             name="Upload iroh-relay config",
             src=get_resource("iroh-relay.toml"),
             dest="/etc/iroh-relay.toml",
-            user="root",
-            group="root",
-            mode="644",
         )
-        self.need_restart |= iroh_config.changed
 
     def activate(self):
         systemd.service(
@@ -424,15 +415,11 @@ class IrohDeployer(Deployer):
 
 class JournaldDeployer(Deployer):
     def configure(self):
-        journald_conf = files.put(
+        self.put_file(
             name="Configure journald",
             src=get_resource("journald.conf"),
             dest="/etc/systemd/journald.conf",
-            user="root",
-            group="root",
-            mode="644",
         )
-        self.need_restart = journald_conf.changed
 
     def activate(self):
         systemd.service(
@@ -540,20 +527,6 @@ class GithashDeployer(Deployer):
         )
 
 
-def get_tls_deployer(config, mail_domain):
-    """Select the appropriate TLS deployer based on config."""
-    tls_domains = [mail_domain, f"mta-sts.{mail_domain}", f"www.{mail_domain}"]
-
-    if config.tls_cert_mode == "acme":
-        return AcmetoolDeployer(config.acme_email, tls_domains)
-    elif config.tls_cert_mode == "self":
-        return SelfSignedTlsDeployer(mail_domain)
-    elif config.tls_cert_mode == "external":
-        return ExternalTlsDeployer(config.tls_cert_path, config.tls_key_path)
-    else:
-        raise ValueError(f"Unknown tls_cert_mode: {config.tls_cert_mode}")
-
-
 def deploy_chatmail(config_path: Path, disable_mail: bool, website_only: bool) -> None:
     """Deploy a chat-mail instance.
 
@@ -622,7 +595,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool, website_only: bool) -
                     )
                     exit(1)
 
-    tls_deployer = get_tls_deployer(config, mail_domain)
+    tls_deployers = get_tls_deployers(config, mail_domain)
 
     all_deployers = [
         ChatmailDeployer(mail_domain),
@@ -632,7 +605,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool, website_only: bool) -
         UnboundDeployer(config),
         TurnDeployer(mail_domain),
         IrohDeployer(config.enable_iroh_relay),
-        tls_deployer,
+        *tls_deployers,
         WebsiteDeployer(config),
         ChatmailVenvDeployer(config),
         MtastsDeployer(),

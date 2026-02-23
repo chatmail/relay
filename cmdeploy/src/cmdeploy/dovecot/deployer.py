@@ -69,7 +69,7 @@ def _install_dovecot_package(package: str, arch: str):
     primary_url = f"https://download.delta.chat/dovecot/dovecot-{package}_2.3.21%2Bdfsg1-3_{arch}.deb"
     fallback_url = f"https://github.com/chatmail/dovecot/releases/download/upstream%2F2.3.21%2Bdfsg1/dovecot-{package}_2.3.21%2Bdfsg1-3_{arch}.deb"
     url = _pick_url(primary_url, fallback_url)
-    deb_filename = "/root/" + url.split("/")[-1]
+    deb_filename = "/root/" + url.rsplit("/", maxsplit=1)[-1]
 
     match (package, arch):
         case ("core", "amd64"):

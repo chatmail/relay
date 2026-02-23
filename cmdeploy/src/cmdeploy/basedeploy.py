@@ -104,7 +104,24 @@ class Deployment:
 
 
 class Deployer:
+    """Base class for deployers that manage remote service configuration.
+
+    Deployers go through three stages: ``install``, ``configure``, and
+    ``activate``.  During ``configure``, use :meth:`put_file` and
+    :meth:`put_template` to upload files — they automatically set
+    ``need_restart = True`` when a file changes on the remote host.
+    The ``activate`` stage can then inspect ``need_restart`` to decide
+    whether to restart or reload the managed service.
+
+    Deployers with an ``enabled`` flag (default ``True``) support a
+    disabled mode: when ``enabled`` is ``False``, the ``put_*`` methods
+    remove the target file from the remote host instead of uploading it,
+    allowing clean un-deployment of optional components.
+    """
+
+    enabled = True
     need_restart = False
+    daemon_reload = False
 
     def install(self):
         pass
@@ -114,3 +131,51 @@ class Deployer:
 
     def activate(self):
         pass
+
+    def put_file(
+        self, *, name, dest, src=None, executable=False, owner="root"
+    ):
+        """Upload a file to *dest*, or remove it when the deployer is disabled.
+
+        Sets ``need_restart = True`` when the remote file changes.
+        When ``self.enabled`` is ``False``, the file at *dest* is removed
+        instead of uploaded.
+        """
+        if self.enabled:
+            mode = "755" if executable else "644"
+            res = files.put(
+                name=name, src=src, dest=dest, user=owner, group=owner, mode=mode
+            )
+        else:
+            res = files.file(name=name, path=dest, present=False)
+
+        if res.changed:
+            self.need_restart = True
+        return res
+
+    def put_template(
+        self, *, name, src, dest, owner="root", mode="644", **kwargs
+    ):
+        """Upload a Jinja2 template to *dest*, or remove it when disabled.
+
+        Sets ``need_restart = True`` when the rendered remote file changes.
+        When ``self.enabled`` is ``False``, the file at *dest* is removed
+        instead of uploaded.  Extra *kwargs* are passed to the template
+        as render context.
+        """
+        if self.enabled:
+            res = files.template(
+                name=name,
+                src=src,
+                dest=dest,
+                user=owner,
+                group=owner,
+                mode=mode,
+                **kwargs,
+            )
+        else:
+            res = files.file(name=name, path=dest, present=False)
+
+        if res.changed:
+            self.need_restart = True
+        return res
