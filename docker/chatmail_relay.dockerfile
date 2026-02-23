@@ -2,7 +2,9 @@ FROM jrei/systemd-debian:12 AS base
 
 ENV LANG=en_US.UTF-8
 
-RUN echo 'APT::Install-Recommends "0";' > /etc/apt/apt.conf.d/01norecommend && \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+    echo 'APT::Install-Recommends "0";' > /etc/apt/apt.conf.d/01norecommend && \
     echo 'APT::Install-Suggests "0";' >> /etc/apt/apt.conf.d/01norecommend && \
     apt-get update && \
     apt-get install -y \
@@ -13,10 +15,11 @@ RUN echo 'APT::Install-Recommends "0";' > /etc/apt/apt.conf.d/01norecommend && \
     apt-get install -y locales && \
     sed -i -e "s/# $LANG.*/$LANG UTF-8/" /etc/locale.gen && \
     dpkg-reconfigure --frontend=noninteractive locales && \
-    update-locale LANG=$LANG \
-    && rm -rf /var/lib/apt/lists/*
+    update-locale LANG=$LANG
 
-RUN apt-get update && \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+    apt-get update && \
     apt-get install -y \
         git \
         python3 \
@@ -36,23 +39,34 @@ RUN apt-get update && \
         nginx \
         libnginx-mod-stream \
         fcgiwrap \
-        cron \
-    && rm -rf /var/lib/apt/lists/*
+        cron
 
 # --- Build-time: install cmdeploy venv and run install stage ---
 # Editable install so importlib.resources reads directly from the source tree.
 # On container start only "configure,activate" stages run.
-COPY . /opt/chatmail/
+
+# Copy dependency metadata first (changes rarely) so pip install layer is cached
+COPY cmdeploy/pyproject.toml /opt/chatmail/cmdeploy/pyproject.toml
+COPY chatmaild/pyproject.toml /opt/chatmail/chatmaild/pyproject.toml
+
+# Dummy scaffolding so editable install can discover packages
+RUN mkdir -p /opt/chatmail/cmdeploy/src/cmdeploy \
+             /opt/chatmail/chatmaild/src/chatmaild && \
+    touch /opt/chatmail/cmdeploy/src/cmdeploy/__init__.py \
+          /opt/chatmail/chatmaild/src/chatmaild/__init__.py
+
+# Dummy git repo: .git/ is excluded from the build context (.dockerignore)
+# but setuptools calls `git ls-files` when building the sdist.
 WORKDIR /opt/chatmail
+RUN --mount=type=cache,target=/root/.cache/pip \
+    git init -q && \
+    python3 -m venv /opt/cmdeploy && \
+    /opt/cmdeploy/bin/pip install -e chatmaild/ -e cmdeploy/
+
+# Full source copy (editable install's .egg-link still points here)
+COPY . /opt/chatmail/
 
 RUN printf '[params]\nmail_domain = build.local\n' > /tmp/chatmail.ini
-
-# Dummy git repo init: .git/ is excluded from the build context (.dockerignore)
-# but setuptools calls `git ls-files` when building the sdist.
-RUN git init -q && \
-    python3 -m venv /opt/cmdeploy && \
-    /opt/cmdeploy/bin/pip install --no-cache-dir \
-        -e chatmaild/ -e cmdeploy/
 
 RUN CMDEPLOY_STAGES=install \
     CHATMAIL_INI=/tmp/chatmail.ini \
@@ -102,4 +116,3 @@ ENTRYPOINT ["/entrypoint.sh"]
 
 CMD [   "--default-standard-output=journal+console", \
         "--default-standard-error=journal+console" ]
-
