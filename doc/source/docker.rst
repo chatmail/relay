@@ -113,11 +113,11 @@ You can check server status with::
 
 You can run some benchmarks (can also run from any machine with cmdeploy installed)
 
-    docker exec chatmail /opt/cmdeploy/bin/cmdeploy bench chat.example.org
+    docker exec chatmail /opt/cmdeploy/bin/cmdeploy bench
 
 You can run the test suite with
 
-    docker exec chatmail /opt/cmdeploy/bin/cmdeploy test chat.example.org --ssh-host localhost
+    docker exec chatmail /opt/cmdeploy/bin/cmdeploy test --ssh-host localhost
 
 
 Customization
