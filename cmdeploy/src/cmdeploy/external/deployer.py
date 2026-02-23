@@ -63,11 +63,5 @@ class ExternalTlsDeployer(Deployer):
             restarted=self.need_restart,
             daemon_reload=self.need_restart,
         )
-        # Trigger the oneshot service so services pick up the current cert.
-        # The path unit handles future changes via inotify.
-        systemd.service(
-            name="Reload TLS services for current certificate",
-            service="tls-cert-reload.service",
-            running=True,
-            daemon_reload=False,
-        )
+        # No explicit reload needed here: dovecot/nginx read the cert
+        # on startup, and the .path watcher handles live changes.

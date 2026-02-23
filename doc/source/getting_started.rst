@@ -229,7 +229,11 @@ The deploy will verify that both files exist on the server.
    You are responsible for certificate renewal.
    When the certificate file changes on disk,
    all relay services pick up the new certificate automatically
-   (via a systemd path watcher installed during deploy).
+   via a systemd path watcher installed during deploy.
+   The watcher uses inotify, which does not cross bind-mount boundaries.
+   If you use such a setup, you must trigger the reload explicitly after renewal::
+
+      systemctl start tls-cert-reload.service
 
 
 Migrating to a new build machine

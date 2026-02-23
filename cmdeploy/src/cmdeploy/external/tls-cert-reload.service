@@ -11,5 +11,5 @@ Description=Reload TLS services after certificate change
 
 [Service]
 Type=oneshot
-ExecStart=/bin/systemctl reload dovecot
-ExecStart=/bin/systemctl reload nginx
+ExecStart=/bin/systemctl try-reload-or-restart dovecot
+ExecStart=/bin/systemctl try-reload-or-restart nginx
