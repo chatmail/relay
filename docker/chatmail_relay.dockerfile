@@ -9,44 +9,23 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     echo 'APT::Install-Suggests "0";' >> /etc/apt/apt.conf.d/01norecommend && \
     apt-get update && \
     apt-get install -y \
-        ca-certificates && \
-    DEBIAN_FRONTEND=noninteractive \
-    TZ=UTC \
-    apt-get install -y tzdata && \
-    apt-get install -y locales && \
-    sed -i -e "s/# $LANG.*/$LANG UTF-8/" /etc/locale.gen && \
-    dpkg-reconfigure --frontend=noninteractive locales && \
-    update-locale LANG=$LANG
-
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
-    apt-get update && \
-    apt-get install -y \
+        ca-certificates \
         git \
         python3 \
         python3-venv \
-        python3-virtualenv \
         gcc \
-        python3-dev \
-        opendkim \
-        opendkim-tools \
-        curl \
-        rsync \
-        unbound \
-        unbound-anchor \
-        dnsutils \
-        postfix \
-        acl \
-        nginx \
-        libnginx-mod-stream \
-        fcgiwrap \
-        cron
+        python3-dev && \
+    DEBIAN_FRONTEND=noninteractive TZ=UTC \
+    apt-get install -y tzdata locales && \
+    sed -i -e "s/# $LANG.*/$LANG UTF-8/" /etc/locale.gen && \
+    dpkg-reconfigure --frontend=noninteractive locales && \
+    update-locale LANG=$LANG
 
 # --- Build-time: install cmdeploy venv and run install stage ---
 # Editable install so importlib.resources reads directly from the source tree.
 # On container start only "configure,activate" stages run.
 
-# Copy dependency metadata first (changes rarely) so pip install layer is cached
+# Copy dependency metadata first so pip install layer is cached
 COPY cmdeploy/pyproject.toml /opt/chatmail/cmdeploy/pyproject.toml
 COPY chatmaild/pyproject.toml /opt/chatmail/chatmaild/pyproject.toml
 
