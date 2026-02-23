@@ -11,8 +11,6 @@ if [ -z "$MAIL_DOMAIN" ]; then
     exit 1
 fi
 
-### MAIN
-
 if [ ! -f /etc/dkimkeys/opendkim.private ]; then
     /usr/sbin/opendkim-genkey -D /etc/dkimkeys -d "$MAIL_DOMAIN" -s opendkim
 fi
@@ -34,9 +32,7 @@ fi
 
 # --- Deploy fingerprint: skip cmdeploy run if nothing changed ---
 # On restart with identical image+config, systemd already brings up all
-# enabled services — the full cmdeploy run is redundant (~30s saved).
-# The install stage runs at image build time (Dockerfile), so only
-# configure+activate are needed here.
+# enabled services only configure+activate are needed here.
 IMAGE_VERSION_FILE="/etc/chatmail-image-version"
 FINGERPRINT_FILE="/etc/chatmail/.deploy-fingerprint"
 image_ver="none"
@@ -44,16 +40,16 @@ image_ver="none"
 config_hash=$(sha256sum "$CHATMAIL_INI" | cut -c1-16)
 current_fp="${image_ver}:${config_hash}"
 
-# CMDEPLOY_STAGES non-empty in env = operator override → always run.
+# CMDEPLOY_STAGES non-empty in env = operator override -> always run.
 # Otherwise, if fingerprint matches the last successful deploy, skip.
 if [ -z "${CMDEPLOY_STAGES:-}" ] \
     && [ -f "$FINGERPRINT_FILE" ] \
     && [ "$(cat "$FINGERPRINT_FILE")" = "$current_fp" ]; then
     echo "[INFO] No changes detected ($current_fp), skipping deploy."
 else
-    # Stop chatmail services so the port check sees a clean state.
-    # (ss -p inside Docker can't always identify processes, causing false
-    # "port occupied" failures.) The activate stage will restart them.
+    # Stop chatmail services so the port check sees a clean state as 
+    # ss -p inside Docker can't identify processes, causing false
+    # "port occupied" failures
     echo "[INFO] Stopping services for clean port check..."
     systemctl stop postfix dovecot nginx opendkim unbound \
         filtermail doveauth chatmail-metadata iroh-relay mtail fcgiwrap 2>/dev/null || true
