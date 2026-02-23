@@ -21,7 +21,7 @@ struct CachedResolver {
     // Note: Arc is required despite we are holding the whole handler in an Arc,
     // because viadkim will internally clone the resolver (LookupTxt + Clone + 'static)
     // to parallelize lookups in case of multiple signatures...
-    cache: Arc<parking_lot::Mutex<LruCache<Name, Vec<u8>>>>,
+    cache: Arc<parking_lot::Mutex<LruCache<Name, Vec<Vec<u8>>>>>,
 }
 
 impl CachedResolver {
@@ -76,41 +76,39 @@ impl LookupTxt for CachedResolver {
 
             {
                 let mut cache = self.cache.lock();
-                if let Some(rdata) = cache.get(&name) {
-                    let txts: Self::Answer = Box::new(std::iter::once(Ok(rdata.clone())));
-                    log::debug!("Using cached RDATA for {}", name);
+                if let Some(txts) = cache.get(&name) {
+                    let txts: Self::Answer = Box::new(txts.clone().into_iter().map(Ok));
+                    log::debug!("Using cached TXT records for {}", name);
                     return Ok(txts);
                 }
             }
 
-            log::debug!("Trying to resolve TXT for {}", name);
-            let txt = {
+            log::debug!("Trying to resolve TXT records for {}", name);
+            let txts: Vec<Vec<u8>> = {
                 let lookup = self.dns_resolver.txt_lookup(name.clone()).await?;
 
                 // viadkim would filter out non-DKIM TXT records,
                 // but we filter it here anyway so that we know which one should be cached.
                 lookup
                     .into_iter()
-                    .find_map(|txt| {
+                    // We don't check all records, as this can be a DoS attack vector.
+                    // In theory, selector domains should only have a single TXT record.
+                    // In practice, we check at most 3, just in case of weird configuration.
+                    .take(3)
+                    .map(|txt| {
                         let rdata_raw = txt.txt_data().concat();
                         let rdata = String::from_utf8_lossy(&rdata_raw);
-                        // naive check, but this can't be an attack vector,
-                        // and selector domain should only have a single TXT record anyway.
-                        if rdata.contains("DKIM") {
-                            Some(Self::normalize_rdata(&rdata).into_bytes())
-                        } else {
-                            None
-                        }
+                        Self::normalize_rdata(&rdata).into_bytes()
                     })
-                    .ok_or(io::ErrorKind::NotFound)?
+                    .collect()
             };
 
             {
                 let mut cache = self.cache.lock();
-                cache.put(name, txt.clone());
+                cache.put(name, txts.clone());
             }
 
-            let txts: Self::Answer = Box::new(std::iter::once(Ok(txt)));
+            let txts: Self::Answer = Box::new(txts.into_iter().map(Ok));
             Ok(txts)
         })
     }
