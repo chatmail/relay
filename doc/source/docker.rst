@@ -237,11 +237,13 @@ Clone the repository and build the Docker image::
 
     git clone https://github.com/chatmail/relay
     cd relay
-    docker compose build chatmail
+    docker/build.sh
 
 The build bakes all binaries, Python packages, and the install stage
-into the image. After building, only ``docker-compose.yaml`` and a ``.env`` with
-``MAIL_DOMAIN`` are needed to run the container.
+into the image. After building, only ``docker-compose.yaml`` and a ``.env``
+with ``MAIL_DOMAIN`` are needed to run the container. The `build.sh` passes the
+git hash onto the docker build so it can be determined if there has been a
+change that warrants a redeploy.
 
 You can transfer a locally built image to your server directly (pigz is parallel `gzip` which can be used instead as well) ::
 
