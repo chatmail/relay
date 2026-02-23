@@ -395,7 +395,7 @@ class Remote:
     def __init__(self, sshdomain):
         self.sshdomain = sshdomain
 
-    def iter_output(self, logcmd=""):
+    def iter_output(self, logcmd="", ready=None):
         getjournal = "journalctl -f" if not logcmd else logcmd
         print(self.sshdomain)
         match self.sshdomain:
@@ -413,10 +413,12 @@ class Remote:
         while 1:
             line = self.popen.stdout.readline()
             res = line.decode().strip().lower()
-            if res:
-                yield res
-            else:
+            if not res:
                 break
+            if ready is not None:
+                ready()
+                ready = None
+            yield res
 
 
 @pytest.fixture

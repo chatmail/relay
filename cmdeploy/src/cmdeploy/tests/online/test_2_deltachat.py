@@ -98,13 +98,13 @@ class TestEndToEndDeltaChat:
 
         lp.sec("ac2: check quota is triggered")
 
-        starting = True
-        for line in remote.iter_output("journalctl -n0 -f -u dovecot"):
-            if starting:
-                chat.send_text("hello")
-                starting = False
+        def send_hello():
+            chat.send_text("hello")
+
+        for line in remote.iter_output(
+            "journalctl -n1 -f -u dovecot", ready=send_hello
+        ):
             if user not in line:
-                # print(line)
                 continue
             if "quota exceeded" in line:
                 return
