@@ -12,7 +12,7 @@ on:
   push:
     branches:
       - main
-      - j4n/docker
+      - j4n/docker-pr
     paths:
       - 'docker/**'
       - 'docker-compose.yaml'
