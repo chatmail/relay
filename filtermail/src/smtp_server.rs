@@ -116,6 +116,11 @@ where
                 .write_all(b"250-filtermail\r\n250-XFORWARD ADDR\r\n250 OK\r\n")
                 .await?;
             writer.flush().await?;
+        } else if cmd.to_uppercase().starts_with("MAIL FROM:<>") {
+            // bounce message
+            envelope.mail_from = String::new();
+            writer.write_all(b"250 OK\r\n").await?;
+            writer.flush().await?;
         } else if cmd.to_uppercase().starts_with("MAIL FROM:") {
             if let Some(from) = extract_address(cmd) {
                 match handler.handle_mail(&from) {
