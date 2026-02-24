@@ -26,30 +26,39 @@ class AcmetoolDeployer(Deployer):
         self.remove_file("/usr/lib/acme/hooks/nginx")
 
     def configure(self):
+        self.put_template(
+            "acmetool/response-file.yaml.j2",
+            "/var/lib/acme/conf/responses",
+            email=self.email,
+        )
+
+        self.put_template(
+            "acmetool/target.yaml.j2",
+            "/var/lib/acme/conf/target",
+        )
+
         server.shell(
             name=f"Remove old acmetool desired files for {self.domains[0]}",
             commands=[f"rm -f /var/lib/acme/desired/{self.domains[0]}-*"],
         )
+        self.put_template(
+            "acmetool/desired.yaml.j2",
+            f"/var/lib/acme/desired/{self.domains[0]}",
+            domains=self.domains,
+        )
 
-        setup_targets = [
-            ("response-file.yaml.j2", "/var/lib/acme/conf/responses"),
-            ("target.yaml.j2", "/var/lib/acme/conf/target"),
-            ("desired.yaml.j2", f"/var/lib/acme/desired/{self.domains[0]}"),
-        ]
+        service_file = self.ensure_systemd_unit("acmetool/acmetool-redirector.service")
+        self.need_restart_redirector = service_file.changed
 
-        for src, dest in setup_targets:
-            self.put_template(
-                f"acmetool/{src}",
-                dest,
-                email=self.email,
-                domains=self.domains,
-            )
+        reconcile_service_file = self.ensure_systemd_unit(
+            "acmetool/acmetool-reconcile.service"
+        )
+        self.need_restart_reconcile_service = reconcile_service_file.changed
 
-        for basename, _, _ in self.services:
-            res = self.put_file(
-                f"acmetool/{basename}", f"/etc/systemd/system/{basename}"
-            )
-            self.service_changed[basename] = res.changed
+        reconcile_timer_file = self.ensure_systemd_unit(
+            "acmetool/acmetool-reconcile.timer"
+        )
+        self.need_restart_reconcile_timer = reconcile_timer_file.changed
 
     def activate(self):
         systemd.service(

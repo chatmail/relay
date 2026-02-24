@@ -34,9 +34,8 @@ class MtailDeployer(Deployer):
     def configure(self):
         # Using our own systemd unit instead of `/usr/lib/systemd/system/mtail.service`.
         # This allows to read from journalctl instead of log files.
-        self.put_template(
+        self.ensure_systemd_unit(
             "mtail/mtail.service.j2",
-            "/etc/systemd/system/mtail.service",
             address=self.mtail_address or "127.0.0.1",
             port=3903,
         )

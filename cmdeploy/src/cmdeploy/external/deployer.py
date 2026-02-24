@@ -25,14 +25,12 @@ class ExternalTlsDeployer(Deployer):
                 if host.get_fact(File, path=path) is None:
                     raise Exception(f"External TLS file not found on server: {path}")
 
-        self.put_template(
+        self.ensure_systemd_unit(
             "external/tls-cert-reload.path.j2",
-            "/etc/systemd/system/tls-cert-reload.path",
             cert_path=self.cert_path,
         )
-        self.put_file(
+        self.ensure_systemd_unit(
             "external/tls-cert-reload.service",
-            "/etc/systemd/system/tls-cert-reload.service",
         )
 
     def activate(self):

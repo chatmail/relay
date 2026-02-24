@@ -26,9 +26,8 @@ class FiltermailDeployer(Deployer):
 
     def configure(self):
         for service in self.services:
-            self.put_template(
+            self.ensure_systemd_unit(
                 f"filtermail/{service}.service.j2",
-                f"/etc/systemd/system/{service}.service",
                 bin_path=self.bin_path,
                 config_path=self.config_path,
             )

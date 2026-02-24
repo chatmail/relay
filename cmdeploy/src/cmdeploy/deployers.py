@@ -370,7 +370,7 @@ class IrohDeployer(Deployer):
             self.need_restart = True
 
     def configure(self):
-        self.put_file("iroh-relay.service", "/etc/systemd/system/iroh-relay.service")
+        self.ensure_systemd_unit("iroh-relay.service")
         self.put_file("iroh-relay.toml", "/etc/iroh-relay.toml")
 
     def activate(self):

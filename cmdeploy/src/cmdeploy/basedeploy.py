@@ -155,19 +155,20 @@ class Deployer:
     def activate(self):
         pass
 
+    def ensure_systemd_unit(self, src, **kwargs):
+        dest_name = src.split("/")[-1].replace(".j2", "")
+        dest = f"/etc/systemd/system/{dest_name}"
+        if src.endswith(".j2"):
+            return self.put_template(src, dest, **kwargs)
+        return self.put_file(src, dest)
+
     def put_file(self, src, dest, executable=False):
-        """Upload a file to *dest*, or remove it when the deployer is disabled."""
         if isinstance(src, str):
             src = get_resource(src)
-        verb = "Upload" if self.enabled else "Remove"
-        name = f"{verb} {dest}"
-        if self.enabled:
-            mode = "755" if executable else "644"
-            res = files.put(
-                name=name, src=src, dest=dest, user="root", group="root", mode=mode
-            )
-        else:
-            res = files.file(name=name, path=dest, present=False)
+        mode = "755" if executable else "644"
+        res = files.put(
+            name=f"Upload {dest}", src=src, dest=dest, user="root", group="root", mode=mode
+        )
 
         return self._update_restart_signals(dest, res)
 
