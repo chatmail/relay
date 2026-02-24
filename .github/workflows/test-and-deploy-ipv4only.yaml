@@ -14,6 +14,7 @@ on:
 jobs:
   deploy:
     name: deploy on staging-ipv4.testrun.org, and run tests
+    if: ${{ !startsWith(github.head_ref, 'j4n/') }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     environment:

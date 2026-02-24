@@ -85,7 +85,7 @@ jobs:
           echo "image=${IMAGE}" >> "$GITHUB_OUTPUT"
 
   deploy:
-    name: Deploy to ${{ matrix.host }}
+    name: Deploy docker image to ${{ matrix.host }}
     needs: build
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
@@ -100,12 +100,12 @@ jobs:
             zone_file: staging.testrun.org-default.zone
             disable_ipv6: false
             add_ssh_keys: true
-          - host: staging-ipv4.testrun.org
-            acme_dir: acme-ipv4
-            dkim_dir: dkimkeys-ipv4
-            zone_file: staging-ipv4.testrun.org-default.zone
-            disable_ipv6: true
-            add_ssh_keys: false
+#          - host: staging-ipv4.testrun.org
+#            acme_dir: acme-ipv4
+#            dkim_dir: dkimkeys-ipv4
+#            zone_file: staging-ipv4.testrun.org-default.zone
+#            disable_ipv6: true
+#            add_ssh_keys: false
     environment:
       name: ${{ matrix.host }}
       url: https://${{ matrix.host }}/
@@ -229,7 +229,7 @@ jobs:
           ssh root@${HOST} 'cd /srv/chatmail/relay && docker compose logs --tail=200'
           exit 1
 
-      - name: add hpk42 key to staging server
+      - name: add ssh keys to staging server
         if: matrix.add_ssh_keys
         run: ssh root@${{ matrix.host }} 'curl -s https://github.com/hpk42.keys https://github.com/j4n.keys >> .ssh/authorized_keys'
 
