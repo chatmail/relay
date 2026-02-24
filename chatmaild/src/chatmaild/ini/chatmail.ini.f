@@ -12,41 +12,41 @@ mail_domain = {mail_domain}
 #
 
 # email sending rate per user and minute
-max_user_send_per_minute = 60
+#max_user_send_per_minute = 60
 
 # per-user max burst size for sending rate limiting (GCRA bucket capacity)
-max_user_send_burst_size = 10
+#max_user_send_burst_size = 10
 
 # maximum mailbox size of a chatmail address
-max_mailbox_size = 500M
+#max_mailbox_size = 500M
 
 # maximum message size for an e-mail in bytes
-max_message_size = 31457280
+#max_message_size = 31457280
 
 # days after which mails are unconditionally deleted
-delete_mails_after = 20
+#delete_mails_after = 20
 
 # days after which large messages (>200k) are unconditionally deleted
-delete_large_after = 7
+#delete_large_after = 7
 
 # days after which users without a successful login are deleted (database and mails)
-delete_inactive_users_after = 90
+#delete_inactive_users_after = 90
 
 # minimum length a username must have
-username_min_length = 9
+#username_min_length = 9
 
 # maximum length a username can have
-username_max_length = 9
+#username_max_length = 9
 
 # minimum length a password must have
-password_min_length = 9
+#password_min_length = 9
 
 # list of chatmail addresses which can send outbound un-encrypted mail
-passthrough_senders =
+#passthrough_senders =
 
 # list of e-mail recipients for which to accept outbound un-encrypted mails
 # (space-separated, item may start with "@" to whitelist whole recipient domains)
-passthrough_recipients =
+#passthrough_recipients =
 
 # path to www directory - documented here: https://chatmail.at/doc/relay/getting_started.html#custom-web-pages
 #www_folder = www
@@ -56,18 +56,18 @@ passthrough_recipients =
 #
 
 # SMTP outgoing filtermail and reinjection 
-filtermail_smtp_port = 10080
-postfix_reinject_port = 10025
+#filtermail_smtp_port = 10080
+#postfix_reinject_port = 10025
 
 # SMTP incoming filtermail and reinjection 
-filtermail_smtp_port_incoming = 10081
-postfix_reinject_port_incoming = 10026
+#filtermail_smtp_port_incoming = 10081
+#postfix_reinject_port_incoming = 10026
 
 # if set to "True" IPv6 is disabled
-disable_ipv6 = False
+#disable_ipv6 = False
 
 # Your email adress, which will be used in acmetool to manage Let's Encrypt SSL certificates
-acme_email = 
+#acme_email =
 
 # Defaults to https://iroh.{{mail_domain}} and running `iroh-relay` on the chatmail
 # service.
@@ -100,13 +100,13 @@ acme_email =
 # in per-maildir ".in/.out" files. 
 # Note that you need to manually cleanup these files
 # so use this option with caution on production servers. 
-imap_rawlog = false 
+#imap_rawlog = false
 
 # set to true if you want to enable the IMAP COMPRESS Extension,
 # which allows IMAP connections to be efficiently compressed.
 # WARNING: Enabling this makes it impossible to hibernate IMAP
 # processes which will result in much higher memory/RAM usage.
-imap_compress = false
+#imap_compress = false
 
 
 #
