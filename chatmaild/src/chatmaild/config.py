@@ -23,7 +23,7 @@ class Config:
         self.delete_mails_after = params.get("delete_mails_after", "20")
         self.delete_large_after = params.get("delete_large_after", "7")
         self.delete_inactive_users_after = int(
-            params.get("delete_inactive_users_after", 100)
+            params.get("delete_inactive_users_after", 90)
         )
         self.username_min_length = int(params.get("username_min_length", 9))
         self.username_max_length = int(params.get("username_max_length", 9))
