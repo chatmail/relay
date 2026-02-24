@@ -183,12 +183,9 @@ class UnboundDeployer(Deployer):
             ],
         )
         if self.config.disable_ipv6:
-            files.directory(
+            self.ensure_directory(
                 path="/etc/unbound/unbound.conf.d",
-                present=True,
-                user="root",
-                group="root",
-                mode="755",
+                owner="root",
             )
             self.put_template(
                 "unbound/unbound.conf.j2",
@@ -218,7 +215,7 @@ class MtastsDeployer(Deployer):
     def configure(self):
         # Remove configuration.
         self.remove_file("/etc/mta-sts-daemon.yml")
-        files.directory("/usr/local/lib/postfix-mta-sts-resolver", present=False)
+        self.remove_directory("/usr/local/lib/postfix-mta-sts-resolver")
         self.remove_file("/etc/systemd/system/mta-sts-daemon.service")
 
     def activate(self):
@@ -238,13 +235,10 @@ class WebsiteDeployer(Deployer):
         self.config = config
 
     def install(self):
-        files.directory(
+        self.ensure_directory(
             name="Ensure /var/www exists",
             path="/var/www",
-            user="root",
-            group="root",
-            mode="755",
-            present=True,
+            owner="root",
         )
 
     def configure(self):
@@ -280,7 +274,6 @@ class LegacyRemoveDeployer(Deployer):
         # Remove OBS repository key that is no longer used.
         self.remove_file("/etc/apt/keyrings/obs-home-deltachat.gpg")
         self.ensure_line(
-            name="Organize repository keys",
             path="/etc/apt/sources.list",
             line="deb [signed-by=/etc/apt/keyrings/obs-home-deltachat.gpg] https://download.opensuse.org/repositories/home:/deltachat/Debian_12/ ./",
             escape_regex_characters=True,
@@ -288,10 +281,9 @@ class LegacyRemoveDeployer(Deployer):
         )
 
         # prior relay versions used filelogging
-        files.directory(
+        self.remove_directory(
             name="Ensure old logs on disk are deleted",
             path="/var/log/journal/",
-            present=False,
         )
         # remove echobot if it is still running
         if has_systemd() and host.get_fact(SystemdEnabled).get("echobot.service"):

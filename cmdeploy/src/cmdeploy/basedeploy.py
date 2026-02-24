@@ -188,7 +188,7 @@ class Deployer:
 
         return self._update_restart_signals(dest, res, track=track)
 
-    def remove_file(self, dest, track=True):
+    def remove_file(self, dest, *, track=True):
         """Ensure *dest* is removed from the remote host.
 
         Sets ``need_restart = True`` and ``daemon_reload = True`` (if applicable)
@@ -197,12 +197,35 @@ class Deployer:
         res = files.file(name=f"Remove {dest}", path=dest, present=False)
         return self._update_restart_signals(dest, res, track=track)
 
-    def ensure_line(self, name, path, line, track=True, **kwargs):
+    def ensure_line(self, path, line, *, track=True, **kwargs):
         """Ensure a line is present or absent in a file.
 
         Sets ``need_restart = True`` when the file changes and *track* is True.
         """
+        name = f"Ensure line in {path}"
         res = files.line(name=name, path=path, line=line, **kwargs)
+        return self._update_restart_signals(path, res, track=track)
+
+    def ensure_directory(self, path, *, owner="root", mode="755", track=True, **kwargs):
+        """Ensure a directory exists on the remote host.
+
+        Sets ``need_restart = True`` when the directory is created or modified
+        and *track* is True.
+        """
+        name = kwargs.pop("name", f"Ensure directory {path}")
+        res = files.directory(
+            name=name, path=path, user=owner, group=owner, mode=mode, present=True, **kwargs
+        )
+        return self._update_restart_signals(path, res, track=track)
+
+    def remove_directory(self, path, *, track=True, **kwargs):
+        """Ensure a directory is removed from the remote host.
+
+        Sets ``need_restart = True`` when the directory is actually removed
+        and *track* is True.
+        """
+        name = kwargs.pop("name", f"Remove directory {path}")
+        res = files.directory(name=name, path=path, present=False, **kwargs)
         return self._update_restart_signals(path, res, track=track)
 
     def _update_restart_signals(self, path, res, track=True):

@@ -86,11 +86,10 @@ def _configure_nginx(deployer, config: Config, debug: bool = False):
     # install CGI newemail script
     #
     cgi_dir = "/usr/lib/cgi-bin"
-    files.directory(
+    deployer.ensure_directory(
         name=f"Ensure {cgi_dir} exists",
         path=cgi_dir,
-        user="root",
-        group="root",
+        owner="root",
     )
 
     # CGI scripts are loaded on each request, so an nginx restart
