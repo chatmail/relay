@@ -70,10 +70,7 @@ class AcmetoolDeployer(Deployer):
             )
 
         for basename, _, _ in self.services:
-            res = self.put_file(
-                f"tls/acmetool/{basename}", f"/etc/systemd/system/{basename}"
-            )
-            # Track if unit file changed so activate() knows to restart/reload.
+            res = self.install_systemd_service(f"tls/acmetool/{basename}")
             self.service_changed[basename] = res.changed
 
     def activate(self):
@@ -117,14 +114,12 @@ class ExternalTlsDeployer(Deployer):
                 if host.get_fact(File, path=path) is None:
                     raise Exception(f"External TLS file not found on server: {path}")
 
-        self.put_template(
+        self.install_systemd_service(
             "tls/external/tls-cert-reload.path.j2",
-            "/etc/systemd/system/tls-cert-reload.path",
             cert_path=self.cert_path,
         )
-        self.put_file(
+        self.install_systemd_service(
             "tls/external/tls-cert-reload.service",
-            "/etc/systemd/system/tls-cert-reload.service",
         )
 
     def activate(self):

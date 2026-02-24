@@ -109,18 +109,20 @@ class Deployment:
 class Deployer:
     """Base class for deployers that manage remote service configuration.
 
-    Deployers go through three stages: ``install``, ``configure``, and ``activate``.
-    During ``configure``, use :meth:`put_file` and :meth:`put_template` to upload files.
+    Deployers go through three stages — ``install``,
+    ``configure``, and ``activate`` — and use helpers like
+    :meth:`put_file` and :meth:`put_template` to upload files.
     When a file changes on the remote host:
-    - ``self.need_restart`` is set to ``True``, signaling that the managed service
-      should be restarted during the ``activate`` stage.
-    - ``self.daemon_reload`` is set to ``True`` if the file is a systemd unit or
-      drop-in (detected via the ``/etc/systemd/system/`` prefix), signaling that
-      a ``systemctl daemon-reload`` is required.
 
-    Deployers with an ``enabled`` flag (default ``True``) support a disabled mode:
-    when ``enabled`` is ``False``, the ``put_*`` methods remove the target file
-    from the remote host instead of uploading it, allowing clean un-deployment of optional components.
+    - ``self.need_restart`` is set to ``True``, signaling that
+      the managed service should be restarted during ``activate``.
+    - ``self.daemon_reload`` is set to ``True`` if the file is a
+      systemd unit or drop-in (``/etc/systemd/system/`` prefix),
+      signaling that ``systemctl daemon-reload`` is required.
+
+    Deployers with ``enabled = True`` (the default) upload files;
+    when ``enabled`` is ``False`` the ``put_*`` methods remove
+    the target file instead, allowing clean un-deployment.
     """
 
     def __init__(self):
@@ -141,12 +143,33 @@ class Deployer:
     def activate(self):
         pass
 
-    def put_file(self, src, dest, *, executable=False, owner="root", track=True):
-        """Upload a file to *dest*, or remove it when the deployer is disabled.
+    def install_systemd_service(self, src, dest_name=None, **kwargs):
+        """Install (or remove) a systemd unit file under ``/etc/systemd/system/``.
 
-        *src* may be a resource path string (resolved via :func:`get_resource`),
-        a path-like, or a file-like object. Sets ``self.need_restart = True``
-        when the dst file changes and *track* is True.
+        *src* is a resource path, optionally ending in ``.j2`` for templates.
+        *dest_name* defaults to the filename portion of *src*
+        with any ``.j2`` suffix stripped.
+        When the deployer is disabled, the underlying
+        :meth:`put_file` / :meth:`put_template` call removes the unit instead.
+
+        Extra *kwargs* are forwarded to :meth:`put_template`
+        (e.g. template context variables).
+        Returns the pyinfra result object.
+        """
+        if dest_name is None:
+            dest_name = src.split("/")[-1].replace(".j2", "")
+        dest = f"/etc/systemd/system/{dest_name}"
+        if src.endswith(".j2"):
+            return self.put_template(src, dest, **kwargs)
+        return self.put_file(src, dest)
+
+    def put_file(self, src, dest, *, executable=False, owner="root", track=True):
+        """Upload a file to *dest*, or remove it when disabled.
+
+        *src* may be a resource path string (resolved via
+        :func:`get_resource`), a path-like, or a file-like object.
+        Sets ``self.need_restart = True`` when the file changes
+        and *track* is True.
         """
         if isinstance(src, str):
             src = get_resource(src)
@@ -165,8 +188,10 @@ class Deployer:
     def put_template(self, src, dest, *, owner="root", mode="644", track=True, **kwargs):
         """Upload a Jinja2 template to *dest*, or remove it when disabled.
 
-        *src* may be a resource path string (resolved via :func:`get_resource`) or a path-like
-        object. Sets ``need_restart = True`` when the dst file changes and *track* is True.
+        *src* may be a resource path string (resolved via
+        :func:`get_resource`) or a path-like object.
+        Sets ``need_restart = True`` when the file changes
+        and *track* is True.
         Extra *kwargs* are passed as template render context.
         """
         if isinstance(src, str):
@@ -191,8 +216,9 @@ class Deployer:
     def remove_file(self, dest, *, track=True):
         """Ensure *dest* is removed from the remote host.
 
-        Sets ``need_restart = True`` and ``daemon_reload = True`` (if applicable)
-        when the file is actually removed and *track* is True.
+        Sets ``need_restart = True`` and ``daemon_reload = True``
+        (if applicable) when the file is actually removed
+        and *track* is True.
         """
         res = files.file(name=f"Remove {dest}", path=dest, present=False)
         return self._update_restart_signals(dest, res, track=track)
@@ -200,7 +226,8 @@ class Deployer:
     def ensure_line(self, path, line, *, track=True, **kwargs):
         """Ensure a line is present or absent in a file.
 
-        Sets ``need_restart = True`` when the file changes and *track* is True.
+        Sets ``need_restart = True`` when the file changes
+        and *track* is True.
         """
         name = f"Ensure line in {path}"
         res = files.line(name=name, path=path, line=line, **kwargs)
@@ -209,8 +236,8 @@ class Deployer:
     def ensure_directory(self, path, *, owner="root", mode="755", track=True, **kwargs):
         """Ensure a directory exists on the remote host.
 
-        Sets ``need_restart = True`` when the directory is created or modified
-        and *track* is True.
+        Sets ``need_restart = True`` when the directory is
+        created or modified and *track* is True.
         """
         name = kwargs.pop("name", f"Ensure directory {path}")
         res = files.directory(
@@ -221,8 +248,8 @@ class Deployer:
     def remove_directory(self, path, *, track=True, **kwargs):
         """Ensure a directory is removed from the remote host.
 
-        Sets ``need_restart = True`` when the directory is actually removed
-        and *track* is True.
+        Sets ``need_restart = True`` when the directory is
+        actually removed and *track* is True.
         """
         name = kwargs.pop("name", f"Remove directory {path}")
         res = files.directory(name=name, path=path, present=False, **kwargs)
