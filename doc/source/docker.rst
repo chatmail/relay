@@ -6,9 +6,9 @@ using Docker Compose.
 
 .. note::
 
-    - Docker support is experimental and not yet covered by automated tests, please report bugs.
-    - This preliminary image simply wraps the cmdeploy process detailed in the :doc:`getting_started` instructions in a full Debian-systemd image with r/w access to `/sys/fs`
-    - Currently, the image has only been tested and built on amd64, though arm64 should theoretically work as well.
+    - Docker support is experimental, CI builds and tests the image automatically, but please report bugs.
+    - The image wraps the cmdeploy process detailed in the :doc:`getting_started` instructions in a Debian-systemd image with r/w access to `/sys/fs`
+    - Currently amd64-only (arm64 should work but is untested).
 
 
 Setup Preparation
@@ -21,7 +21,7 @@ steps. Please substitute it with your own domain.
     - Debian 12 through the `official install instructions <https://docs.docker.com/engine/install/debian/#install-using-the-repository>`_
     - Debian 13+ with `apt install docker docker-compose`
 
-   If you must use v1 (EOL since 2023), use `docker-compose` in the following and modify the `docker-compose.yaml` to use `privileged: true` instead of `cgroup: host`, though that will run give the container all priviledges.
+   If you must use v1 (EOL since 2023), use `docker-compose` in the following and modify the `docker-compose.yaml` to use `privileged: true` instead of `cgroup: host`, though that gives the container full privileges.
 
 2. Setup the initial DNS records.
    The following is an example in the familiar BIND zone file format with
@@ -105,21 +105,21 @@ You can test the installation with::
 You should check and extend your DNS records for better interoperability::
 
     # Show required DNS records
-    docker exec chatmail /opt/cmdeploy/bin/cmdeploy dns --ssh-host @local
+    docker exec chatmail cmdeploy dns --ssh-host @local
 
 You can check server status with::
 
-    docker exec chatmail /opt/cmdeploy/bin/cmdeploy status --ssh-host @local
+    docker exec chatmail cmdeploy status --ssh-host @local
 
-You can run some benchmarks (can also run from any machine with cmdeploy installed)
+You can run some benchmarks (can also run from any machine with cmdeploy installed)::
 
-    docker exec chatmail /opt/cmdeploy/bin/cmdeploy bench
+    docker exec chatmail cmdeploy bench
 
-You can run the test suite with
+You can run the test suite with::
 
-    docker exec chatmail /opt/cmdeploy/bin/cmdeploy test --ssh-host localhost
+    docker exec chatmail cmdeploy test --ssh-host localhost
 
-You can look at logs
+You can look at logs::
 
     docker exec chatmail journalctl -fu postfix@-
 
