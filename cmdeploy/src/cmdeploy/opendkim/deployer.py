@@ -35,12 +35,10 @@ class OpendkimDeployer(Deployer):
         self.remove_file("/etc/opendkim/screen.lua")
         self.remove_file("/etc/opendkim/final.lua")
 
-        files.directory(
-            path="/etc/opendkim",
-            user="opendkim",
-            group="opendkim",
+        self.ensure_directory(
+            "/etc/opendkim",
+            owner="opendkim",
             mode="750",
-            present=True,
         )
 
         self.put_template(
@@ -56,12 +54,10 @@ class OpendkimDeployer(Deployer):
             owner="opendkim",
             config={"domain_name": domain, "opendkim_selector": dkim_selector},
         )
-        files.directory(
-            path="/var/spool/postfix/opendkim",
-            user="opendkim",
-            group="opendkim",
+        self.ensure_directory(
+            "/var/spool/postfix/opendkim",
+            owner="opendkim",
             mode="750",
-            present=True,
         )
 
         if not host.get_fact(File, f"/etc/dkimkeys/{dkim_selector}.private"):

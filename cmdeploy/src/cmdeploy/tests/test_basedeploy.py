@@ -147,19 +147,27 @@ def test_ensure_line():
 
     with patch("cmdeploy.basedeploy.files.line", return_value=mock_res) as mock_line:
         # Regular file line
-        deployer.ensure_line("test line", "/etc/foo.conf", "MY_LINE=1")
+        deployer.ensure_line("/etc/foo.conf", "MY_LINE=1")
         mock_line.assert_called_once_with(
-            name="test line", path="/etc/foo.conf", line="MY_LINE=1"
+            name="Ensure line in /etc/foo.conf", path="/etc/foo.conf", line="MY_LINE=1"
         )
         assert deployer.need_restart is True
         assert deployer.daemon_reload is False
+
+        # Test default name
+        mock_line.reset_mock()
+        deployer.ensure_line("/etc/foo.conf", "MY_LINE=2")
+        mock_line.assert_called_once_with(
+            name="Ensure line in /etc/foo.conf", path="/etc/foo.conf", line="MY_LINE=2"
+        )
 
         # Reset state
         deployer.need_restart = False
 
         # Systemd unit file line (unlikely but possible)
+        # Systemd unit file line (unlikely but possible)
         mock_line.reset_mock()
-        deployer.ensure_line("test line", "/etc/systemd/system/test.service", "MY_LINE=1")
+        deployer.ensure_line("/etc/systemd/system/test.service", "MY_LINE=1")
         assert deployer.need_restart is True
         assert deployer.daemon_reload is True
 
@@ -185,6 +193,54 @@ def test_untracked_changes():
         assert deployer.daemon_reload is False
 
     with patch("cmdeploy.basedeploy.files.line", return_value=mock_res):
-        deployer.ensure_line("test", "/etc/foo.conf", "LINE")
+        deployer.ensure_line("/etc/foo.conf", "LINE")
         assert deployer.need_restart is False
         assert deployer.daemon_reload is False
+
+    with patch("cmdeploy.basedeploy.files.directory", return_value=mock_res):
+        deployer.ensure_directory("/etc/foo")
+        assert deployer.need_restart is False
+        assert deployer.daemon_reload is False
+
+        deployer.remove_directory("/etc/foo")
+        assert deployer.need_restart is False
+        assert deployer.daemon_reload is False
+
+
+def test_directory_helpers():
+    deployer = Deployer()
+    mock_res = MagicMock()
+    mock_res.changed = True
+
+    with patch("cmdeploy.basedeploy.files.directory", return_value=mock_res) as mock_dir:
+        # 1. Test ensure_directory
+        deployer.ensure_directory("/etc/foo", owner="root")
+        mock_dir.assert_called_once_with(
+            name="Ensure directory /etc/foo",
+            path="/etc/foo",
+            user="root",
+            group="root",
+            mode="755",
+            present=True,
+        )
+        assert deployer.need_restart is True
+        assert deployer.daemon_reload is False
+
+        # Reset state
+        deployer.need_restart = False
+        mock_dir.reset_mock()
+
+        # 2. Test remove_directory
+        deployer.remove_directory("/etc/bar")
+        mock_dir.assert_called_once_with(
+            name="Remove directory /etc/bar", path="/etc/bar", present=False
+        )
+        assert deployer.need_restart is True
+        assert deployer.daemon_reload is False
+
+        # 3. Test systemd path
+        deployer.need_restart = False
+        mock_dir.reset_mock()
+        deployer.ensure_directory("/etc/systemd/system/foo.service.d")
+        assert deployer.need_restart is True
+        assert deployer.daemon_reload is True

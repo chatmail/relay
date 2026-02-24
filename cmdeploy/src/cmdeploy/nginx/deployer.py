@@ -1,5 +1,5 @@
 from chatmaild.config import Config
-from pyinfra.operations import apt, files, systemd
+from pyinfra.operations import apt, systemd
 
 from cmdeploy.basedeploy import (
     Deployer,
@@ -79,12 +79,7 @@ def _configure_nginx(deployer, config: Config, debug: bool = False):
     # install CGI newemail script
     #
     cgi_dir = "/usr/lib/cgi-bin"
-    files.directory(
-        name=f"Ensure {cgi_dir} exists",
-        path=cgi_dir,
-        user="root",
-        group="root",
-    )
+    deployer.ensure_directory(cgi_dir)
 
     deployer.put_file(
         src=get_resource("newemail.py", pkg="chatmaild").open("rb"),

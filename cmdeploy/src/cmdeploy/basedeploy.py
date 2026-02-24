@@ -190,8 +190,27 @@ class Deployer:
         res = files.file(name=f"Remove {dest}", path=dest, present=False)
         return self._update_restart_signals(dest, res)
 
-    def ensure_line(self, name, path, line, **kwargs):
+    def ensure_line(self, path, line, **kwargs):
+        name = kwargs.pop("name", f"Ensure line in {path}")
         res = files.line(name=name, path=path, line=line, **kwargs)
+        return self._update_restart_signals(path, res)
+
+    def ensure_directory(self, path, owner="root", mode="755", **kwargs):
+        name = kwargs.pop("name", f"Ensure directory {path}")
+        res = files.directory(
+            name=name,
+            path=path,
+            user=owner,
+            group=owner,
+            mode=mode,
+            present=True,
+            **kwargs,
+        )
+        return self._update_restart_signals(path, res)
+
+    def remove_directory(self, path, **kwargs):
+        name = kwargs.pop("name", f"Remove directory {path}")
+        res = files.directory(name=name, path=path, present=False, **kwargs)
         return self._update_restart_signals(path, res)
 
     def _update_restart_signals(self, path, res):
