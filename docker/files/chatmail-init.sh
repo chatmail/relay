@@ -58,7 +58,12 @@ else
     echo "[DEBUG] Listening ports before deploy:"
     ss -lptn | while IFS= read -r line; do echo "  $line"; done
     export CMDEPLOY_STAGES="${CMDEPLOY_STAGES:-configure,activate}"
-    $CMDEPLOY run --config "$CHATMAIL_INI" --ssh-host @local
+    # Skip DNS check when MAIL_DOMAIN is a bare IP address
+    SKIP_DNS=""
+    if [[ "$MAIL_DOMAIN" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] || [[ "$MAIL_DOMAIN" =~ : ]]; then
+        SKIP_DNS="--skip-dns-check"
+    fi
+    $CMDEPLOY run --config "$CHATMAIL_INI" --ssh-host @local $SKIP_DNS
     echo "$current_fp" > "$FINGERPRINT_FILE"
 fi
 
