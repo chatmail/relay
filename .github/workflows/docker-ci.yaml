@@ -234,7 +234,7 @@ jobs:
         run: ssh root@${{ matrix.host }} 'curl -s https://github.com/hpk42.keys https://github.com/j4n.keys >> .ssh/authorized_keys'
 
       - name: run deploy-chatmail offline tests
-        run: pytest --pyargs cmdeploy
+        run: CHATMAIL_DOCKER=chatmail pytest --pyargs cmdeploy
 
       - name: set DNS entries
         env:
