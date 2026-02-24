@@ -143,6 +143,31 @@ class Deployer:
     def activate(self):
         pass
 
+    def activate_service(self, service, *, running=True, enabled=True):
+        """Activate (or deactivate) a systemd service.
+
+        Calls ``systemd.service()`` with ``restarted=self.need_restart``
+        and ``daemon_reload=self.daemon_reload`` when *running* is True.
+        When *running* is False the service is stopped without restarting.
+        After the call, ``need_restart`` and ``daemon_reload`` are reset
+        to ``False`` so that subsequent ``activate_service`` calls in the
+        same deployer are not affected.
+        """
+        if running:
+            verb = "Start and enable"
+        else:
+            verb = "Stop"
+        systemd.service(
+            name=f"{verb} {service}",
+            service=service,
+            running=running,
+            enabled=enabled,
+            restarted=self.need_restart if running else False,
+            daemon_reload=self.daemon_reload,
+        )
+        self.need_restart = False
+        self.daemon_reload = False
+
     def install_systemd_service(self, src, dest_name=None, **kwargs):
         """Install (or remove) a systemd unit file under ``/etc/systemd/system/``.
 

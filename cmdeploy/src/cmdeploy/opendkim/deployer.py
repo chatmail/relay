@@ -4,7 +4,7 @@ Installs OpenDKIM
 
 from pyinfra import host
 from pyinfra.facts.files import File
-from pyinfra.operations import apt, files, server, systemd
+from pyinfra.operations import apt, server
 
 from cmdeploy.basedeploy import Deployer
 
@@ -86,12 +86,4 @@ class OpendkimDeployer(Deployer):
         )
 
     def activate(self):
-        systemd.service(
-            name="Start and enable OpenDKIM",
-            service="opendkim.service",
-            running=True,
-            enabled=True,
-            daemon_reload=self.daemon_reload,
-            restarted=self.need_restart,
-        )
-        self.need_restart = False
+        self.activate_service("opendkim.service")

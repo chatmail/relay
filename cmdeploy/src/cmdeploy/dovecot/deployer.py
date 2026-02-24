@@ -4,7 +4,7 @@ import urllib.request
 from pyinfra import host
 from pyinfra.facts.server import Arch, Sysctl
 from pyinfra.facts.systemd import SystemdEnabled
-from pyinfra.operations import apt, files, server, systemd
+from pyinfra.operations import apt, files, server
 
 from cmdeploy.basedeploy import (
     Deployer,
@@ -66,19 +66,10 @@ class DovecotDeployer(Deployer):
     def activate(self):
         activate_remote_units(self.units, daemon_reload=self.daemon_reload)
 
-        restart = False if self.disable_mail else self.need_restart
-
-        systemd.service(
-            name="Disable dovecot for now"
-            if self.disable_mail
-            else "Start and enable Dovecot",
-            service="dovecot.service",
-            running=False if self.disable_mail else True,
-            enabled=False if self.disable_mail else True,
-            restarted=restart,
-            daemon_reload=self.daemon_reload,
+        active = not self.disable_mail
+        self.activate_service(
+            "dovecot.service", running=active, enabled=active,
         )
-        self.need_restart = False
 
 
 def _pick_url(primary, fallback):

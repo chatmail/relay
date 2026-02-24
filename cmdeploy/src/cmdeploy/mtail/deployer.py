@@ -1,5 +1,5 @@
 from pyinfra import facts, host
-from pyinfra.operations import apt, server, systemd
+from pyinfra.operations import apt, server
 
 from cmdeploy.basedeploy import Deployer
 
@@ -43,11 +43,5 @@ class MtailDeployer(Deployer):
         self.put_file("mtail/delivered_mail.mtail", "/etc/mtail/delivered_mail.mtail")
 
     def activate(self):
-        systemd.service(
-            name="Start and enable mtail",
-            service="mtail.service",
-            running=bool(self.mtail_address),
-            enabled=bool(self.mtail_address),
-            restarted=self.need_restart,
-        )
-        self.need_restart = False
+        active = bool(self.mtail_address)
+        self.activate_service("mtail.service", running=active, enabled=active)

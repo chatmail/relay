@@ -299,3 +299,68 @@ def test_install_systemd_service():
             dest_name="acmetool-reconcile.timer",
         )
         assert mock_put.call_args.kwargs["dest"] == "/etc/systemd/system/acmetool-reconcile.timer"
+
+
+def test_activate_service():
+    deployer = Deployer()
+
+    with patch("cmdeploy.basedeploy.systemd.service") as mock_svc:
+        # 1. Basic activate: running=True, need_restart triggers restarted
+        deployer.need_restart = True
+        deployer.daemon_reload = True
+        deployer.activate_service("nginx.service")
+        mock_svc.assert_called_once_with(
+            name="Start and enable nginx.service",
+            service="nginx.service",
+            running=True,
+            enabled=True,
+            restarted=True,
+            daemon_reload=True,
+        )
+        # Flags are reset after the call
+        assert deployer.need_restart is False
+        assert deployer.daemon_reload is False
+
+    with patch("cmdeploy.basedeploy.systemd.service") as mock_svc:
+        # 2. Stop a service: running=False suppresses restarted
+        deployer.need_restart = True
+        deployer.daemon_reload = True
+        deployer.activate_service(
+            "mta-sts-daemon.service", running=False, enabled=False,
+        )
+        mock_svc.assert_called_once_with(
+            name="Stop mta-sts-daemon.service",
+            service="mta-sts-daemon.service",
+            running=False,
+            enabled=False,
+            restarted=False,
+            daemon_reload=True,
+        )
+        assert deployer.need_restart is False
+        assert deployer.daemon_reload is False
+
+    with patch("cmdeploy.basedeploy.systemd.service") as mock_svc:
+        # 3. No-change case: need_restart=False means restarted=False
+        deployer.need_restart = False
+        deployer.daemon_reload = False
+        deployer.activate_service("opendkim.service")
+        mock_svc.assert_called_once_with(
+            name="Start and enable opendkim.service",
+            service="opendkim.service",
+            running=True,
+            enabled=True,
+            restarted=False,
+            daemon_reload=False,
+        )
+
+    with patch("cmdeploy.basedeploy.systemd.service") as mock_svc:
+        # 4. Multiple calls: flags reset after the first call
+        deployer.need_restart = True
+        deployer.daemon_reload = True
+        deployer.activate_service("chatmaild.service")
+        deployer.activate_service("chatmaild-metadata.service")
+        # Second call should have restarted=False, daemon_reload=False
+        assert mock_svc.call_count == 2
+        second_call = mock_svc.call_args_list[1]
+        assert second_call.kwargs["restarted"] is False
+        assert second_call.kwargs["daemon_reload"] is False

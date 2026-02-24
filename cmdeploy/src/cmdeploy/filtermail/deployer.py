@@ -1,5 +1,5 @@
 from pyinfra import facts, host
-from pyinfra.operations import files, systemd
+from pyinfra.operations import files
 
 from cmdeploy.basedeploy import Deployer
 
@@ -34,12 +34,4 @@ class FiltermailDeployer(Deployer):
 
     def activate(self):
         for service in self.services:
-            systemd.service(
-                name=f"Start and enable {service}",
-                service=f"{service}.service",
-                running=True,
-                enabled=True,
-                restarted=self.need_restart,
-                daemon_reload=self.daemon_reload,
-            )
-        self.need_restart = False
+            self.activate_service(f"{service}.service")
