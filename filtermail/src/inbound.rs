@@ -35,8 +35,6 @@ impl SmtpHandler for IncomingBeforeQueueHandler {
     }
 
     async fn check_data(&self, envelope: &Envelope) -> Result<(), String> {
-        log::debug!("Processing DATA message from {}", envelope.mail_from);
-
         let message = match parse_mail(&envelope.data) {
             Ok(m) => m,
             Err(e) => return Err(format!("500 Failed to parse message: {}", e)),
@@ -52,6 +50,8 @@ impl SmtpHandler for IncomingBeforeQueueHandler {
         let Some(from_addr) = extract_address(&from_header) else {
             return Err(format!("500 Invalid FROM header: {from_header}"));
         };
+
+        log::debug!("Processing DATA message from {from_addr}");
 
         let from_domain = AddressDomain::from_str(&from_addr).map_err(|e| e.smtp_response())?;
 
@@ -108,7 +108,7 @@ impl SmtpHandler for IncomingBeforeQueueHandler {
 
         for recipient in &envelope.rcpt_to {
             if !self.config.is_cleartext_ok(recipient) {
-                log::warn!("Rejected unencrypted mail from: {}", envelope.mail_from);
+                log::warn!("Rejected unencrypted mail from: {from_addr}");
                 return Err(ENCRYPTION_NEEDED_523.to_string());
             }
         }

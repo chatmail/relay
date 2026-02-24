@@ -56,8 +56,6 @@ impl SmtpHandler for OutgoingBeforeQueueHandler {
     }
 
     async fn check_data(&self, envelope: &Envelope) -> Result<(), String> {
-        log::debug!("Processing DATA message from {}", envelope.mail_from);
-
         let message = match parse_mail(&envelope.data) {
             Ok(m) => m,
             Err(e) => return Err(format!("500 Failed to parse message: {}", e)),
@@ -75,6 +73,8 @@ impl SmtpHandler for OutgoingBeforeQueueHandler {
         let from_addr = extract_address(&from_header)
             .ok_or(format!("500 Invalid FROM header: {from_header}"))?;
 
+        log::debug!("Processing DATA message from {from_addr}");
+
         if !envelope.mail_from.eq_ignore_ascii_case(&from_addr) {
             return Err(format!(
                 "500 Invalid FROM <{}> for <{}>",
@@ -91,18 +91,14 @@ impl SmtpHandler for OutgoingBeforeQueueHandler {
         log::info!("Outgoing: Filtering unencrypted mail.");
 
         // Allow passthrough senders
-        if self
-            .config
-            .passthrough_senders
-            .contains(&envelope.mail_from)
-        {
+        if self.config.passthrough_senders.contains(&from_addr) {
             return Ok(());
         }
 
         // Allow self-sent Autocrypt Setup Message
         if envelope.rcpt_to.len() == 1
             && let Some(rcpt_to) = envelope.rcpt_to.first()
-            && *rcpt_to == envelope.mail_from
+            && *rcpt_to == from_addr
         {
             let subject = message
                 .headers
@@ -115,7 +111,7 @@ impl SmtpHandler for OutgoingBeforeQueueHandler {
 
         for recipient in &envelope.rcpt_to {
             if !recipient_matches_passthrough(recipient, &self.config.passthrough_recipients) {
-                log::warn!("Rejected unencrypted mail from: {}", envelope.mail_from);
+                log::warn!("Rejected unencrypted mail from: {from_addr}");
                 return Err(ENCRYPTION_NEEDED_523.to_string());
             }
         }
