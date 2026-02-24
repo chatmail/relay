@@ -1,10 +1,7 @@
 from pyinfra import facts, host
-from pyinfra.operations import apt, files, server, systemd
+from pyinfra.operations import apt, server, systemd
 
-from cmdeploy.basedeploy import (
-    Deployer,
-    get_resource,
-)
+from cmdeploy.basedeploy import Deployer
 
 
 class MtailDeployer(Deployer):
@@ -37,25 +34,13 @@ class MtailDeployer(Deployer):
     def configure(self):
         # Using our own systemd unit instead of `/usr/lib/systemd/system/mtail.service`.
         # This allows to read from journalctl instead of log files.
-        files.template(
-            src=get_resource("mtail/mtail.service.j2"),
-            dest="/etc/systemd/system/mtail.service",
-            user="root",
-            group="root",
-            mode="644",
+        self.put_template(
+            "mtail/mtail.service.j2",
+            "/etc/systemd/system/mtail.service",
             address=self.mtail_address or "127.0.0.1",
             port=3903,
         )
-
-        mtail_conf = files.put(
-            name="Mtail configuration",
-            src=get_resource("mtail/delivered_mail.mtail"),
-            dest="/etc/mtail/delivered_mail.mtail",
-            user="root",
-            group="root",
-            mode="644",
-        )
-        self.need_restart = mtail_conf.changed
+        self.put_file("mtail/delivered_mail.mtail", "/etc/mtail/delivered_mail.mtail")
 
     def activate(self):
         systemd.service(

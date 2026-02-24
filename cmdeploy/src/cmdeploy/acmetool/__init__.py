@@ -1,12 +1,7 @@
-import importlib.resources
-import io
 
-from pyinfra.operations import apt, files, server, systemd
+from pyinfra.operations import apt, server, systemd
 
 from ..basedeploy import Deployer
-
-_acmetool_res = importlib.resources.files("cmdeploy.tls.acmetool")
-_external_res = importlib.resources.files("cmdeploy.tls.external")
 
 
 class AcmetoolDeployer(Deployer):
@@ -17,30 +12,18 @@ class AcmetoolDeployer(Deployer):
         self.need_restart_reconcile_service = False
         self.need_restart_reconcile_timer = False
 
-    def remove_legacy_files(self):
-        files.file(
-            name="Remove old acmetool cronjob",
-            path="/etc/cron.d/acmetool",
-            present=False,
-        )
-        files.file(
-            name="Remove acmetool hook from wrong location",
-            path="/usr/lib/acme/hooks/nginx",
-            present=False,
-        )
-
     def install(self):
-        self.remove_legacy_files()
         apt.packages(
             name="Install acmetool",
             packages=["acmetool"],
         )
+
+        self.remove_file("/etc/cron.d/acmetool")
+
         self.put_file(
-            name="Deploy acmetool hook",
-            dest="/etc/acme/hooks/nginx",
-            src=_acmetool_res.joinpath("acmetool.hook").open("rb"),
-            executable=True,
+            "acmetool/acmetool.hook", "/etc/acme/hooks/nginx", executable=True
         )
+        self.remove_file("/usr/lib/acme/hooks/nginx")
 
     def configure(self):
         server.shell(
@@ -49,37 +32,22 @@ class AcmetoolDeployer(Deployer):
         )
 
         setup_targets = [
-            (
-                "Setup acmetool responses",
-                "response-file.yaml.j2",
-                "/var/lib/acme/conf/responses",
-            ),
-            (
-                "Setup acmetool target",
-                "target.yaml.j2",
-                "/var/lib/acme/conf/target",
-            ),
-            (
-                f"Setup acmetool desired domains for {self.domains[0]}",
-                "desired.yaml.j2",
-                f"/var/lib/acme/desired/{self.domains[0]}",
-            ),
+            ("response-file.yaml.j2", "/var/lib/acme/conf/responses"),
+            ("target.yaml.j2", "/var/lib/acme/conf/target"),
+            ("desired.yaml.j2", f"/var/lib/acme/desired/{self.domains[0]}"),
         ]
 
-        for name, src, dest in setup_targets:
+        for src, dest in setup_targets:
             self.put_template(
-                name=name,
-                src=_acmetool_res.joinpath(src),
-                dest=dest,
+                f"acmetool/{src}",
+                dest,
                 email=self.email,
                 domains=self.domains,
             )
 
         for basename, _, _ in self.services:
             res = self.put_file(
-                name=f"Setup {basename}",
-                src=_acmetool_res.joinpath(basename),
-                dest=f"/etc/systemd/system/{basename}",
+                f"acmetool/{basename}", f"/etc/systemd/system/{basename}"
             )
             self.service_changed[basename] = res.changed
 

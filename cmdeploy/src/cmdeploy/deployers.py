@@ -25,7 +25,6 @@ from .basedeploy import (
     activate_remote_units,
     blocked_service_startup,
     configure_remote_units,
-    get_resource,
     has_systemd,
     is_in_container,
 )
@@ -147,7 +146,6 @@ def _configure_remote_venv_with_chatmaild(config) -> None:
 class UnboundDeployer(Deployer):
     def __init__(self, config):
         self.config = config
-        self.need_restart = False
 
     def install(self):
         # On an IPv4-only system, if unbound is started but not configured,
@@ -198,19 +196,12 @@ class UnboundDeployer(Deployer):
                 group="root",
                 mode="755",
             )
-            conf = files.put(
-                src=get_resource("unbound/unbound.conf.j2"),
-                dest="/etc/unbound/unbound.conf.d/chatmail.conf",
-                user="root",
-                group="root",
-                mode="644",
+            self.put_template(
+                "unbound/unbound.conf.j2",
+                "/etc/unbound/unbound.conf.d/chatmail.conf",
             )
         else:
-            conf = files.file(
-                path="/etc/unbound/unbound.conf.d/chatmail.conf",
-                present=False,
-            )
-        self.need_restart |= conf.changed
+            self.remove_file("/etc/unbound/unbound.conf.d/chatmail.conf")
 
     def activate(self):
         server.shell(
@@ -232,9 +223,9 @@ class UnboundDeployer(Deployer):
 class MtastsDeployer(Deployer):
     def configure(self):
         # Remove configuration.
-        files.file("/etc/mta-sts-daemon.yml", present=False)
+        self.remove_file("/etc/mta-sts-daemon.yml")
         files.directory("/usr/local/lib/postfix-mta-sts-resolver", present=False)
-        files.file("/etc/systemd/system/mta-sts-daemon.service", present=False)
+        self.remove_file("/etc/systemd/system/mta-sts-daemon.service")
 
     def activate(self):
         systemd.service(
@@ -287,15 +278,12 @@ class LegacyRemoveDeployer(Deployer):
 
         # remove historic expunge script
         # which is now implemented through a systemd timer (chatmail-expire)
-        files.file(
-            path="/etc/cron.d/expunge",
-            present=False,
-        )
+        self.remove_file("/etc/cron.d/expunge")
 
         # Remove OBS repository key that is no longer used.
-        files.file("/etc/apt/keyrings/obs-home-deltachat.gpg", present=False)
-        files.line(
-            name="Remove DeltaChat OBS home repository from sources.list",
+        self.remove_file("/etc/apt/keyrings/obs-home-deltachat.gpg")
+        self.ensure_line(
+            name="Organize repository keys",
             path="/etc/apt/sources.list",
             line="deb [signed-by=/etc/apt/keyrings/obs-home-deltachat.gpg] https://download.opensuse.org/repositories/home:/deltachat/Debian_12/ ./",
             escape_regex_characters=True,
@@ -395,16 +383,8 @@ class IrohDeployer(Deployer):
             self.need_restart = True
 
     def configure(self):
-        self.put_file(
-            name="Upload iroh-relay systemd unit",
-            src=get_resource("iroh-relay.service"),
-            dest="/etc/systemd/system/iroh-relay.service",
-        )
-        self.put_file(
-            name="Upload iroh-relay config",
-            src=get_resource("iroh-relay.toml"),
-            dest="/etc/iroh-relay.toml",
-        )
+        self.put_file("iroh-relay.service", "/etc/systemd/system/iroh-relay.service")
+        self.put_file("iroh-relay.toml", "/etc/iroh-relay.toml")
 
     def activate(self):
         systemd.service(
@@ -419,11 +399,7 @@ class IrohDeployer(Deployer):
 
 class JournaldDeployer(Deployer):
     def configure(self):
-        self.put_file(
-            name="Configure journald",
-            src=get_resource("journald.conf"),
-            dest="/etc/systemd/journald.conf",
-        )
+        self.put_file("journald.conf", "/etc/systemd/journald.conf")
 
     def activate(self):
         systemd.service(

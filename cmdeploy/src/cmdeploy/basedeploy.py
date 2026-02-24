@@ -152,8 +152,12 @@ class Deployer:
     def activate(self):
         pass
 
-    def put_file(self, name, dest, src=None, executable=False, owner="root"):
+    def put_file(self, src, dest, executable=False):
         """Upload a file to *dest*, or remove it when the deployer is disabled."""
+        if isinstance(src, str):
+            src = get_resource(src)
+        verb = "Upload" if self.enabled else "Remove"
+        name = f"{verb} {dest}"
         if self.enabled:
             mode = "755" if executable else "644"
             res = files.put(
@@ -162,24 +166,34 @@ class Deployer:
         else:
             res = files.file(name=name, path=dest, present=False)
 
+        return self._update_restart_signals(dest, res)
+
+    def put_template(self, src, dest, owner="root", **kwargs):
+        if isinstance(src, str):
+            src = get_resource(src)
+        res = files.template(
+            name=f"Upload {dest}",
+            src=src,
+            dest=dest,
+            user=owner,
+            group=owner,
+            mode="644",
+            **kwargs,
+        )
+
+        return self._update_restart_signals(dest, res)
+
+    def remove_file(self, dest):
+        res = files.file(name=f"Remove {dest}", path=dest, present=False)
+        return self._update_restart_signals(dest, res)
+
+    def ensure_line(self, name, path, line, **kwargs):
+        res = files.line(name=name, path=path, line=line, **kwargs)
+        return self._update_restart_signals(path, res)
+
+    def _update_restart_signals(self, path, res):
         if res.changed:
             self.need_restart = True
-        return res
-
-    def put_template(self, name, src, dest, owner="root", mode="644", **kwargs):
-        if self.enabled:
-            res = files.template(
-                name=name,
-                src=src,
-                dest=dest,
-                user=owner,
-                group=owner,
-                mode="644",
-                **kwargs,
-            )
-        else:
-            res = files.file(name=name, path=dest, present=False)
-
-        if res.changed:
-            self.need_restart = True
+            if str(path).startswith("/etc/systemd/system/"):
+                self.daemon_reload = True
         return res

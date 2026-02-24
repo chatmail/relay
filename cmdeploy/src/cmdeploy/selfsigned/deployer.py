@@ -1,12 +1,8 @@
-import importlib.resources
 import shlex
 
-from pyinfra.operations import files, server
+from pyinfra.operations import server
 
 from ..basedeploy import Deployer
-
-_acmetool_res = importlib.resources.files("cmdeploy.tls.acmetool")
-_external_res = importlib.resources.files("cmdeploy.tls.external")
 
 
 def openssl_selfsigned_args(domain, cert_path, key_path, days=36500):
@@ -51,16 +47,8 @@ class SelfSignedTlsDeployer(Deployer):
                 commands=[f"[ -f {self.cert_path} ] || {cmd}"],
             )
         else:
-            files.file(
-                name="Remove self-signed TLS certificate",
-                path=self.cert_path,
-                present=False,
-            )
-            files.file(
-                name="Remove self-signed TLS private key",
-                path=self.key_path,
-                present=False,
-            )
+            self.remove_file(self.cert_path)
+            self.remove_file(self.key_path)
 
     def activate(self):
         pass
