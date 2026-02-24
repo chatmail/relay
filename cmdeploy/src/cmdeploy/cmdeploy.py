@@ -93,7 +93,9 @@ def run_cmd(args, out):
     strict_tls = args.config.tls_cert_mode == "acme"
     if not args.dns_check_disabled:
         remote_data = dns.get_initial_remote_data(sshexec, args.config.mail_domain)
-        if not dns.check_initial_remote_data(remote_data, strict_tls=strict_tls, print=out.red):
+        if not dns.check_initial_remote_data(
+            remote_data, strict_tls=strict_tls, print=out.red
+        ):
             return 1
 
     env = os.environ.copy()

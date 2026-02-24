@@ -106,22 +106,28 @@ class Deployment:
 class Deployer:
     """Base class for deployers that manage remote service configuration.
 
-    Deployers go through three stages: ``install``, ``configure``, and
-    ``activate``.  During ``configure``, use :meth:`put_file` and
-    :meth:`put_template` to upload files — they automatically set
-    ``need_restart = True`` when a file changes on the remote host.
-    The ``activate`` stage can then inspect ``need_restart`` to decide
-    whether to restart or reload the managed service.
+    Deployers go through three stages: ``install``, ``configure``, and ``activate``.
+    During ``configure``, use :meth:`put_file` and :meth:`put_template` to upload files.
+    When a file changes on the remote host:
+    - ``self.need_restart`` is set to ``True``, signaling that the managed service
+      should be restarted during the ``activate`` stage.
+    - ``self.daemon_reload`` is set to ``True`` if the file is a systemd unit or
+      drop-in (detected via the ``/etc/systemd/system/`` prefix), signaling that
+      a ``systemctl daemon-reload`` is required.
 
-    Deployers with an ``enabled`` flag (default ``True``) support a
-    disabled mode: when ``enabled`` is ``False``, the ``put_*`` methods
-    remove the target file from the remote host instead of uploading it,
-    allowing clean un-deployment of optional components.
+    Deployers with an ``enabled`` flag (default ``True``) support a disabled mode:
+    when ``enabled`` is ``False``, the ``put_*`` methods remove the target file
+    from the remote host instead of uploading it, allowing clean un-deployment of optional components.
     """
 
-    enabled = True
-    need_restart = False
-    daemon_reload = False
+    def __init__(self):
+        #: If True (default), :meth:`put_file` and :meth:`put_template` (the put helpers) will upload files.
+        #: If False, they ensure the target file is removed.
+        self.enabled = True
+        #: Set to True if the remote service needs a restart.
+        self.need_restart = False
+        #: Set to True if systemd units/drop-ins changed and need a daemon-reload.
+        self.daemon_reload = False
 
     def install(self):
         pass
@@ -132,15 +138,16 @@ class Deployer:
     def activate(self):
         pass
 
-    def put_file(
-        self, *, name, dest, src=None, executable=False, owner="root"
-    ):
+    def put_file(self, src, dest, *, executable=False, owner="root"):
         """Upload a file to *dest*, or remove it when the deployer is disabled.
 
-        Sets ``need_restart = True`` when the remote file changes.
-        When ``self.enabled`` is ``False``, the file at *dest* is removed
-        instead of uploaded.
+        *src* may be a resource path string (resolved via :func:`get_resource`),
+        a path-like, or a file-like object. Sets ``self.need_restart = True`` when the dst file changes.
         """
+        if isinstance(src, str):
+            src = get_resource(src)
+        verb = "Upload" if self.enabled else "Remove"
+        name = f"{verb} {dest}"
         if self.enabled:
             mode = "755" if executable else "644"
             res = files.put(
@@ -149,20 +156,19 @@ class Deployer:
         else:
             res = files.file(name=name, path=dest, present=False)
 
-        if res.changed:
-            self.need_restart = True
-        return res
+        return self._update_restart_signals(dest, res)
 
-    def put_template(
-        self, *, name, src, dest, owner="root", mode="644", **kwargs
-    ):
+    def put_template(self, src, dest, *, owner="root", mode="644", **kwargs):
         """Upload a Jinja2 template to *dest*, or remove it when disabled.
 
-        Sets ``need_restart = True`` when the rendered remote file changes.
-        When ``self.enabled`` is ``False``, the file at *dest* is removed
-        instead of uploaded.  Extra *kwargs* are passed to the template
-        as render context.
+        *src* may be a resource path string (resolved via :func:`get_resource`) or a path-like
+        object. Sets ``need_restart = True`` when the dst file changes. Extra *kwargs*
+        are passed as template render context.
         """
+        if isinstance(src, str):
+            src = get_resource(src)
+        verb = "Upload" if self.enabled else "Remove"
+        name = f"{verb} {dest}"
         if self.enabled:
             res = files.template(
                 name=name,
@@ -176,6 +182,28 @@ class Deployer:
         else:
             res = files.file(name=name, path=dest, present=False)
 
+        return self._update_restart_signals(dest, res)
+
+    def remove_file(self, dest):
+        """Ensure *dest* is removed from the remote host.
+
+        Sets ``need_restart = True`` and ``daemon_reload = True`` (if applicable)
+        when the file is actually removed.
+        """
+        res = files.file(name=f"Remove {dest}", path=dest, present=False)
+        return self._update_restart_signals(dest, res)
+
+    def ensure_line(self, name, path, line, **kwargs):
+        """Ensure a line is present or absent in a file.
+
+        Sets ``need_restart = True`` when the file changes.
+        """
+        res = files.line(name=name, path=path, line=line, **kwargs)
+        return self._update_restart_signals(path, res)
+
+    def _update_restart_signals(self, path, res):
         if res.changed:
             self.need_restart = True
+            if str(path).startswith("/etc/systemd/system/"):
+                self.daemon_reload = True
         return res

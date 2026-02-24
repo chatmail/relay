@@ -6,13 +6,14 @@ from pyinfra import host
 from pyinfra.facts.files import File
 from pyinfra.operations import apt, files, server, systemd
 
-from cmdeploy.basedeploy import Deployer, get_resource
+from cmdeploy.basedeploy import Deployer
 
 
 class OpendkimDeployer(Deployer):
     required_users = [("opendkim", None, ["opendkim"])]
 
     def __init__(self, mail_domain):
+        super().__init__()
         self.mail_domain = mail_domain
 
     def install(self):
@@ -25,29 +26,15 @@ class OpendkimDeployer(Deployer):
         domain = self.mail_domain
         dkim_selector = "opendkim"
         """Configures OpenDKIM"""
-        need_restart = False
 
-        main_config = files.template(
-            src=get_resource("opendkim/opendkim.conf"),
-            dest="/etc/opendkim.conf",
-            user="root",
-            group="root",
-            mode="644",
+        self.put_template(
+            "opendkim/opendkim.conf",
+            "/etc/opendkim.conf",
             config={"domain_name": domain, "opendkim_selector": dkim_selector},
         )
-        need_restart |= main_config.changed
 
-        screen_script = files.file(
-            path="/etc/opendkim/screen.lua",
-            present=False,
-        )
-        need_restart |= screen_script.changed
-
-        final_script = files.file(
-            path="/etc/opendkim/final.lua",
-            present=False,
-        )
-        need_restart |= final_script.changed
+        self.remove_file("/etc/opendkim/screen.lua")
+        self.remove_file("/etc/opendkim/final.lua")
 
         files.directory(
             name="Add opendkim directory to /etc",
@@ -58,25 +45,19 @@ class OpendkimDeployer(Deployer):
             present=True,
         )
 
-        keytable = files.template(
-            src=get_resource("opendkim/KeyTable"),
-            dest="/etc/dkimkeys/KeyTable",
-            user="opendkim",
-            group="opendkim",
-            mode="644",
+        self.put_template(
+            "opendkim/KeyTable",
+            "/etc/dkimkeys/KeyTable",
+            owner="opendkim",
             config={"domain_name": domain, "opendkim_selector": dkim_selector},
         )
-        need_restart |= keytable.changed
 
-        signing_table = files.template(
-            src=get_resource("opendkim/SigningTable"),
-            dest="/etc/dkimkeys/SigningTable",
-            user="opendkim",
-            group="opendkim",
-            mode="644",
+        self.put_template(
+            "opendkim/SigningTable",
+            "/etc/dkimkeys/SigningTable",
+            owner="opendkim",
             config={"domain_name": domain, "opendkim_selector": dkim_selector},
         )
-        need_restart |= signing_table.changed
         files.directory(
             name="Add opendkim socket directory to /var/spool/postfix",
             path="/var/spool/postfix/opendkim",
@@ -96,12 +77,10 @@ class OpendkimDeployer(Deployer):
                 _su_user="opendkim",
             )
 
-        service_file = files.put(
-            name="Configure opendkim to restart once a day",
-            src=get_resource("opendkim/systemd.conf"),
-            dest="/etc/systemd/system/opendkim.service.d/10-prevent-memory-leak.conf",
+        self.put_file(
+            "opendkim/systemd.conf",
+            "/etc/systemd/system/opendkim.service.d/10-prevent-memory-leak.conf",
         )
-        need_restart |= service_file.changed
 
         files.file(
             name="chown opendkim: /etc/dkimkeys/opendkim.private",
@@ -110,15 +89,13 @@ class OpendkimDeployer(Deployer):
             group="opendkim",
         )
 
-        self.need_restart = need_restart
-
     def activate(self):
         systemd.service(
             name="Start and enable OpenDKIM",
             service="opendkim.service",
             running=True,
             enabled=True,
-            daemon_reload=self.need_restart,
+            daemon_reload=self.daemon_reload,
             restarted=self.need_restart,
         )
         self.need_restart = False

@@ -5,18 +5,13 @@ Each deployer handles a different certificate management strategy
 so that inactive modes can cleanly un-deploy their resources.
 """
 
-import importlib.resources
-import io
 import shlex
 
 from pyinfra import host
 from pyinfra.facts.files import File
-from pyinfra.operations import apt, files, server, systemd
+from pyinfra.operations import apt, server, systemd
 
 from ..basedeploy import Deployer
-
-_acmetool_res = importlib.resources.files("cmdeploy.tls.acmetool")
-_external_res = importlib.resources.files("cmdeploy.tls.external")
 
 # ---------------------------------------------------------------------------
 #  ACME (Let's Encrypt via acmetool)
@@ -32,22 +27,15 @@ class AcmetoolDeployer(Deployer):
     ]
 
     def __init__(self, mode, email, domains):
+        super().__init__()
         self.enabled = mode == "acme"
         self.domains = domains
         self.email = email
         self.service_changed = {s[0]: False for s in self.services}
 
     def remove_legacy_files(self):
-        files.file(
-            name="Remove old acmetool cronjob",
-            path="/etc/cron.d/acmetool",
-            present=False,
-        )
-        files.file(
-            name="Remove acmetool hook from wrong location",
-            path="/usr/lib/acme/hooks/nginx",
-            present=False,
-        )
+        self.remove_file("/etc/cron.d/acmetool")
+        self.remove_file("/usr/lib/acme/hooks/nginx")
 
     def install(self):
         self.remove_legacy_files()
@@ -57,10 +45,7 @@ class AcmetoolDeployer(Deployer):
             present=self.enabled,
         )
         self.put_file(
-            name="Deploy acmetool hook",
-            dest="/etc/acme/hooks/nginx",
-            src=_acmetool_res.joinpath("acmetool.hook").open("rb"),
-            executable=True,
+            "tls/acmetool/acmetool.hook", "/etc/acme/hooks/nginx", executable=True
         )
 
     def configure(self):
@@ -71,37 +56,22 @@ class AcmetoolDeployer(Deployer):
             )
 
         setup_targets = [
-            (
-                "Setup acmetool responses",
-                "response-file.yaml.j2",
-                "/var/lib/acme/conf/responses",
-            ),
-            (
-                "Setup acmetool target",
-                "target.yaml.j2",
-                "/var/lib/acme/conf/target",
-            ),
-            (
-                f"Setup acmetool desired domains for {self.domains[0]}",
-                "desired.yaml.j2",
-                f"/var/lib/acme/desired/{self.domains[0]}",
-            ),
+            ("response-file.yaml.j2", "/var/lib/acme/conf/responses"),
+            ("target.yaml.j2", "/var/lib/acme/conf/target"),
+            ("desired.yaml.j2", f"/var/lib/acme/desired/{self.domains[0]}"),
         ]
 
-        for name, src, dest in setup_targets:
+        for src, dest in setup_targets:
             self.put_template(
-                name=name,
-                src=_acmetool_res.joinpath(src),
-                dest=dest,
+                f"tls/acmetool/{src}",
+                dest,
                 email=self.email,
                 domains=self.domains,
             )
 
         for basename, _, _ in self.services:
             res = self.put_file(
-                name=f"Setup {basename}",
-                src=_acmetool_res.joinpath(basename),
-                dest=f"/etc/systemd/system/{basename}",
+                f"tls/acmetool/{basename}", f"/etc/systemd/system/{basename}"
             )
             # Track if unit file changed so activate() knows to restart/reload.
             self.service_changed[basename] = res.changed
@@ -136,6 +106,7 @@ class ExternalTlsDeployer(Deployer):
     """Watches externally managed certificate files and reloads services."""
 
     def __init__(self, mode, cert_path, key_path):
+        super().__init__()
         self.enabled = mode == "external"
         self.cert_path = cert_path
         self.key_path = key_path
@@ -146,22 +117,14 @@ class ExternalTlsDeployer(Deployer):
                 if host.get_fact(File, path=path) is None:
                     raise Exception(f"External TLS file not found on server: {path}")
 
-            source = _external_res.joinpath("tls-cert-reload.path.f")
-            content = source.read_text().format(cert_path=self.cert_path).encode()
-            path_src = io.BytesIO(content)
-            service_src = _external_res.joinpath("tls-cert-reload.service")
-        else:
-            path_src = service_src = None
-
-        self.put_file(
-            name="Setup tls-cert-reload.path",
-            src=path_src,
-            dest="/etc/systemd/system/tls-cert-reload.path",
+        self.put_template(
+            "tls/external/tls-cert-reload.path.j2",
+            "/etc/systemd/system/tls-cert-reload.path",
+            cert_path=self.cert_path,
         )
         self.put_file(
-            name="Setup tls-cert-reload.service",
-            src=service_src,
-            dest="/etc/systemd/system/tls-cert-reload.service",
+            "tls/external/tls-cert-reload.service",
+            "/etc/systemd/system/tls-cert-reload.service",
         )
 
     def activate(self):
@@ -171,7 +134,7 @@ class ExternalTlsDeployer(Deployer):
             running=self.enabled,
             enabled=self.enabled,
             restarted=self.need_restart,
-            daemon_reload=self.need_restart,
+            daemon_reload=self.daemon_reload,
         )
         # No explicit reload needed here: dovecot/nginx read the cert
         # on startup, and the .path watcher handles live changes.
@@ -194,6 +157,7 @@ class SelfSignedTlsDeployer(Deployer):
     """Generates a self-signed TLS certificate for all chatmail endpoints."""
 
     def __init__(self, mode, mail_domain):
+        super().__init__()
         self.enabled = mode == "self"
         self.mail_domain = mail_domain
         self.cert_path = "/etc/ssl/certs/mailserver.pem"
@@ -202,13 +166,24 @@ class SelfSignedTlsDeployer(Deployer):
     def create_key_command(self):
         return shlex.join(
             [
-                "openssl", "req", "-x509",
-                "-newkey", "ec", "-pkeyopt", "ec_paramgen_curve:P-256",
-                "-noenc", "-days", "36500",
-                "-keyout", self.key_path,
-                "-out", self.cert_path,
-                "-subj", f"/CN={self.mail_domain}",
-                "-addext", "extendedKeyUsage=serverAuth,clientAuth",
+                "openssl",
+                "req",
+                "-x509",
+                "-newkey",
+                "ec",
+                "-pkeyopt",
+                "ec_paramgen_curve:P-256",
+                "-noenc",
+                "-days",
+                "36500",
+                "-keyout",
+                self.key_path,
+                "-out",
+                self.cert_path,
+                "-subj",
+                f"/CN={self.mail_domain}",
+                "-addext",
+                "extendedKeyUsage=serverAuth,clientAuth",
                 "-addext",
                 f"subjectAltName=DNS:{self.mail_domain},"
                 f"DNS:www.{self.mail_domain},"
@@ -224,16 +199,8 @@ class SelfSignedTlsDeployer(Deployer):
                 commands=[f"[ -f {self.cert_path} ] || {cmd}"],
             )
         else:
-            files.file(
-                name="Remove self-signed TLS certificate",
-                path=self.cert_path,
-                present=False,
-            )
-            files.file(
-                name="Remove self-signed TLS private key",
-                path=self.key_path,
-                present=False,
-            )
+            self.remove_file(self.cert_path)
+            self.remove_file(self.key_path)
 
     def activate(self):
         pass

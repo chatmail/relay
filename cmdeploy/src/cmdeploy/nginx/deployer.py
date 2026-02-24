@@ -9,6 +9,7 @@ from cmdeploy.basedeploy import (
 
 class NginxDeployer(Deployer):
     def __init__(self, config):
+        super().__init__()
         self.config = config
 
     def install(self):
@@ -44,10 +45,10 @@ class NginxDeployer(Deployer):
             packages=["nginx", "libnginx-mod-stream"],
         )
 
-        files.file("/usr/sbin/policy-rc.d", present=False)
+        self.remove_file("/usr/sbin/policy-rc.d")
 
     def configure(self):
-        self.need_restart = _configure_nginx(self.config)
+        _configure_nginx(self, self.config)
 
     def activate(self):
         systemd.service(
@@ -60,40 +61,27 @@ class NginxDeployer(Deployer):
         self.need_restart = False
 
 
-def _configure_nginx(config: Config, debug: bool = False) -> bool:
+def _configure_nginx(deployer, config: Config, debug: bool = False):
     """Configures nginx HTTP server."""
-    need_restart = False
 
-    main_config = files.template(
-        src=get_resource("nginx/nginx.conf.j2"),
-        dest="/etc/nginx/nginx.conf",
-        user="root",
-        group="root",
-        mode="644",
+    deployer.put_template(
+        "nginx/nginx.conf.j2",
+        "/etc/nginx/nginx.conf",
         config=config,
         disable_ipv6=config.disable_ipv6,
     )
-    need_restart |= main_config.changed
 
-    autoconfig = files.template(
-        src=get_resource("nginx/autoconfig.xml.j2"),
-        dest="/var/www/html/.well-known/autoconfig/mail/config-v1.1.xml",
-        user="root",
-        group="root",
-        mode="644",
+    deployer.put_template(
+        "nginx/autoconfig.xml.j2",
+        "/var/www/html/.well-known/autoconfig/mail/config-v1.1.xml",
         config=config,
     )
-    need_restart |= autoconfig.changed
 
-    mta_sts_config = files.template(
-        src=get_resource("nginx/mta-sts.txt.j2"),
-        dest="/var/www/html/.well-known/mta-sts.txt",
-        user="root",
-        group="root",
-        mode="644",
+    deployer.put_template(
+        "nginx/mta-sts.txt.j2",
+        "/var/www/html/.well-known/mta-sts.txt",
         config=config,
     )
-    need_restart |= mta_sts_config.changed
 
     # install CGI newemail script
     #
@@ -105,13 +93,12 @@ def _configure_nginx(config: Config, debug: bool = False) -> bool:
         group="root",
     )
 
+    # CGI scripts are loaded on each request, so an nginx restart
+    # is not needed when newemail.py changes — use files.put directly.
     files.put(
-        name="Upload cgi newemail.py script",
         src=get_resource("newemail.py", pkg="chatmaild").open("rb"),
         dest=f"{cgi_dir}/newemail.py",
         user="root",
         group="root",
         mode="755",
     )
-
-    return need_restart
