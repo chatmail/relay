@@ -41,6 +41,6 @@ class FiltermailDeployer(Deployer):
                 running=True,
                 enabled=True,
                 restarted=self.need_restart,
-                daemon_reload=True,
+                daemon_reload=self.daemon_reload,
             )
         self.need_restart = False

@@ -72,12 +72,11 @@ class DovecotDeployer(Deployer):
         )
 
     def configure(self):
-        configure_remote_units(self.config.mail_domain, self.units)
-
+        self.daemon_reload |= configure_remote_units(self.config.mail_domain, self.units)
         _configure_dovecot(self, self.config)
 
     def activate(self):
-        activate_remote_units(self.units)
+        activate_remote_units(self.units, daemon_reload=self.daemon_reload)
 
         # Detect stale binary: package installed but service still runs old (deleted) binary.
         if not self.disable_mail and not self.need_restart:

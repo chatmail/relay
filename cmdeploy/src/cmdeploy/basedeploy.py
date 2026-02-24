@@ -50,11 +50,12 @@ def get_resource(arg, pkg=__package__):
     return importlib.resources.files(pkg).joinpath(arg)
 
 
-def configure_remote_units(mail_domain, units) -> None:
+def configure_remote_units(mail_domain, units) -> bool:
     remote_base_dir = "/usr/local/lib/chatmaild"
     remote_venv_dir = f"{remote_base_dir}/venv"
     remote_chatmail_inipath = f"{remote_base_dir}/chatmail.ini"
     root_owned = dict(user="root", group="root", mode="644")
+    changed = False
 
     # install systemd units
     for fn in units:
@@ -70,15 +71,17 @@ def configure_remote_units(mail_domain, units) -> None:
         source_path = get_resource(f"service/{basename}.f")
         content = source_path.read_text().format(**params).encode()
 
-        files.put(
+        res = files.put(
             name=f"Upload {basename}",
             src=io.BytesIO(content),
             dest=f"/etc/systemd/system/{basename}",
             **root_owned,
         )
+        changed |= res.changed
+    return changed
 
 
-def activate_remote_units(units) -> None:
+def activate_remote_units(units, daemon_reload) -> None:
     # activate systemd units
     for fn in units:
         basename = fn if "." in fn else f"{fn}.service"
@@ -94,7 +97,7 @@ def activate_remote_units(units) -> None:
             running=enabled,
             enabled=enabled,
             restarted=enabled,
-            daemon_reload=True,
+            daemon_reload=daemon_reload,
         )
 
 

@@ -162,3 +162,29 @@ def test_ensure_line():
         deployer.ensure_line("test line", "/etc/systemd/system/test.service", "MY_LINE=1")
         assert deployer.need_restart is True
         assert deployer.daemon_reload is True
+
+
+def test_untracked_changes():
+    deployer = Deployer()
+    mock_res = MagicMock()
+    mock_res.changed = True
+
+    with patch("cmdeploy.basedeploy.files.put", return_value=mock_res):
+        deployer.put_file("foo.conf", "/etc/foo.conf")
+        assert deployer.need_restart is False
+        assert deployer.daemon_reload is False
+
+    with patch("cmdeploy.basedeploy.files.template", return_value=mock_res):
+        deployer.put_template("foo.j2", "/etc/foo.conf")
+        assert deployer.need_restart is False
+        assert deployer.daemon_reload is False
+
+    with patch("cmdeploy.basedeploy.files.file", return_value=mock_res):
+        deployer.remove_file("/etc/foo.conf")
+        assert deployer.need_restart is False
+        assert deployer.daemon_reload is False
+
+    with patch("cmdeploy.basedeploy.files.line", return_value=mock_res):
+        deployer.ensure_line("test", "/etc/foo.conf", "LINE")
+        assert deployer.need_restart is False
+        assert deployer.daemon_reload is False

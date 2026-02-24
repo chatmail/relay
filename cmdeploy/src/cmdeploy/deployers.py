@@ -231,7 +231,8 @@ class MtastsDeployer(Deployer):
         systemd.service(
             name="Stop MTA-STS daemon",
             service="mta-sts-daemon.service",
-            daemon_reload=True,
+            # daemon_reload is tracked via self.remove_file() in configure()
+            daemon_reload=self.daemon_reload,
             running=False,
             enabled=False,
         )
@@ -348,10 +349,10 @@ class TurnDeployer(Deployer):
             )
 
     def configure(self):
-        configure_remote_units(self.mail_domain, self.units)
+        self.daemon_reload |= configure_remote_units(self.mail_domain, self.units)
 
     def activate(self):
-        activate_remote_units(self.units)
+        activate_remote_units(self.units, daemon_reload=self.daemon_reload)
 
 
 class IrohDeployer(Deployer):
@@ -429,10 +430,12 @@ class ChatmailVenvDeployer(Deployer):
 
     def configure(self):
         _configure_remote_venv_with_chatmaild(self.config)
-        configure_remote_units(self.config.mail_domain, self.units)
+        self.daemon_reload |= configure_remote_units(
+            self.config.mail_domain, self.units
+        )
 
     def activate(self):
-        activate_remote_units(self.units)
+        activate_remote_units(self.units, daemon_reload=self.daemon_reload)
 
 
 class ChatmailDeployer(Deployer):
@@ -514,12 +517,7 @@ class GithashDeployer(Deployer):
             git_diff = subprocess.check_output(["git", "diff"]).decode()
         except Exception:
             git_diff = ""
-        files.put(
-            name="Upload chatmail relay git commit hash",
-            src=StringIO(git_hash + git_diff),
-            dest="/etc/chatmail-version",
-            mode="700",
-        )
+        self.put_file(src=StringIO(git_hash + git_diff), dest="/etc/chatmail-version")
 
 
 def get_tls_deployer(config, mail_domain):
