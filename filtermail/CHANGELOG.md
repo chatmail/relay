@@ -1,3 +1,11 @@
+## 0.5.1 - 2026-02-24
+
+### Bug Fixes
+
+- *(dkim)* Accept TXT records with no `v=` tag (#62)
+- *(smtp)* Properly handle bounce messages (#63)
+- *(dkim)* Accept TXT records with escaped quotes (#61)
+- *(logs)* Log `From` address instead of envelope `MAIL FROM`. (#66)
 ## 0.5.0 - 2026-02-20
 
 ### Bug Fixes
