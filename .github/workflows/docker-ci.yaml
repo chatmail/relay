@@ -124,9 +124,9 @@ jobs:
           echo "${{ secrets.STAGING_SSH_KEY }}" >> ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan ${HOST} > ~/.ssh/known_hosts
-          # save previous acme & dkim state
-          rsync -avz root@${HOST}:/var/lib/acme ${ACME_DIR} || true
-          rsync -avz root@${HOST}:/etc/dkimkeys ${DKIM_DIR} || true
+          # save previous acme & dkim state (Docker bind-mount paths)
+          rsync -avz root@${HOST}:/srv/chatmail/certs/ ${ACME_DIR}/ || true
+          rsync -avz root@${HOST}:/srv/chatmail/dkim/ ${DKIM_DIR}/ || true
           # store previous acme & dkim state on ns.testrun.org, if it contains useful certs
           if [ -f ${DKIM_DIR}/opendkim.private ]; then rsync -avz -e "ssh -o StrictHostKeyChecking=accept-new" ${DKIM_DIR} root@ns.testrun.org:/tmp/ || true; fi
           if [ "$(ls -A ${ACME_DIR}/certs 2>/dev/null)" ]; then rsync -avz -e "ssh -o StrictHostKeyChecking=accept-new" ${ACME_DIR} root@ns.testrun.org:/tmp/ || true; fi
@@ -197,20 +197,10 @@ jobs:
         run: |
           GHCR_IMAGE="${{ needs.build.outputs.image }}"
           rsync -avz --exclude='.git' --exclude='venv' --exclude='__pycache__' ./ root@${HOST}:/srv/chatmail/relay/
-          # Override: bind-mount data dirs + custom chatmail.ini + pre-built image
-          ssh root@${HOST} "cat > /srv/chatmail/relay/docker-compose.override.yaml << EOF
-          services:
-            chatmail:
-              image: ${GHCR_IMAGE}
-              volumes:
-                - /srv/chatmail/dkim:/etc/dkimkeys
-                - /srv/chatmail/certs:/var/lib/acme
-                - /srv/chatmail/chatmail.ini:/etc/chatmail/chatmail.ini
-          EOF"
           # Login to GHCR on VPS and pull pre-built image
           echo "${{ secrets.GITHUB_TOKEN }}" | ssh root@${HOST} 'docker login ghcr.io -u ${{ github.actor }} --password-stdin'
           ssh root@${HOST} "docker pull ${GHCR_IMAGE}"
-          ssh root@${HOST} "cd /srv/chatmail/relay && MAIL_DOMAIN=${HOST} docker compose up -d"
+          ssh root@${HOST} "cd /srv/chatmail/relay && CHATMAIL_IMAGE=${GHCR_IMAGE} MAIL_DOMAIN=${HOST} docker compose -f docker-compose.yaml -f docker/docker-compose.ci.yaml up -d"
 
       - name: wait for container to become healthy
         env:
@@ -241,10 +231,10 @@ jobs:
           HOST: ${{ matrix.host }}
           ZONE: ${{ matrix.zone_file }}
         run: |
-          ssh root@${HOST} chown opendkim:opendkim -R /srv/chatmail/dkim
+          ssh root@${HOST} 'docker exec chatmail chown opendkim:opendkim -R /etc/dkimkeys'
           # run cmdeploy dns inside the container
-          ssh root@${HOST} 'docker exec chatmail cmdeploy dns --ssh-host @local --zonefile /tmp/staging.zone --verbose'
-          ssh root@${HOST} 'docker cp chatmail:/tmp/staging.zone /tmp/staging.zone'
+          ssh root@${HOST} 'docker exec chatmail cmdeploy dns --ssh-host @local --zonefile /opt/chatmail/staging.zone --verbose'
+          ssh root@${HOST} 'docker cp chatmail:/opt/chatmail/staging.zone /tmp/staging.zone'
           scp root@${HOST}:/tmp/staging.zone staging-generated.zone
           cat staging-generated.zone >> .github/workflows/${ZONE}
           cat .github/workflows/${ZONE}
