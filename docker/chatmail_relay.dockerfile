@@ -74,14 +74,14 @@ ENV PATH="/opt/cmdeploy/bin:${PATH}"
 RUN ln -s /etc/chatmail/chatmail.ini /opt/chatmail/chatmail.ini
 
 ARG CHATMAIL_INIT_SERVICE_PATH=/lib/systemd/system/chatmail-init.service
-COPY ./docker/files/chatmail-init.service "$CHATMAIL_INIT_SERVICE_PATH"
+COPY ./docker/chatmail-init.service "$CHATMAIL_INIT_SERVICE_PATH"
 RUN ln -sf "$CHATMAIL_INIT_SERVICE_PATH" "/etc/systemd/system/multi-user.target.wants/chatmail-init.service"
 
 # Remove default nginx site config at build time (not in entrypoint)
 RUN rm -f /etc/nginx/sites-enabled/default
 
-COPY --chmod=555 ./docker/files/chatmail-init.sh /chatmail-init.sh
-COPY --chmod=555 ./docker/files/entrypoint.sh /entrypoint.sh
+COPY --chmod=555 ./docker/chatmail-init.sh /chatmail-init.sh
+COPY --chmod=555 ./docker/entrypoint.sh /entrypoint.sh
 
 HEALTHCHECK --interval=60s --timeout=10s --retries=3 \
   CMD systemctl is-active chatmail-metadata doveauth dovecot filtermail filtermail-incoming nginx postfix unbound || exit 1

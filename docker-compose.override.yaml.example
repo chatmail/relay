@@ -23,8 +23,8 @@ services:
       # - ./custom/www:/opt/chatmail-www
 
       ## Debug — mount scripts from the repo for live editing:
-      # - ./docker/files/chatmail-init.sh:/chatmail-init.sh
-      # - ./docker/files/entrypoint.sh:/entrypoint.sh
+      # - ./docker/chatmail-init.sh:/chatmail-init.sh
+      # - ./docker/entrypoint.sh:/entrypoint.sh
 
     # environment:
       ## Mount certs (above) and set TLS_EXTERNAL_CERT_AND_KEY to in-container paths.
