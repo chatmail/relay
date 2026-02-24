@@ -5,7 +5,7 @@ from chatmaild.config import Config
 from pyinfra import host
 from pyinfra.facts.deb import DebPackages
 from pyinfra.facts.server import Arch, Command, Sysctl
-from pyinfra.operations import apt, files, server, systemd
+from pyinfra.operations import apt, files, server
 
 from cmdeploy.basedeploy import (
     Deployer,
@@ -72,7 +72,9 @@ class DovecotDeployer(Deployer):
         )
 
     def configure(self):
-        self.daemon_reload |= configure_remote_units(self.config.mail_domain, self.units)
+        self.daemon_reload |= configure_remote_units(
+            self.config.mail_domain, self.units
+        )
         _configure_dovecot(self, self.config)
 
     def activate(self):
@@ -89,19 +91,12 @@ class DovecotDeployer(Deployer):
             if stale == "STALE":
                 self.need_restart = True
 
-        restart = False if self.disable_mail else self.need_restart
-
-        systemd.service(
-            name="Disable dovecot for now"
-            if self.disable_mail
-            else "Start and enable Dovecot",
-            service="dovecot.service",
-            running=False if self.disable_mail else True,
-            enabled=False if self.disable_mail else True,
-            restarted=restart,
-            daemon_reload=self.daemon_reload,
+        active = not self.disable_mail
+        self.ensure_service(
+            "dovecot.service",
+            running=active,
+            enabled=active,
         )
-        self.need_restart = False
 
 
 def _pick_url(primary, fallback):

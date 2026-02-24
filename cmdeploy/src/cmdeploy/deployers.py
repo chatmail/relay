@@ -207,13 +207,7 @@ class UnboundDeployer(Deployer):
             ],
         )
 
-        systemd.service(
-            name="Start and enable unbound",
-            service="unbound.service",
-            running=True,
-            enabled=True,
-            restarted=self.need_restart,
-        )
+        self.ensure_service("unbound.service")
 
 
 class MtastsDeployer(Deployer):
@@ -224,11 +218,8 @@ class MtastsDeployer(Deployer):
         self.remove_file("/etc/systemd/system/mta-sts-daemon.service")
 
     def activate(self):
-        systemd.service(
-            name="Stop MTA-STS daemon",
-            service="mta-sts-daemon.service",
-            # daemon_reload is tracked via self.remove_file() in configure()
-            daemon_reload=self.daemon_reload,
+        self.ensure_service(
+            "mta-sts-daemon.service",
             running=False,
             enabled=False,
         )
@@ -374,14 +365,10 @@ class IrohDeployer(Deployer):
         self.put_file("iroh-relay.toml", "/etc/iroh-relay.toml")
 
     def activate(self):
-        systemd.service(
-            name="Start and enable iroh-relay",
-            service="iroh-relay.service",
-            running=True,
+        self.ensure_service(
+            "iroh-relay.service",
             enabled=self.enable_iroh_relay,
-            restarted=self.need_restart,
         )
-        self.need_restart = False
 
 
 class JournaldDeployer(Deployer):
@@ -389,14 +376,7 @@ class JournaldDeployer(Deployer):
         self.put_file("journald.conf", "/etc/systemd/journald.conf")
 
     def activate(self):
-        systemd.service(
-            name="Start and enable journald",
-            service="systemd-journald.service",
-            running=True,
-            enabled=True,
-            restarted=self.need_restart,
-        )
-        self.need_restart = False
+        self.ensure_service("systemd-journald.service")
 
 
 class ChatmailVenvDeployer(Deployer):
@@ -485,12 +465,7 @@ class FcgiwrapDeployer(Deployer):
         )
 
     def activate(self):
-        systemd.service(
-            name="Start and enable fcgiwrap",
-            service="fcgiwrap.service",
-            running=True,
-            enabled=True,
-        )
+        self.ensure_service("fcgiwrap.service")
 
 
 class GithashDeployer(Deployer):

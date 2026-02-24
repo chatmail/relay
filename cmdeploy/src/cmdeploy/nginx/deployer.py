@@ -1,5 +1,5 @@
 from chatmaild.config import Config
-from pyinfra.operations import apt, systemd
+from pyinfra.operations import apt
 
 from cmdeploy.basedeploy import (
     Deployer,
@@ -44,14 +44,7 @@ class NginxDeployer(Deployer):
         _configure_nginx(self, self.config)
 
     def activate(self):
-        systemd.service(
-            name="Start and enable nginx",
-            service="nginx.service",
-            running=True,
-            enabled=True,
-            restarted=self.need_restart,
-        )
-        self.need_restart = False
+        self.ensure_service("nginx.service")
 
 
 def _configure_nginx(deployer, config: Config, debug: bool = False):

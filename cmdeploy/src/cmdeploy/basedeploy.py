@@ -155,6 +155,22 @@ class Deployer:
     def activate(self):
         pass
 
+    def ensure_service(self, service, running=True, enabled=True):
+        if running:
+            verb = "Start and enable"
+        else:
+            verb = "Stop"
+        systemd.service(
+            name=f"{verb} {service}",
+            service=service,
+            running=running,
+            enabled=enabled,
+            restarted=self.need_restart if running else False,
+            daemon_reload=self.daemon_reload,
+        )
+        self.need_restart = False
+        self.daemon_reload = False
+
     def ensure_systemd_unit(self, src, **kwargs):
         dest_name = src.split("/")[-1].replace(".j2", "")
         dest = f"/etc/systemd/system/{dest_name}"

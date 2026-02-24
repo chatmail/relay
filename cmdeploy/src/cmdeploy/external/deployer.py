@@ -1,7 +1,6 @@
 
 from pyinfra import host
 from pyinfra.facts.files import File
-from pyinfra.operations import systemd
 
 from ..basedeploy import Deployer
 
@@ -34,21 +33,12 @@ class ExternalTlsDeployer(Deployer):
         )
 
     def activate(self):
-        systemd.service(
-            name="Setup tls-cert-reload path watcher",
-            service="tls-cert-reload.path",
-            running=self.enabled,
-            enabled=self.enabled,
-            restarted=self.need_restart,
-            daemon_reload=self.daemon_reload,
+        # No explicit reload needed here: dovecot/nginx read the cert
+        # on startup, and the .path watcher handles live changes.
+        self.ensure_service(
+            "tls-cert-reload.path",
+            running=True,
+            enabled=True,
         )
-        if not self.enabled:
-            systemd.service(
-                name="Stop tls-cert-reload.service",
-                service="tls-cert-reload.service",
-                running=False,
-                enabled=False,
-                daemon_reload=self.daemon_reload,
-            )
 
 

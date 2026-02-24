@@ -1,4 +1,4 @@
-from pyinfra.operations import apt, server, systemd
+from pyinfra.operations import apt, server
 
 from cmdeploy.basedeploy import Deployer
 
@@ -67,16 +67,9 @@ class PostfixDeployer(Deployer):
             )
 
     def activate(self):
-        restart = False if self.disable_mail else self.need_restart
-
-        systemd.service(
-            name="disable postfix for now"
-            if self.disable_mail
-            else "Start and enable Postfix",
-            service="postfix.service",
-            running=False if self.disable_mail else True,
-            enabled=False if self.disable_mail else True,
-            restarted=restart,
-            daemon_reload=self.daemon_reload,
+        active = not self.disable_mail
+        self.ensure_service(
+            "postfix.service",
+            running=active,
+            enabled=active,
         )
-        self.need_restart = False
