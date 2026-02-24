@@ -210,7 +210,7 @@ jobs:
           ssh root@ns.testrun.org systemctl reload nsd
 
       - name: cmdeploy test
-        run: CHATMAIL_DOMAIN2=ci-chatmail.testrun.org cmdeploy test --slow
+        run: CHATMAIL_DOCKER=chatmail CHATMAIL_DOMAIN2=ci-chatmail.testrun.org cmdeploy test --slow
 
       - name: cmdeploy dns
         run: |
@@ -337,7 +337,7 @@ jobs:
           ssh root@ns.testrun.org systemctl reload nsd
 
       - name: cmdeploy test
-        run: CHATMAIL_DOMAIN2=ci-chatmail.testrun.org cmdeploy test --slow
+        run: CHATMAIL_DOCKER=chatmail CHATMAIL_DOMAIN2=ci-chatmail.testrun.org cmdeploy test --slow
 
       - name: cmdeploy dns
         run: |

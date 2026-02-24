@@ -50,6 +50,9 @@ class SSHExec:
     FuncError = FuncError
 
     def __init__(self, host, verbose=False, python="python3", timeout=60):
+        docker_container = os.environ.get("CHATMAIL_DOCKER")
+        if docker_container:
+            python = f"docker exec -i {docker_container} python3"
         self.gateway = execnet.makegateway(f"ssh=root@{host}//python={python}")
         self._remote_cmdloop_channel = bootstrap_remote(self.gateway, remote)
         self.timeout = timeout

@@ -402,6 +402,9 @@ class Remote:
             case "@local": command = []
             case "localhost": command = []
             case _: command = ["ssh", f"root@{self.sshdomain}"]
+        docker_container = os.environ.get("CHATMAIL_DOCKER")
+        if docker_container:
+            command += ["docker", "exec", docker_container]
         [command.append(arg) for arg in getjournal.split()]
         self.popen = subprocess.Popen(
             command,
