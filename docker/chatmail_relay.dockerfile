@@ -59,7 +59,10 @@ RUN CMDEPLOY_STAGES=install \
 
 RUN cp -a www/ /opt/chatmail-www/
 
-RUN rm -f /tmp/chatmail.ini
+# Remove build-only packages and their deps — not needed at runtime
+RUN apt-get purge -y gcc git python3-dev && \
+    apt-get autoremove -y && \
+    rm -f /tmp/chatmail.ini
 
 # Record image version (used in deploy fingerprint at runtime).
 # GIT_HASH is passed as a build arg (from docker-compose or CI) so that
