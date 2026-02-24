@@ -64,6 +64,9 @@ RUN rm -f /tmp/chatmail.ini
 # Record image version (used in deploy fingerprint at runtime).
 # GIT_HASH is passed as a build arg (from docker-compose or CI) so that
 # .git/ can be excluded from the build context via .dockerignore.
+# Two files: chatmail-image-version is the immutable build hash (survives
+# deploys); chatmail-version is overwritten by cmdeploy run and restored
+# from the image version after each deploy in chatmail-init.sh.
 ARG GIT_HASH=unknown
 RUN echo "$GIT_HASH" > /etc/chatmail-image-version && \
     echo "$GIT_HASH" > /etc/chatmail-version

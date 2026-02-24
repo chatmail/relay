@@ -5,5 +5,5 @@
 # .git/ is excluded from the build context (.dockerignore) so the hash
 # must be passed as a build arg from the host.
 
-export GIT_HASH=$(git rev-parse --short HEAD)
+export GIT_HASH=$(git rev-parse HEAD)
 exec docker compose build "$@"
