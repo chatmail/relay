@@ -13,7 +13,12 @@ def test_read_config_basic(example_config):
     assert not example_config.privacy_pdo and not example_config.privacy_postal
 
     inipath = example_config._inipath
-    inipath.write_text(inipath.read_text().replace("60", "37"))
+    inipath.write_text(
+        inipath.read_text().replace(
+            "#max_user_send_per_minute = 60",
+            "max_user_send_per_minute = 37",
+        )
+    )
     example_config = read_config(inipath)
     assert example_config.max_user_send_per_minute == 37
     assert example_config.mail_domain == "chat.example.org"
