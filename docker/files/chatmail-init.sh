@@ -64,6 +64,9 @@ else
         SKIP_DNS="--skip-dns-check"
     fi
     $CMDEPLOY run --config "$CHATMAIL_INI" --ssh-host @local $SKIP_DNS
+    # GithashDeployer overwrites /etc/chatmail-version with "unknown" because
+    # .git/ is excluded from the image; restore the build-time hash.
+    cp /etc/chatmail-image-version /etc/chatmail-version
     echo "$current_fp" > "$FINGERPRINT_FILE"
 fi
 
