@@ -11,19 +11,20 @@ if [ -z "$MAIL_DOMAIN" ]; then
     exit 1
 fi
 
+# Generate DKIM keys if not mounted
 if [ ! -f /etc/dkimkeys/opendkim.private ]; then
     /usr/sbin/opendkim-genkey -D /etc/dkimkeys -d "$MAIL_DOMAIN" -s opendkim
 fi
 # Fix ownership for bind-mounted keys (host opendkim UID may differ from container)
 chown -R opendkim:opendkim /etc/dkimkeys
 
-# Create chatmail.ini (skips if file already exists, e.g. volume-mounted)
+# Create chatmail.ini, skip if mounted
 mkdir -p "$(dirname "$CHATMAIL_INI")"
 if [ ! -f "$CHATMAIL_INI" ]; then
     $CMDEPLOY init --config "$CHATMAIL_INI" "$MAIL_DOMAIN"
 fi
 
-# Inject external TLS paths from env var (unless user mounted their own ini)
+# Inject external TLS paths from env var unless defined in chatmail.ini
 if [ -n "${TLS_EXTERNAL_CERT_AND_KEY:-}" ]; then
     if ! grep -q '^tls_external_cert_and_key' "$CHATMAIL_INI"; then
         echo "tls_external_cert_and_key = $TLS_EXTERNAL_CERT_AND_KEY" >> "$CHATMAIL_INI"
@@ -54,23 +55,25 @@ else
     systemctl stop postfix dovecot nginx opendkim unbound \
         filtermail doveauth chatmail-metadata iroh-relay mtail fcgiwrap 2>/dev/null || true
 
-    # Show listening ports before deploy (diagnostic for port-check failures)
-    echo "[DEBUG] Listening ports before deploy:"
-    ss -lptn | while IFS= read -r line; do echo "  $line"; done
+#    # Show listening ports before deploy (diagnostic for port-check failures)
+#    echo "[DEBUG] Listening ports before deploy:"
+#    ss -lptn | while IFS= read -r line; do echo "  $line"; done
+
     export CMDEPLOY_STAGES="${CMDEPLOY_STAGES:-configure,activate}"
+
     # Skip DNS check when MAIL_DOMAIN is a bare IP address
     SKIP_DNS=""
     if [[ "$MAIL_DOMAIN" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] || [[ "$MAIL_DOMAIN" =~ : ]]; then
         SKIP_DNS="--skip-dns-check"
     fi
     $CMDEPLOY run --config "$CHATMAIL_INI" --ssh-host @local $SKIP_DNS
-    # GithashDeployer overwrites /etc/chatmail-version with "unknown" because
-    # .git/ is excluded from the image; restore the build-time hash.
+
+    # Restore the build-time hash
     cp /etc/chatmail-image-version /etc/chatmail-version
     echo "$current_fp" > "$FINGERPRINT_FILE"
 fi
 
-# Journald: forward to console so `docker compose logs` works.
+# Forward journald to console so `docker compose logs` works
 grep -q '^ForwardToConsole=yes' /etc/systemd/journald.conf \
     || echo "ForwardToConsole=yes" >> /etc/systemd/journald.conf
 systemctl restart systemd-journald

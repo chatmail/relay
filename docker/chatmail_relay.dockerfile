@@ -8,15 +8,16 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     echo 'APT::Install-Recommends "0";' > /etc/apt/apt.conf.d/01norecommend && \
     echo 'APT::Install-Suggests "0";' >> /etc/apt/apt.conf.d/01norecommend && \
     apt-get update && \
+    DEBIAN_FRONTEND=noninteractive TZ=UTC \
     apt-get install -y \
         ca-certificates \
+        gcc \
         git \
         python3 \
+        python3-dev \
         python3-venv \
-        gcc \
-        python3-dev && \
-    DEBIAN_FRONTEND=noninteractive TZ=UTC \
-    apt-get install -y tzdata locales && \
+        tzdata \
+        locales && \
     sed -i -e "s/# $LANG.*/$LANG UTF-8/" /etc/locale.gen && \
     dpkg-reconfigure --frontend=noninteractive locales && \
     update-locale LANG=$LANG
@@ -46,6 +47,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 # Full source copy (editable install's .egg-link still points here)
 COPY . /opt/chatmail/
 
+# Minimal chatmail.ini
 RUN printf '[params]\nmail_domain = build.local\n' > /tmp/chatmail.ini
 
 RUN CMDEPLOY_STAGES=install \
@@ -82,7 +84,8 @@ COPY --chmod=555 ./docker/files/chatmail-init.sh /chatmail-init.sh
 COPY --chmod=555 ./docker/files/entrypoint.sh /entrypoint.sh
 
 HEALTHCHECK --interval=60s --timeout=10s --retries=3 \
-  CMD systemctl is-active dovecot postfix nginx unbound opendkim filtermail doveauth chatmail-metadata || exit 1
+  CMD systemctl is-active chatmail-metadata doveauth dovecot filtermail filtermail-incoming nginx postfix unbound || exit 1
+  # maybe add iroh-relay turnserver
 
 STOPSIGNAL SIGRTMIN+3
 
