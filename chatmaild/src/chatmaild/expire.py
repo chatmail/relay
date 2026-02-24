@@ -17,14 +17,14 @@ from chatmaild.config import read_config
 FileEntry = namedtuple("FileEntry", ("path", "mtime", "size"))
 
 
-def iter_mailboxes(basedir, maxnum):
+def iter_mailboxes(basedir, maxnum, tmpfs_index):
     if not os.path.exists(basedir):
         print_info(f"no mailboxes found at: {basedir}")
         return
 
     for name in os_listdir_if_exists(basedir)[:maxnum]:
         if "@" in name:
-            yield MailboxStat(basedir + "/" + name)
+            yield MailboxStat(basedir + "/" + name, name, tmpfs_index)
 
 
 def get_file_entry(path):
@@ -49,11 +49,14 @@ def os_listdir_if_exists(path):
 class MailboxStat:
     last_login = None
 
-    def __init__(self, basedir):
+    def __init__(self, basedir, name, tmpfs_index):
         self.basedir = str(basedir)
+        self.name = name
         self.messages = []
         self.extrafiles = []
         self.scandir(self.basedir)
+        if tmpfs_index:
+            self.scandir("/dev/shm/" + name)
 
     def scandir(self, folderdir):
         for name in os_listdir_if_exists(folderdir):
@@ -90,11 +93,13 @@ class Expiry:
         self.all_files = 0
         self.start = time.time()
 
-    def remove_mailbox(self, mboxdir):
+    def remove_mailbox(self, mboxdir, name):
         if self.verbose:
             print_info(f"removing {mboxdir}")
         if not self.dry:
             shutil.rmtree(mboxdir)
+            if self.config.tmpfs_index:
+                shutil.rmtree("/dev/shm/" + name)
         self.del_mboxes += 1
 
     def remove_file(self, path, mtime=None):
@@ -121,7 +126,7 @@ class Expiry:
         self.all_mboxes += 1
         changed = False
         if mbox.last_login and mbox.last_login < cutoff_without_login:
-            self.remove_mailbox(mbox.basedir)
+            self.remove_mailbox(mbox.basedir, mbox.name)
             return
 
         mboxname = os.path.basename(mbox.basedir)
@@ -145,6 +150,9 @@ class Expiry:
             changed = True
         if changed:
             self.remove_file(f"{mbox.basedir}/maildirsize")
+        for file in mbox.extrafiles:
+            if "dovecot.index" in file.path.split("/")[-1] and file.size > 500 * 1024:
+                self.remove_file(file.path)
 
     def get_summary(self):
         return (
@@ -197,7 +205,9 @@ def main(args=None):
 
     maxnum = int(args.maxnum) if args.maxnum else None
     exp = Expiry(config, dry=not args.remove, now=now, verbose=args.verbose)
-    for mailbox in iter_mailboxes(str(config.mailboxes_dir), maxnum=maxnum):
+    for mailbox in iter_mailboxes(
+        str(config.mailboxes_dir), maxnum, config.tmpfs_index
+    ):
         exp.process_mailbox_stat(mailbox)
     print(exp.get_summary())
 
