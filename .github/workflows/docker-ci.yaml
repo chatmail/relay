@@ -69,7 +69,8 @@ jobs:
         with:
           context: .
           file: docker/chatmail_relay.dockerfile
-          push: ${{ github.event_name == 'push' }}
+          # push: ${{ github.event_name == 'push' }}
+          load: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
@@ -83,6 +84,16 @@ jobs:
           SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
           IMAGE="${{ env.REGISTRY }}/$(echo "${{ env.IMAGE_NAME }}" | tr '[:upper:]' '[:lower:]'):sha-${SHORT_SHA}"
           echo "image=${IMAGE}" >> "$GITHUB_OUTPUT"
+
+      - name: Save image as tarball
+        run: docker save ${{ steps.image-ref.outputs.image }} | zstd -T0 -o /tmp/chatmail-image.tar.zst
+
+      - name: Upload image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: chatmail-image
+          path: /tmp/chatmail-image.tar.zst
+          retention-days: 1
 
   deploy:
     name: Deploy docker image to ${{ matrix.host }}
@@ -191,15 +202,25 @@ jobs:
           sed -i 's/#\s*mtail_address/mtail_address/' chatmail.ini
           scp chatmail.ini root@${HOST}:/srv/chatmail/chatmail.ini
 
+      - name: Download image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: chatmail-image
+          path: /tmp
+
       - name: upload repo and deploy with Docker
         env:
           HOST: ${{ matrix.host }}
         run: |
           GHCR_IMAGE="${{ needs.build.outputs.image }}"
           rsync -avz --exclude='.git' --exclude='venv' --exclude='__pycache__' ./ root@${HOST}:/srv/chatmail/relay/
-          # Login to GHCR on VPS and pull pre-built image
-          echo "${{ secrets.GITHUB_TOKEN }}" | ssh root@${HOST} 'docker login ghcr.io -u ${{ github.actor }} --password-stdin'
-          ssh root@${HOST} "docker pull ${GHCR_IMAGE}"
+          # Load pre-built image from artifact
+          zstd -d /tmp/chatmail-image.tar.zst -o /tmp/chatmail-image.tar
+          scp /tmp/chatmail-image.tar root@${HOST}:/tmp/chatmail-image.tar
+          ssh root@${HOST} "docker load -i /tmp/chatmail-image.tar && rm /tmp/chatmail-image.tar"
+          # # Login to GHCR on VPS and pull pre-built image
+          # echo "${{ secrets.GITHUB_TOKEN }}" | ssh root@${HOST} 'docker login ghcr.io -u ${{ github.actor }} --password-stdin'
+          # ssh root@${HOST} "docker pull ${GHCR_IMAGE}"
           ssh root@${HOST} "cd /srv/chatmail/relay && CHATMAIL_IMAGE=${GHCR_IMAGE} MAIL_DOMAIN=${HOST} docker compose -f docker-compose.yaml -f docker/docker-compose.ci.yaml up -d"
 
       - name: wait for container to become healthy
