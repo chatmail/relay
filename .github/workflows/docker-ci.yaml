@@ -69,7 +69,7 @@ jobs:
         with:
           context: .
           file: docker/chatmail_relay.dockerfile
-          # push: ${{ github.event_name == 'push' }}
+          push: ${{ github.event_name == 'push' }}
           load: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -111,12 +111,12 @@ jobs:
             zone_file: staging.testrun.org-default.zone
             disable_ipv6: false
             add_ssh_keys: true
-#          - host: staging-ipv4.testrun.org
-#            acme_dir: acme-ipv4
-#            dkim_dir: dkimkeys-ipv4
-#            zone_file: staging-ipv4.testrun.org-default.zone
-#            disable_ipv6: true
-#            add_ssh_keys: false
+          - host: staging-ipv4.testrun.org
+            acme_dir: acme-ipv4
+            dkim_dir: dkimkeys-ipv4
+            zone_file: staging-ipv4.testrun.org-default.zone
+            disable_ipv6: true
+            add_ssh_keys: false
     environment:
       name: ${{ matrix.host }}
       url: https://${{ matrix.host }}/
