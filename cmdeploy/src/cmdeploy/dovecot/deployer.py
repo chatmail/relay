@@ -30,8 +30,7 @@ class DovecotDeployer(Deployer):
         _install_dovecot_package("lmtpd", arch)
 
     def configure(self):
-        configure_remote_units(self.config.mail_domain, self.units)
-
+        self.daemon_reload |= configure_remote_units(self.config.mail_domain, self.units)
         self.put_template(
             "dovecot/dovecot.conf.j2",
             "/etc/dovecot/dovecot.conf",
@@ -65,7 +64,7 @@ class DovecotDeployer(Deployer):
             )
 
     def activate(self):
-        activate_remote_units(self.units)
+        activate_remote_units(self.units, daemon_reload=self.daemon_reload)
 
         restart = False if self.disable_mail else self.need_restart
 

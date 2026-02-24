@@ -32,12 +32,12 @@ class NginxDeployer(Deployer):
         # For documentation about policy-rc.d, see:
         # https://people.debian.org/~hmh/invokerc.d-policyrc.d-specification.txt
         #
-        files.put(
-            src=get_resource("policy-rc.d"),
+        self.put_file(
+            src="policy-rc.d",
             dest="/usr/sbin/policy-rc.d",
-            user="root",
-            group="root",
-            mode="755",
+            owner="root",
+            executable=True,
+            track=False,
         )
 
         apt.packages(
@@ -94,11 +94,11 @@ def _configure_nginx(deployer, config: Config, debug: bool = False):
     )
 
     # CGI scripts are loaded on each request, so an nginx restart
-    # is not needed when newemail.py changes — use files.put directly.
-    files.put(
+    # is not needed when newemail.py changes — use put_file with track=False.
+    deployer.put_file(
         src=get_resource("newemail.py", pkg="chatmaild").open("rb"),
         dest=f"{cgi_dir}/newemail.py",
-        user="root",
-        group="root",
-        mode="755",
+        owner="root",
+        executable=True,
+        track=False,
     )

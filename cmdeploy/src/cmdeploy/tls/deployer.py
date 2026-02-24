@@ -144,7 +144,7 @@ class ExternalTlsDeployer(Deployer):
                 service="tls-cert-reload.service",
                 running=False,
                 enabled=False,
-                daemon_reload=False,
+                daemon_reload=self.daemon_reload,
             )
 
 

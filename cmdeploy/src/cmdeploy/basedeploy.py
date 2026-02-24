@@ -14,11 +14,12 @@ def get_resource(arg, pkg=__package__):
     return importlib.resources.files(pkg).joinpath(arg)
 
 
-def configure_remote_units(mail_domain, units) -> None:
+def configure_remote_units(mail_domain, units) -> bool:
     remote_base_dir = "/usr/local/lib/chatmaild"
     remote_venv_dir = f"{remote_base_dir}/venv"
     remote_chatmail_inipath = f"{remote_base_dir}/chatmail.ini"
     root_owned = dict(user="root", group="root", mode="644")
+    changed = False
 
     # install systemd units
     for fn in units:
@@ -34,15 +35,17 @@ def configure_remote_units(mail_domain, units) -> None:
         source_path = get_resource(f"service/{basename}.f")
         content = source_path.read_text().format(**params).encode()
 
-        files.put(
+        res = files.put(
             name=f"Upload {basename}",
             src=io.BytesIO(content),
             dest=f"/etc/systemd/system/{basename}",
             **root_owned,
         )
+        changed |= res.changed
+    return changed
 
 
-def activate_remote_units(units) -> None:
+def activate_remote_units(units, daemon_reload=False) -> None:
     # activate systemd units
     for fn in units:
         basename = fn if "." in fn else f"{fn}.service"
@@ -58,7 +61,7 @@ def activate_remote_units(units) -> None:
             running=enabled,
             enabled=enabled,
             restarted=enabled,
-            daemon_reload=True,
+            daemon_reload=daemon_reload,
         )
 
 
@@ -138,11 +141,12 @@ class Deployer:
     def activate(self):
         pass
 
-    def put_file(self, src, dest, *, executable=False, owner="root"):
+    def put_file(self, src, dest, *, executable=False, owner="root", track=True):
         """Upload a file to *dest*, or remove it when the deployer is disabled.
 
         *src* may be a resource path string (resolved via :func:`get_resource`),
-        a path-like, or a file-like object. Sets ``self.need_restart = True`` when the dst file changes.
+        a path-like, or a file-like object. Sets ``self.need_restart = True``
+        when the dst file changes and *track* is True.
         """
         if isinstance(src, str):
             src = get_resource(src)
@@ -156,14 +160,14 @@ class Deployer:
         else:
             res = files.file(name=name, path=dest, present=False)
 
-        return self._update_restart_signals(dest, res)
+        return self._update_restart_signals(dest, res, track=track)
 
-    def put_template(self, src, dest, *, owner="root", mode="644", **kwargs):
+    def put_template(self, src, dest, *, owner="root", mode="644", track=True, **kwargs):
         """Upload a Jinja2 template to *dest*, or remove it when disabled.
 
         *src* may be a resource path string (resolved via :func:`get_resource`) or a path-like
-        object. Sets ``need_restart = True`` when the dst file changes. Extra *kwargs*
-        are passed as template render context.
+        object. Sets ``need_restart = True`` when the dst file changes and *track* is True.
+        Extra *kwargs* are passed as template render context.
         """
         if isinstance(src, str):
             src = get_resource(src)
@@ -182,27 +186,27 @@ class Deployer:
         else:
             res = files.file(name=name, path=dest, present=False)
 
-        return self._update_restart_signals(dest, res)
+        return self._update_restart_signals(dest, res, track=track)
 
-    def remove_file(self, dest):
+    def remove_file(self, dest, track=True):
         """Ensure *dest* is removed from the remote host.
 
         Sets ``need_restart = True`` and ``daemon_reload = True`` (if applicable)
-        when the file is actually removed.
+        when the file is actually removed and *track* is True.
         """
         res = files.file(name=f"Remove {dest}", path=dest, present=False)
-        return self._update_restart_signals(dest, res)
+        return self._update_restart_signals(dest, res, track=track)
 
-    def ensure_line(self, name, path, line, **kwargs):
+    def ensure_line(self, name, path, line, track=True, **kwargs):
         """Ensure a line is present or absent in a file.
 
-        Sets ``need_restart = True`` when the file changes.
+        Sets ``need_restart = True`` when the file changes and *track* is True.
         """
         res = files.line(name=name, path=path, line=line, **kwargs)
-        return self._update_restart_signals(path, res)
+        return self._update_restart_signals(path, res, track=track)
 
-    def _update_restart_signals(self, path, res):
-        if res.changed:
+    def _update_restart_signals(self, path, res, track=True):
+        if res.changed and track:
             self.need_restart = True
             if str(path).startswith("/etc/systemd/system/"):
                 self.daemon_reload = True
