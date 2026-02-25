@@ -186,8 +186,8 @@ jobs:
           rsync -e "ssh -o StrictHostKeyChecking=accept-new" -avz root@ns.testrun.org:/tmp/${ACME_DIR} acme-restore || true
           rsync -avz root@ns.testrun.org:/tmp/${DKIM_DIR} dkimkeys-restore || true
           # restore to acme & dkim state
-          rsync -avz acme-restore/${ACME_DIR}/ root@${HOST}:/var/lib/acme/ || true
-          rsync -avz dkimkeys-restore/${DKIM_DIR}/ root@${HOST}:/etc/dkimkeys/ || true
+          rsync -avz acme-restore/${ACME_DIR}/acme/ root@${HOST}:/var/lib/acme/ || true
+          rsync -avz dkimkeys-restore/${DKIM_DIR}/dkimkeys/ root@${HOST}:/etc/dkimkeys/ || true
           # copy acme & dkim state to docker bind mounts
           ssh root@${HOST} 'mkdir -p /srv/chatmail/certs /srv/chatmail/dkim && cp -a /var/lib/acme/. /srv/chatmail/certs/ && cp -a /etc/dkimkeys/. /srv/chatmail/dkim/'
 
@@ -228,8 +228,7 @@ jobs:
         env:
           HOST: ${{ matrix.host }}
         run: |
-          # Stream journald inside the container so we see chatmail-init output in real time
-          # (docker logs doesn't work with logging driver: none)
+          # Stream journald inside the container
           ssh root@${HOST} 'docker exec chatmail journalctl -f --no-pager' &
           LOG_PID=$!
           trap "kill $LOG_PID 2>/dev/null || true" EXIT
@@ -240,9 +239,13 @@ jobs:
               echo "Container is healthy."
               exit 0
             fi
+            if [ "$status" = "unhealthy" ]; then
+              echo "Container is unhealthy!"
+              break
+            fi
             sleep 5
           done
-          echo "Container did not become healthy in time."
+          echo "Container did not become healthy."
           kill $LOG_PID 2>/dev/null || true
           echo "--- failed units ---"
           ssh root@${HOST} 'docker exec chatmail systemctl --failed --no-pager' || true

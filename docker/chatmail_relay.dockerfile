@@ -90,7 +90,7 @@ COPY --chmod=555 ./docker/chatmail-init.sh /chatmail-init.sh
 COPY --chmod=555 ./docker/entrypoint.sh /entrypoint.sh
 COPY --chmod=555 ./docker/healthcheck.sh /healthcheck.sh
 
-HEALTHCHECK --interval=15s --timeout=10s --retries=3 \
+HEALTHCHECK --interval=10s --start-period=180s --timeout=10s --retries=3 \
   CMD /healthcheck.sh
 
 STOPSIGNAL SIGRTMIN+3
