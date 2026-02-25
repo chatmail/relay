@@ -24,6 +24,16 @@ if [ ! -f "$CHATMAIL_INI" ]; then
     $CMDEPLOY init --config "$CHATMAIL_INI" "$MAIL_DOMAIN"
 fi
 
+# Auto-detect IPv6: if the host has no IPv6 connectivity, set disable_ipv6
+# in the ini so dovecot/postfix/nginx bind to IPv4 only.
+# Uses network_mode:host so /proc/net/if_inet6 reflects the host's stack.
+if [ ! -e /proc/net/if_inet6 ]; then
+    if grep -q '^disable_ipv6 = False' "$CHATMAIL_INI"; then
+        sed -i 's/^disable_ipv6 = False/disable_ipv6 = True/' "$CHATMAIL_INI"
+        echo "[INFO] IPv6 not available, set disable_ipv6 = True"
+    fi
+fi
+
 # Inject external TLS paths from env var unless defined in chatmail.ini
 if [ -n "${TLS_EXTERNAL_CERT_AND_KEY:-}" ]; then
     if ! grep -q '^tls_external_cert_and_key' "$CHATMAIL_INI"; then
