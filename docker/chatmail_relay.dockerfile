@@ -88,10 +88,10 @@ RUN rm -f /etc/nginx/sites-enabled/default
 
 COPY --chmod=555 ./docker/chatmail-init.sh /chatmail-init.sh
 COPY --chmod=555 ./docker/entrypoint.sh /entrypoint.sh
+COPY --chmod=555 ./docker/healthcheck.sh /healthcheck.sh
 
-HEALTHCHECK --interval=60s --timeout=10s --retries=3 \
-  CMD systemctl is-active chatmail-metadata doveauth dovecot filtermail filtermail-incoming nginx postfix unbound || exit 1
-  # maybe add iroh-relay turnserver
+HEALTHCHECK --interval=15s --timeout=10s --retries=3 \
+  CMD /healthcheck.sh
 
 STOPSIGNAL SIGRTMIN+3
 

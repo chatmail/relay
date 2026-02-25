@@ -135,9 +135,9 @@ jobs:
           echo "${{ secrets.STAGING_SSH_KEY }}" >> ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan ${HOST} > ~/.ssh/known_hosts
-          # save previous acme & dkim state (Docker bind-mount paths)
-          rsync -avz root@${HOST}:/srv/chatmail/certs/ ${ACME_DIR}/ || true
-          rsync -avz root@${HOST}:/srv/chatmail/dkim/ ${DKIM_DIR}/ || true
+          # save previous acme & dkim state
+          rsync -avz root@${HOST}:/var/lib/acme/ ${ACME_DIR}/ || true
+          rsync -avz root@${HOST}:/etc/dkimkeys/ ${DKIM_DIR}/ || true
           # store previous acme & dkim state on ns.testrun.org, if it contains useful certs
           if [ -f ${DKIM_DIR}/opendkim.private ]; then rsync -avz -e "ssh -o StrictHostKeyChecking=accept-new" ${DKIM_DIR} root@ns.testrun.org:/tmp/ || true; fi
           if [ "$(ls -A ${ACME_DIR}/certs 2>/dev/null)" ]; then rsync -avz -e "ssh -o StrictHostKeyChecking=accept-new" ${ACME_DIR} root@ns.testrun.org:/tmp/ || true; fi
@@ -185,10 +185,11 @@ jobs:
           # download from ns.testrun.org
           rsync -e "ssh -o StrictHostKeyChecking=accept-new" -avz root@ns.testrun.org:/tmp/${ACME_DIR} acme-restore || true
           rsync -avz root@ns.testrun.org:/tmp/${DKIM_DIR} dkimkeys-restore || true
-          # restore to VPS host paths (will be bind-mounted into container)
-          ssh root@${HOST} mkdir -p /srv/chatmail/dkim /srv/chatmail/certs
-          rsync -avz acme-restore/${ACME_DIR}/ root@${HOST}:/srv/chatmail/certs/ || true
-          rsync -avz dkimkeys-restore/${DKIM_DIR}/ root@${HOST}:/srv/chatmail/dkim/ || true
+          # restore to acme & dkim state
+          rsync -avz acme-restore/${ACME_DIR}/ root@${HOST}:/var/lib/acme/ || true
+          rsync -avz dkimkeys-restore/${DKIM_DIR}/ root@${HOST}:/etc/dkimkeys/ || true
+          # copy acme & dkim state to docker bind mounts
+          ssh root@${HOST} 'mkdir -p /srv/chatmail/certs /srv/chatmail/dkim && cp -a /var/lib/acme/. /srv/chatmail/certs/ && cp -a /etc/dkimkeys/. /srv/chatmail/dkim/'
 
       - name: generate chatmail.ini
         env:

@@ -83,6 +83,9 @@ else
     echo "$current_fp" > "$FINGERPRINT_FILE"
 fi
 
+# Signal success to Docker healthcheck
+touch /run/chatmail-init.done
+
 # Forward journald to console so `docker compose logs` works
 grep -q '^ForwardToConsole=yes' /etc/systemd/journald.conf \
     || echo "ForwardToConsole=yes" >> /etc/systemd/journald.conf
