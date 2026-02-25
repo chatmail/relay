@@ -41,6 +41,11 @@ if [ -n "${TLS_EXTERNAL_CERT_AND_KEY:-}" ]; then
     fi
 fi
 
+# Ensure mailboxes directory exists (chatmail-metadata needs it at startup,
+# but Dovecot only creates it on first mail delivery)
+mkdir -p "/home/vmail/mail/${MAIL_DOMAIN}"
+chown vmail:vmail "/home/vmail/mail/${MAIL_DOMAIN}"
+
 # --- Deploy fingerprint: skip cmdeploy run if nothing changed ---
 # On restart with identical image+config, systemd already brings up all
 # enabled services only configure+activate are needed here.
