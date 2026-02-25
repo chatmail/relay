@@ -1,34 +1,23 @@
-name: Docker CI
+name: Deploy
 
 on:
-  pull_request:
-    paths:
-      - 'docker/**'
-      - 'docker-compose.yaml'
-      - '.dockerignore'
-      - 'chatmaild/**'
-      - 'cmdeploy/**'
-      - '.github/workflows/docker-ci.yaml'
   push:
     branches:
       - main
       - j4n/docker-pr
-    paths:
-      - 'docker/**'
-      - 'docker-compose.yaml'
-      - '.dockerignore'
-      - 'chatmaild/**'
-      - 'cmdeploy/**'
-      - '.github/workflows/docker-ci.yaml'
-    tags:
-      - 'v*'
+  pull_request:
+    paths-ignore:
+      - 'scripts/**'
+      - '**/README.md'
+      - 'CHANGELOG.md'
+      - 'LICENSE'
 
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  build:
+  build-docker:
     name: Build Docker image
     runs-on: ubuntu-latest
     permissions:
@@ -59,7 +48,7 @@ jobs:
             # Tagged releases: v1.2.3 -> :1.2.3, :1.2, :latest
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-            # Branch pushes: j4n/docker → :j4n-docker
+            # Branch pushes: j4n/docker-pr → :j4n-docker-pr
             type=ref,event=branch
             # Always: :sha-<hash>
             type=sha
@@ -70,7 +59,6 @@ jobs:
           context: .
           file: docker/chatmail_relay.dockerfile
           push: ${{ github.event_name == 'push' }}
-          load: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
@@ -85,32 +73,26 @@ jobs:
           IMAGE="${{ env.REGISTRY }}/$(echo "${{ env.IMAGE_NAME }}" | tr '[:upper:]' '[:lower:]'):sha-${SHORT_SHA}"
           echo "image=${IMAGE}" >> "$GITHUB_OUTPUT"
 
-      - name: Save image as tarball
-        run: docker save ${{ steps.image-ref.outputs.image }} | zstd -T0 -o /tmp/chatmail-image.tar.zst
-
-      - name: Upload image artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: chatmail-image
-          path: /tmp/chatmail-image.tar.zst
-          retention-days: 1
-
   deploy:
-    name: Deploy docker image to ${{ matrix.host }}
-    needs: build
-    if: github.event_name == 'push'
+    name: Deploy to ${{ matrix.host }}
+    needs: build-docker
+    if: >-
+      !cancelled() && (
+        github.event_name == 'push' ||
+        (github.event_name == 'pull_request' && !startsWith(github.head_ref, 'j4n/'))
+      )
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
         include:
-#          - host: staging2.testrun.org
-#            acme_dir: acme
-#            dkim_dir: dkimkeys
-#            zone_file: staging.testrun.org-default.zone
-#            disable_ipv6: false
-#            add_ssh_keys: true
+          - host: staging2.testrun.org
+            acme_dir: acme
+            dkim_dir: dkimkeys
+            zone_file: staging.testrun.org-default.zone
+            disable_ipv6: false
+            add_ssh_keys: true
           - host: staging-ipv4.testrun.org
             acme_dir: acme-ipv4
             dkim_dir: dkimkeys-ipv4
@@ -122,9 +104,11 @@ jobs:
       url: https://${{ matrix.host }}/
     concurrency: ${{ matrix.host }}
     steps:
+      # -- Common setup --
+
       - uses: actions/checkout@v4
 
-      - name: prepare SSH
+      - name: prepare SSH and save ACME/DKIM
         env:
           HOST: ${{ matrix.host }}
           ACME_DIR: ${{ matrix.acme_dir }}
@@ -135,23 +119,27 @@ jobs:
           echo "${{ secrets.STAGING_SSH_KEY }}" >> ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan ${HOST} > ~/.ssh/known_hosts
-          # save previous acme & dkim state
+          # save previous acme & dkim state (trailing slash = copy contents)
           rsync -avz root@${HOST}:/var/lib/acme/ ${ACME_DIR}/ || true
           rsync -avz root@${HOST}:/etc/dkimkeys/ ${DKIM_DIR}/ || true
-          # store previous acme & dkim state on ns.testrun.org, if it contains useful certs
-          if [ -f ${DKIM_DIR}/opendkim.private ]; then rsync -avz -e "ssh -o StrictHostKeyChecking=accept-new" ${DKIM_DIR} root@ns.testrun.org:/tmp/ || true; fi
-          if [ "$(ls -A ${ACME_DIR}/certs 2>/dev/null)" ]; then rsync -avz -e "ssh -o StrictHostKeyChecking=accept-new" ${ACME_DIR} root@ns.testrun.org:/tmp/ || true; fi
+          # backup to ns.testrun.org if contents are useful
+          if [ -f ${DKIM_DIR}/opendkim.private ]; then
+            rsync -avz -e "ssh -o StrictHostKeyChecking=accept-new" ${DKIM_DIR}/ root@ns.testrun.org:/tmp/${DKIM_DIR}/ || true
+          fi
+          if [ "$(ls -A ${ACME_DIR}/certs 2>/dev/null)" ]; then
+            rsync -avz -e "ssh -o StrictHostKeyChecking=accept-new" ${ACME_DIR}/ root@ns.testrun.org:/tmp/${ACME_DIR}/ || true
+          fi
           # make sure CAA record isn't set
           scp -o StrictHostKeyChecking=accept-new .github/workflows/${ZONE} root@ns.testrun.org:/etc/nsd/${HOST}.zone
           ssh root@ns.testrun.org sed -i '/CAA/d' /etc/nsd/${HOST}.zone
           ssh root@ns.testrun.org nsd-checkzone ${HOST} /etc/nsd/${HOST}.zone
           ssh root@ns.testrun.org systemctl reload nsd
 
-      - name: rebuild ${{ matrix.host }} to have a clean VPS
+      - name: rebuild VPS
         env:
           SERVER_ID: ${{ matrix.host == 'staging2.testrun.org' && secrets.STAGING_SERVER_ID || secrets.STAGING_IPV4_SERVER_ID }}
         run: |
-            curl -X POST \
+          curl -X POST \
             -H "Authorization: Bearer ${{ secrets.HETZNER_API_TOKEN }}" \
             -H "Content-Type: application/json" \
             -d '{"image":"debian-12"}' \
@@ -162,11 +150,92 @@ jobs:
         run: echo venv/bin >>$GITHUB_PATH
 
       - name: wait for VPS rebuild
+        id: wait-for-vps
+        env:
+          HOST: ${{ matrix.host }}
         run: |
           rm ~/.ssh/known_hosts
-          while ! ssh -o ConnectTimeout=180 -o StrictHostKeyChecking=accept-new root@${{ matrix.host }} id -u ; do sleep 1 ; done
+          while ! ssh -o ConnectTimeout=180 -o StrictHostKeyChecking=accept-new root@${HOST} id -u ; do sleep 1 ; done
+
+      - name: restore ACME/DKIM
+        env:
+          HOST: ${{ matrix.host }}
+          ACME_DIR: ${{ matrix.acme_dir }}
+          DKIM_DIR: ${{ matrix.dkim_dir }}
+        run: |
+          # download from ns.testrun.org
+          rsync -e "ssh -o StrictHostKeyChecking=accept-new" -avz root@ns.testrun.org:/tmp/${ACME_DIR}/ acme-restore/ || true
+          rsync -avz root@ns.testrun.org:/tmp/${DKIM_DIR}/ dkimkeys-restore/ || true
+          # restore to VPS
+          rsync -avz acme-restore/ root@${HOST}:/var/lib/acme/ || true
+          rsync -avz dkimkeys-restore/ root@${HOST}:/etc/dkimkeys/ || true
+          ssh root@${HOST} chown root:root -R /var/lib/acme || true
+
+      # -- Bare metal deploy (main + PRs, skipped on j4n/* pushes) --
+      # Always runs locally on the VPS via --ssh-host localhost.
+
+      - name: bare offline tests
+        if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
+        run: pytest --pyargs cmdeploy
+
+      - name: bare deploy
+        if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
+        env:
+          HOST: ${{ matrix.host }}
+          DISABLE_IPV6: ${{ matrix.disable_ipv6 }}
+        run: |
+          ssh root@${HOST} 'apt update && apt install -y git python3.11-venv python3-dev gcc'
+          ssh root@${HOST} 'git clone https://github.com/chatmail/relay'
+          ssh root@${HOST} "cd relay && git checkout ${{ github.head_ref || github.ref_name }}"
+          ssh root@${HOST} 'cd relay && scripts/initenv.sh'
+          ssh root@${HOST} "cd relay && scripts/cmdeploy init ${HOST}"
+          if [ "${DISABLE_IPV6}" = "true" ]; then
+            ssh root@${HOST} "sed -i 's#disable_ipv6 = False#disable_ipv6 = True#' relay/chatmail.ini"
+          fi
+          ssh root@${HOST} "sed -i 's/#\s*mtail_address/mtail_address/' relay/chatmail.ini"
+          ssh root@${HOST} "cd relay && scripts/cmdeploy run --verbose --skip-dns-check --ssh-host localhost"
+
+      - name: bare DNS
+        if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
+        env:
+          HOST: ${{ matrix.host }}
+          ZONE: ${{ matrix.zone_file }}
+        run: |
+          ssh root@${HOST} chown opendkim:opendkim -R /etc/dkimkeys
+          ssh root@${HOST} "cd relay && scripts/cmdeploy dns --zonefile staging-generated.zone --ssh-host localhost"
+          ssh root@${HOST} cat relay/staging-generated.zone >> .github/workflows/${ZONE}
+          cat .github/workflows/${ZONE}
+          scp .github/workflows/${ZONE} root@ns.testrun.org:/etc/nsd/${HOST}.zone
+          ssh root@ns.testrun.org nsd-checkzone ${HOST} /etc/nsd/${HOST}.zone
+          ssh root@ns.testrun.org systemctl reload nsd
+
+      - name: bare integration tests
+        if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
+        env:
+          HOST: ${{ matrix.host }}
+        run: ssh root@${HOST} "cd relay && CHATMAIL_DOMAIN2=ci-chatmail.testrun.org scripts/cmdeploy test --slow --ssh-host localhost"
+
+      - name: bare final DNS check
+        if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
+        env:
+          HOST: ${{ matrix.host }}
+        run: ssh root@${HOST} "cd relay && scripts/cmdeploy dns -v --ssh-host localhost"
+
+      # -- Docker deploy (push only, runs even if bare failed) --
+
+      - name: stop bare services
+        if: >-
+          !cancelled() && github.event_name == 'push'
+          && steps.wait-for-vps.outcome == 'success'
+        env:
+          HOST: ${{ matrix.host }}
+        run: |
+          ssh root@${HOST} 'systemctl stop postfix dovecot nginx opendkim unbound 2>/dev/null || true'
 
       - name: install Docker on VPS
+        if: >-
+          !cancelled() && github.event_name == 'push'
+          && steps.wait-for-vps.outcome == 'success'
         env:
           HOST: ${{ matrix.host }}
         run: |
@@ -176,55 +245,45 @@ jobs:
           ssh root@${HOST} 'echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian $(. /etc/os-release && echo $VERSION_CODENAME) stable" > /etc/apt/sources.list.d/docker.list'
           ssh root@${HOST} 'apt-get update && apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin'
 
-      - name: restore ACME & DKIM state
+      - name: prepare Docker bind mounts
+        if: >-
+          !cancelled() && github.event_name == 'push'
+          && steps.wait-for-vps.outcome == 'success'
         env:
           HOST: ${{ matrix.host }}
-          ACME_DIR: ${{ matrix.acme_dir }}
-          DKIM_DIR: ${{ matrix.dkim_dir }}
         run: |
-          # download from ns.testrun.org
-          rsync -e "ssh -o StrictHostKeyChecking=accept-new" -avz root@ns.testrun.org:/tmp/${ACME_DIR} acme-restore || true
-          rsync -avz root@ns.testrun.org:/tmp/${DKIM_DIR} dkimkeys-restore || true
-          # restore to acme & dkim state
-          rsync -avz acme-restore/${ACME_DIR}/acme/ root@${HOST}:/var/lib/acme/ || true
-          rsync -avz dkimkeys-restore/${DKIM_DIR}/dkimkeys/ root@${HOST}:/etc/dkimkeys/ || true
-          # copy acme & dkim state to docker bind mounts
-          ssh root@${HOST} 'mkdir -p /srv/chatmail/certs /srv/chatmail/dkim && cp -a /var/lib/acme/. /srv/chatmail/certs/ && cp -a /etc/dkimkeys/. /srv/chatmail/dkim/'
+          ssh root@${HOST} 'mkdir -p /srv/chatmail/certs /srv/chatmail/dkim'
+          ssh root@${HOST} 'cp -a /var/lib/acme/. /srv/chatmail/certs/ && cp -a /etc/dkimkeys/. /srv/chatmail/dkim/' || true
 
-      - name: generate chatmail.ini
+      - name: generate and upload chatmail.ini
+        if: >-
+          !cancelled() && github.event_name == 'push'
+          && steps.wait-for-vps.outcome == 'success'
         env:
           HOST: ${{ matrix.host }}
-          DISABLE_IPV6: ${{ matrix.disable_ipv6 }}
         run: |
           cmdeploy init ${HOST}
-          if [ "${DISABLE_IPV6}" = "true" ]; then
-            sed -i 's/disable_ipv6 = False/disable_ipv6 = True/' chatmail.ini
-          fi
           sed -i 's/#\s*mtail_address/mtail_address/' chatmail.ini
           scp chatmail.ini root@${HOST}:/srv/chatmail/chatmail.ini
 
-      - name: Download image artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: chatmail-image
-          path: /tmp
-
-      - name: upload repo and deploy with Docker
+      - name: deploy with Docker
+        if: >-
+          !cancelled() && github.event_name == 'push'
+          && steps.wait-for-vps.outcome == 'success'
         env:
           HOST: ${{ matrix.host }}
         run: |
-          GHCR_IMAGE="${{ needs.build.outputs.image }}"
+          GHCR_IMAGE="${{ needs.build-docker.outputs.image }}"
           rsync -avz --exclude='.git' --exclude='venv' --exclude='__pycache__' ./ root@${HOST}:/srv/chatmail/relay/
-          # Load pre-built image from artifact
-          zstd -d /tmp/chatmail-image.tar.zst -o /tmp/chatmail-image.tar
-          scp /tmp/chatmail-image.tar root@${HOST}:/tmp/chatmail-image.tar
-          ssh root@${HOST} "docker load -i /tmp/chatmail-image.tar && rm /tmp/chatmail-image.tar"
-          # # Login to GHCR on VPS and pull pre-built image
-          # echo "${{ secrets.GITHUB_TOKEN }}" | ssh root@${HOST} 'docker login ghcr.io -u ${{ github.actor }} --password-stdin'
-          # ssh root@${HOST} "docker pull ${GHCR_IMAGE}"
+          # Login to GHCR on VPS and pull pre-built image
+          echo "${{ secrets.GITHUB_TOKEN }}" | ssh root@${HOST} 'docker login ghcr.io -u ${{ github.actor }} --password-stdin'
+          ssh root@${HOST} "docker pull ${GHCR_IMAGE}"
           ssh root@${HOST} "cd /srv/chatmail/relay && CHATMAIL_IMAGE=${GHCR_IMAGE} MAIL_DOMAIN=${HOST} docker compose -f docker-compose.yaml -f docker/docker-compose.ci.yaml up -d"
 
-      - name: Wait for container to become healthy
+      - name: wait for container healthy
+        if: >-
+          !cancelled() && github.event_name == 'push'
+          && steps.wait-for-vps.outcome == 'success'
         env:
           HOST: ${{ matrix.host }}
         run: |
@@ -258,6 +317,9 @@ jobs:
           exit 1
 
       - name: show container state
+        if: >-
+          !cancelled() && github.event_name == 'push'
+          && steps.wait-for-vps.outcome == 'success'
         env:
           HOST: ${{ matrix.host }}
         run: |
@@ -266,20 +328,23 @@ jobs:
           echo "--- chatmail.ini ---"
           ssh root@${HOST} 'docker exec chatmail cat /etc/chatmail/chatmail.ini'
 
-      - name: add ssh keys to staging server
-        if: matrix.add_ssh_keys
-        run: ssh root@${{ matrix.host }} 'curl -s https://github.com/hpk42.keys https://github.com/j4n.keys >> .ssh/authorized_keys'
-
-      - name: run deploy-chatmail offline tests
+      - name: Docker offline tests
+        if: >-
+          !cancelled() && github.event_name == 'push'
+          && steps.wait-for-vps.outcome == 'success'
         run: CHATMAIL_DOCKER=chatmail pytest --pyargs cmdeploy
 
-      - name: set DNS entries
+      - name: Docker DNS
+        if: >-
+          !cancelled() && github.event_name == 'push'
+          && steps.wait-for-vps.outcome == 'success'
         env:
           HOST: ${{ matrix.host }}
           ZONE: ${{ matrix.zone_file }}
         run: |
+          # Reset zone file in case bare DNS already appended to it
+          git checkout .github/workflows/${ZONE}
           ssh root@${HOST} 'docker exec chatmail chown opendkim:opendkim -R /etc/dkimkeys'
-          # run cmdeploy dns inside the container
           ssh root@${HOST} 'docker exec chatmail cmdeploy dns --ssh-host @local --zonefile /opt/chatmail/staging.zone --verbose'
           ssh root@${HOST} 'docker cp chatmail:/opt/chatmail/staging.zone /tmp/staging.zone'
           scp root@${HOST}:/tmp/staging.zone staging-generated.zone
@@ -289,9 +354,24 @@ jobs:
           ssh root@ns.testrun.org nsd-checkzone ${HOST} /etc/nsd/${HOST}.zone
           ssh root@ns.testrun.org systemctl reload nsd
 
-      - name: cmdeploy test
+      - name: Docker integration tests
+        if: >-
+          !cancelled() && github.event_name == 'push'
+          && steps.wait-for-vps.outcome == 'success'
         run: CHATMAIL_DOCKER=chatmail CHATMAIL_DOMAIN2=ci-chatmail.testrun.org cmdeploy test --slow
 
-      - name: cmdeploy dns
-        run: |
-          ssh root@${{ matrix.host }} 'docker exec chatmail cmdeploy dns -v --ssh-host @local'
+      - name: Docker final DNS check
+        if: >-
+          !cancelled() && github.event_name == 'push'
+          && steps.wait-for-vps.outcome == 'success'
+        env:
+          HOST: ${{ matrix.host }}
+        run: ssh root@${HOST} 'docker exec chatmail cmdeploy dns -v --ssh-host @local'
+
+      # -- Cleanup --
+
+      - name: add SSH keys
+        if: >-
+          !cancelled() && matrix.add_ssh_keys
+          && steps.wait-for-vps.outcome == 'success'
+        run: ssh root@${{ matrix.host }} 'curl -s https://github.com/hpk42.keys https://github.com/j4n.keys >> .ssh/authorized_keys'
