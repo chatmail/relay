@@ -3,6 +3,7 @@
 set -euo pipefail
 export CHATMAIL_INI="${CHATMAIL_INI:-/etc/chatmail/chatmail.ini}"
 export CHATMAIL_NOSYSCTL=True
+export CHATMAIL_NOPORTCHECK=True
 
 CMDEPLOY=/opt/cmdeploy/bin/cmdeploy
 
@@ -63,17 +64,6 @@ if [ -z "${CMDEPLOY_STAGES:-}" ] \
     && [ "$(cat "$FINGERPRINT_FILE")" = "$current_fp" ]; then
     echo "[INFO] No changes detected ($current_fp), skipping deploy."
 else
-    # Stop chatmail services so the port check sees a clean state as 
-    # ss -p inside Docker can't identify processes, causing false
-    # "port occupied" failures
-    echo "[INFO] Stopping services for clean port check..."
-    systemctl stop postfix dovecot nginx opendkim unbound \
-        filtermail doveauth chatmail-metadata iroh-relay mtail fcgiwrap 2>/dev/null || true
-
-#    # Show listening ports before deploy (diagnostic for port-check failures)
-#    echo "[DEBUG] Listening ports before deploy:"
-#    ss -lptn | while IFS= read -r line; do echo "  $line"; done
-
     export CMDEPLOY_STAGES="${CMDEPLOY_STAGES:-configure,activate}"
 
     # Skip DNS check when MAIL_DOMAIN is a bare IP address
