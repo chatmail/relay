@@ -223,7 +223,7 @@ jobs:
         env:
           HOST: ${{ matrix.host }}
         run: |
-          ssh root@${HOST} 'systemctl stop postfix dovecot nginx opendkim unbound 2>/dev/null || true'
+          ssh root@${HOST} 'systemctl stop postfix dovecot nginx opendkim unbound filtermail doveauth chatmail-metadata iroh-relay mtail fcgiwrap acmetool 2>/dev/null || true'
 
       - name: install Docker on VPS
         if: >-
@@ -235,7 +235,7 @@ jobs:
           ssh root@${HOST} 'apt-get update && apt-get install -y ca-certificates curl'
           ssh root@${HOST} 'install -m 0755 -d /etc/apt/keyrings'
           ssh root@${HOST} 'curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc && chmod a+r /etc/apt/keyrings/docker.asc'
-          ssh root@${HOST} 'echo "deb [arch=$(dpkg ---print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian $(. /etc/os-release && echo $VERSION_CODENAME) stable" > /etc/apt/sources.list.d/docker.list'
+          ssh root@${HOST} 'echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian $(. /etc/os-release && echo $VERSION_CODENAME) stable" > /etc/apt/sources.list.d/docker.list'
           ssh root@${HOST} 'apt-get update && apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin'
 
       - name: prepare Docker bind mounts
