@@ -48,7 +48,7 @@ jobs:
             # Tagged releases: v1.2.3 -> :1.2.3, :1.2, :latest
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-            # Branch pushes: j4n/docker-pr → :j4n-docker-pr
+            # Branch pushes: foo/docker-pr -> :foo-docker-pr
             type=ref,event=branch
             # Always: :sha-<hash>
             type=sha
@@ -76,11 +76,7 @@ jobs:
   deploy:
     name: Deploy to ${{ matrix.host }}
     needs: build-docker
-    if: >-
-      !cancelled() && (
-        github.event_name == 'push' ||
-        (github.event_name == 'pull_request' && !startsWith(github.head_ref, 'j4n/'))
-      )
+#    if: >- !cancelled() && ( github.event_name == 'push' || (github.event_name == 'pull_request' && !startsWith(github.head_ref, 'j4n/')))
     runs-on: ubuntu-latest
     timeout-minutes: 60
     strategy:
@@ -104,7 +100,7 @@ jobs:
       url: https://${{ matrix.host }}/
     concurrency: ${{ matrix.host }}
     steps:
-      # -- Common setup --
+      # --- Common setup ---
 
       - uses: actions/checkout@v4
 
@@ -171,7 +167,7 @@ jobs:
           rsync -avz dkimkeys-restore/ root@${HOST}:/etc/dkimkeys/ || true
           ssh root@${HOST} chown root:root -R /var/lib/acme || true
 
-      # -- Bare metal deploy (main + PRs, skipped on j4n/* pushes) --
+      # --- Bare metal deploy (main + PRs, skipped on j4n/* pushes) ---
       # Always runs locally on the VPS via --ssh-host localhost.
 
       - name: bare offline tests
@@ -221,7 +217,7 @@ jobs:
           HOST: ${{ matrix.host }}
         run: ssh root@${HOST} "cd relay && scripts/cmdeploy dns -v --ssh-host localhost"
 
-      # -- Docker deploy (push only, runs even if bare failed) --
+      # --- Docker deploy (push only, runs even if bare failed) ---
 
       - name: stop bare services
         if: >-
@@ -242,7 +238,7 @@ jobs:
           ssh root@${HOST} 'apt-get update && apt-get install -y ca-certificates curl'
           ssh root@${HOST} 'install -m 0755 -d /etc/apt/keyrings'
           ssh root@${HOST} 'curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc && chmod a+r /etc/apt/keyrings/docker.asc'
-          ssh root@${HOST} 'echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian $(. /etc/os-release && echo $VERSION_CODENAME) stable" > /etc/apt/sources.list.d/docker.list'
+          ssh root@${HOST} 'echo "deb [arch=$(dpkg ---print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian $(. /etc/os-release && echo $VERSION_CODENAME) stable" > /etc/apt/sources.list.d/docker.list'
           ssh root@${HOST} 'apt-get update && apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin'
 
       - name: prepare Docker bind mounts
@@ -368,7 +364,7 @@ jobs:
           HOST: ${{ matrix.host }}
         run: ssh root@${HOST} 'docker exec chatmail cmdeploy dns -v --ssh-host @local'
 
-      # -- Cleanup --
+      # --- Cleanup ---
 
       - name: add SSH keys
         if: >-
