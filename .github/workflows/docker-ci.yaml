@@ -227,8 +227,9 @@ jobs:
         env:
           HOST: ${{ matrix.host }}
         run: |
-          # Stream docker logs in the background so we see chatmail-init output in real time
-          ssh root@${HOST} 'docker logs -f chatmail' &
+          # Stream journald inside the container so we see chatmail-init output in real time
+          # (docker logs doesn't work with logging driver: none)
+          ssh root@${HOST} 'docker exec chatmail journalctl -f --no-pager' &
           LOG_PID=$!
           trap "kill $LOG_PID 2>/dev/null || true" EXIT
           for i in $(seq 1 60); do
@@ -242,7 +243,6 @@ jobs:
           done
           echo "Container did not become healthy in time."
           kill $LOG_PID 2>/dev/null || true
-          ssh root@${HOST} 'cd /srv/chatmail/relay && docker compose logs --tail=200'
           echo "--- failed units ---"
           ssh root@${HOST} 'docker exec chatmail systemctl --failed --no-pager' || true
           echo "--- service logs ---"
