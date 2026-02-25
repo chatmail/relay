@@ -167,9 +167,6 @@ jobs:
           rsync -avz dkimkeys-restore/ root@${HOST}:/etc/dkimkeys/ || true
           ssh root@${HOST} chown root:root -R /var/lib/acme || true
 
-      # --- Bare metal deploy (main + PRs, skipped on j4n/* pushes) ---
-      # Always runs locally on the VPS via --ssh-host localhost.
-
       - name: bare offline tests
         if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
         run: pytest --pyargs cmdeploy
