@@ -26,34 +26,11 @@ impl IncomingBeforeQueueHandler {
             skip_dkim,
         })
     }
-}
 
-#[async_trait]
-impl SmtpHandler for IncomingBeforeQueueHandler {
-    fn handle_mail(&self, _address: &str) -> Result<(), String> {
-        Ok(())
-    }
-
-    async fn check_data(&self, envelope: &Envelope) -> Result<(), String> {
-        let message = match parse_mail(&envelope.data) {
-            Ok(m) => m,
-            Err(e) => return Err(format!("500 Failed to parse message: {}", e)),
-        };
-
-        let from_header = message
-            .headers
-            .get_first_value("From")
-            .unwrap_or_default()
-            .trim()
-            .to_string();
-
-        let Some(from_addr) = extract_address(&from_header) else {
-            return Err(format!("500 Invalid FROM header: {from_header}"));
-        };
-
-        log::debug!("Processing DATA message from {from_addr}");
-
-        let from_domain = AddressDomain::from_str(&from_addr).map_err(|e| e.smtp_response())?;
+    /// Verify the origin of the email either by performing DKIM verification or by matching the FROM
+    /// domain literal with the origin IP.
+    async fn verify_origin(&self, envelope: &Envelope, from_addr: &str) -> Result<(), String> {
+        let from_domain = AddressDomain::from_str(from_addr).map_err(|e| e.smtp_response())?;
 
         match from_domain {
             AddressDomain::Literal(ip) => {
@@ -85,6 +62,35 @@ impl SmtpHandler for IncomingBeforeQueueHandler {
             }
         }
 
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl SmtpHandler for IncomingBeforeQueueHandler {
+    fn handle_mail(&self, _address: &str) -> Result<(), String> {
+        Ok(())
+    }
+
+    async fn check_data(&self, envelope: &Envelope) -> Result<(), String> {
+        let message = match parse_mail(&envelope.data) {
+            Ok(m) => m,
+            Err(e) => return Err(format!("500 Failed to parse message: {}", e)),
+        };
+
+        let from_header = message
+            .headers
+            .get_first_value("From")
+            .unwrap_or_default()
+            .trim()
+            .to_string();
+
+        let Some(from_addr) = extract_address(&from_header) else {
+            return Err(format!("500 Invalid FROM header: {from_header}"));
+        };
+
+        log::debug!("Processing DATA message from {from_addr}");
+
         let mail_encrypted = check_encrypted(&message, false);
         log::debug!("mail_encrypted: {mail_encrypted}");
         log::debug!("is_securejoin: {}", is_securejoin(&message));
@@ -92,7 +98,7 @@ impl SmtpHandler for IncomingBeforeQueueHandler {
         // Allow encrypted or securejoin messages
         if mail_encrypted || is_securejoin(&message) {
             log::info!("Incoming: Filtering encrypted mail.");
-            return Ok(());
+            return self.verify_origin(envelope, &from_addr).await;
         }
 
         log::info!("Incoming: Filtering unencrypted mail.");
@@ -103,7 +109,7 @@ impl SmtpHandler for IncomingBeforeQueueHandler {
             && from_addr.to_lowercase().starts_with("mailer-daemon@")
             && message.ctype.mimetype == "multipart/report"
         {
-            return Ok(());
+            return self.verify_origin(envelope, &from_addr).await;
         }
 
         for recipient in &envelope.rcpt_to {
@@ -113,7 +119,7 @@ impl SmtpHandler for IncomingBeforeQueueHandler {
             }
         }
 
-        Ok(())
+        self.verify_origin(envelope, &from_addr).await
     }
 
     async fn reinject_mail(&self, envelope: &Envelope) -> Result<(), String> {
