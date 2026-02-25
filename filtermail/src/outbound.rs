@@ -73,7 +73,10 @@ impl SmtpHandler for OutgoingBeforeQueueHandler {
         let from_addr = extract_address(&from_header)
             .ok_or(format!("500 Invalid FROM header: {from_header}"))?;
 
-        log::debug!("Processing DATA message from {from_addr}");
+        // MAIL FROM is our source of truth for outbound messages,
+        // as this address is checked by postfix against the username before sending it
+        // to filtermail.
+        log::debug!("Processing DATA message from {}", envelope.mail_from);
 
         if !envelope.mail_from.eq_ignore_ascii_case(&from_addr) {
             return Err(format!(
