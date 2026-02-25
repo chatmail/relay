@@ -223,10 +223,14 @@ jobs:
           # ssh root@${HOST} "docker pull ${GHCR_IMAGE}"
           ssh root@${HOST} "cd /srv/chatmail/relay && CHATMAIL_IMAGE=${GHCR_IMAGE} MAIL_DOMAIN=${HOST} docker compose -f docker-compose.yaml -f docker/docker-compose.ci.yaml up -d"
 
-      - name: wait for container to become healthy
+      - name: Wait for container to become healthy
         env:
           HOST: ${{ matrix.host }}
         run: |
+          # Stream docker logs in the background so we see chatmail-init output in real time
+          ssh root@${HOST} 'docker logs -f chatmail' &
+          LOG_PID=$!
+          trap "kill $LOG_PID 2>/dev/null || true" EXIT
           for i in $(seq 1 60); do
             status=$(ssh root@${HOST} 'docker inspect --format={{.State.Health.Status}} chatmail 2>/dev/null' || echo "missing")
             echo "  [$i/60] status=$status"
@@ -237,8 +241,26 @@ jobs:
             sleep 5
           done
           echo "Container did not become healthy in time."
+          kill $LOG_PID 2>/dev/null || true
           ssh root@${HOST} 'cd /srv/chatmail/relay && docker compose logs --tail=200'
+          echo "--- failed units ---"
+          ssh root@${HOST} 'docker exec chatmail systemctl --failed --no-pager' || true
+          echo "--- service logs ---"
+          ssh root@${HOST} 'docker exec chatmail journalctl -u dovecot -u postfix -u nginx -u unbound --no-pager -n 50' || true
+          echo "--- listening ports ---"
+          ssh root@${HOST} 'docker exec chatmail ss -tlnp' || true
+          echo "--- chatmail.ini ---"
+          ssh root@${HOST} 'docker exec chatmail cat /etc/chatmail/chatmail.ini' || true
           exit 1
+
+      - name: show container state
+        env:
+          HOST: ${{ matrix.host }}
+        run: |
+          echo "--- listening ports ---"
+          ssh root@${HOST} 'docker exec chatmail ss -tlnp'
+          echo "--- chatmail.ini ---"
+          ssh root@${HOST} 'docker exec chatmail cat /etc/chatmail/chatmail.ini'
 
       - name: add ssh keys to staging server
         if: matrix.add_ssh_keys
