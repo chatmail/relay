@@ -22,13 +22,15 @@ pub trait SmtpHandler: Send + Sync {
     fn handle_mail(&self, address: &str) -> Result<(), String>;
 
     /// Checks the DATA command before reinjection.
-    async fn check_data(&self, envelope: &Envelope) -> Result<(), String>;
+    ///
+    /// Can optionally modify the envelope before reinjection.
+    async fn check_data(&self, envelope: &mut Envelope) -> Result<(), String>;
 
     /// Reinjects the mail back to postfix.
     async fn reinject_mail(&self, envelope: &Envelope) -> Result<(), String>;
 
     /// Handles the DATA command.
-    async fn handle_data(&self, envelope: &Envelope) -> Result<String, String> {
+    async fn handle_data(&self, envelope: &mut Envelope) -> Result<String, String> {
         log::debug!("handle_DATA before-queue");
         self.check_data(envelope).await?;
         self.reinject_mail(envelope).await.map_err(|e| {
@@ -182,7 +184,7 @@ where
             envelope.data = data;
 
             // Process the message
-            match handler.handle_data(&envelope).await {
+            match handler.handle_data(&mut envelope).await {
                 Ok(response) => {
                     log::debug!("Sent: {response}");
                     writer

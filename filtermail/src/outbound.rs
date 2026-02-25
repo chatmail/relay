@@ -55,7 +55,7 @@ impl SmtpHandler for OutgoingBeforeQueueHandler {
         Ok(())
     }
 
-    async fn check_data(&self, envelope: &Envelope) -> Result<(), String> {
+    async fn check_data(&self, envelope: &mut Envelope) -> Result<(), String> {
         let message = match parse_mail(&envelope.data) {
             Ok(m) => m,
             Err(e) => return Err(format!("500 Failed to parse message: {}", e)),

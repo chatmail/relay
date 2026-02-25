@@ -72,7 +72,7 @@ impl SmtpHandler for IncomingBeforeQueueHandler {
         Ok(())
     }
 
-    async fn check_data(&self, envelope: &Envelope) -> Result<(), String> {
+    async fn check_data(&self, envelope: &mut Envelope) -> Result<(), String> {
         let message = match parse_mail(&envelope.data) {
             Ok(m) => m,
             Err(e) => return Err(format!("500 Failed to parse message: {}", e)),
@@ -90,6 +90,15 @@ impl SmtpHandler for IncomingBeforeQueueHandler {
         };
 
         log::debug!("Processing DATA message from {from_addr}");
+
+        if !envelope.mail_from.eq_ignore_ascii_case(&from_addr) {
+            // If the MAIL FROM doesn't match the From header, we do not reject the mail,
+            // as this can be caused by e.g. SRS forwarding.
+            // Instead, we reset the envelope address, so it is reinjected as
+            // `MAIL FROM:<>` to prevent sending a bounce message.
+            // <https://github.com/chatmail/filtermail/issues/67>
+            envelope.mail_from = String::new();
+        }
 
         let mail_encrypted = check_encrypted(&message, false);
         log::debug!("mail_encrypted: {mail_encrypted}");
