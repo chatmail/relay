@@ -105,12 +105,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - host: staging2.testrun.org
-            acme_dir: acme
-            dkim_dir: dkimkeys
-            zone_file: staging.testrun.org-default.zone
-            disable_ipv6: false
-            add_ssh_keys: true
+#          - host: staging2.testrun.org
+#            acme_dir: acme
+#            dkim_dir: dkimkeys
+#            zone_file: staging.testrun.org-default.zone
+#            disable_ipv6: false
+#            add_ssh_keys: true
           - host: staging-ipv4.testrun.org
             acme_dir: acme-ipv4
             dkim_dir: dkimkeys-ipv4
