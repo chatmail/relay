@@ -3,6 +3,9 @@
 # mail domain (MUST be set to fully qualified chat mail domain)
 mail_domain = {mail_domain}
 
+# Where to deploy the relay - if unspecified, mail_domain will be used.
+ssh_host = localhost
+
 #
 # If you only do private test deploys, you don't need to modify any settings below
 #
