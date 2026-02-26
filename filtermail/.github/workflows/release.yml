@@ -1,0 +1,66 @@
+on:
+  release:
+    types: [published]
+
+jobs:
+  build:
+    name: Build binaries.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@efa25f7f19611383d5b0ccf2d1c8914531636bf9 # master
+        with:
+          toolchain: stable
+          targets: aarch64-unknown-linux-musl,x86_64-unknown-linux-musl
+      - uses: taiki-e/install-action@71b48393496777ee11188c07a34d48b048a985cd # v2
+        with:
+          tool: cargo-zigbuild
+      - name: Build
+        run: |
+          RUSTFLAGS="-Ctarget-feature=+crt-static -Clink-self-contained=yes" \
+          cargo zigbuild \
+            --release \
+            --target x86_64-unknown-linux-musl \
+            --target aarch64-unknown-linux-musl
+      - name: Upload x86_64 binary
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: filtermail-x86_64
+          path: target/x86_64-unknown-linux-musl/release/filtermail
+          if-no-files-found: error
+      - name: Upload aarch64 binary
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: filtermail-aarch64
+          path: target/aarch64-unknown-linux-musl/release/filtermail
+          if-no-files-found: error
+
+  publish:
+    name: Upload binaries to the release
+    needs: ["build"]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download aarch64 binary
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: filtermail-x86_64
+          path: filtermail-x86_64
+      - name: Download x86_64 binary
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: filtermail-aarch64
+          path: filtermail-aarch64
+      - name: Upload binaries to the GitHub release
+        if: github.event_name == 'release'
+        env:
+          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          mkdir dist
+          mv filtermail-x86_64 dist/filtermail-x86_64
+          mv filtermail-aarch64 dist/filtermail-aarch64
+          gh release upload "$REF_NAME" \
+            --repo ${{ github.repository }} \
+            dist/*

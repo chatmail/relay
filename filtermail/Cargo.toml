@@ -28,7 +28,5 @@ parking_lot = "0.12.5"
 rstest = "0.26.1"
 testresult = "0.4.1"
 
-# The profile that 'dist' will build with
-[profile.dist]
-inherits = "release"
+[profile.release]
 lto = "thin"
