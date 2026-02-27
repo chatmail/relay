@@ -1,3 +1,22 @@
+## 0.5.2 - 2026-02-27
+
+### Bug Fixes
+
+- *(logs)* Log correct address for outbound messages (#70)
+
+### Features
+
+- Check incoming email return address (#72)
+
+### Miscellaneous Tasks
+
+- Bump cargo-dist (#73)
+- *(ci)* Build and upload binaries in CI (#76)
+- *(ci)* Add missing Zig dependency (#77)
+
+### Refactor
+
+- Check if email is encrypted before verifying DKIM (#71)
 ## 0.5.1 - 2026-02-24
 
 ### Bug Fixes
