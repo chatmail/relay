@@ -60,8 +60,8 @@ jobs:
           REF_NAME: ${{ github.ref_name }}
         run: |
           mkdir dist
-          mv filtermail-x86_64 dist/filtermail-x86_64
-          mv filtermail-aarch64 dist/filtermail-aarch64
+          mv filtermail-x86_64/filtermail dist/filtermail-x86_64
+          mv filtermail-aarch64/filtermail dist/filtermail-aarch64
           gh release upload "$REF_NAME" \
             --repo ${{ github.repository }} \
             dist/*
