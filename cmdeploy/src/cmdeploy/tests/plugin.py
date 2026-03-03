@@ -456,6 +456,11 @@ def cmsetup(maildomain, gencreds, ssl_context):
     return CMSetup(maildomain, gencreds, ssl_context)
 
 
+@pytest.fixture
+def cmsetup2(maildomain2, gencreds, ssl_context):
+    return CMSetup(maildomain2, gencreds, ssl_context)
+
+
 class CMSetup:
     def __init__(self, maildomain, gencreds, ssl_context):
         self.maildomain = maildomain
@@ -466,7 +471,7 @@ class CMSetup:
         print(f"Creating {num} online users")
         users = []
         for i in range(num):
-            addr, password = self.gencreds()
+            addr, password = self.gencreds(self.maildomain)
             user = CMUser(self.maildomain, addr, password, self.ssl_context)
             assert user.smtp
             users.append(user)

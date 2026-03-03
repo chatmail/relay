@@ -8,6 +8,7 @@ import pytest
 
 from cmdeploy import remote
 from cmdeploy.cmdeploy import get_sshexec
+from cmdeploy.sshexec import FuncError
 
 
 class TestSSHExecutor:
@@ -116,6 +117,33 @@ def test_reject_forged_from(cmsetup, maildata, gencreds, lp, forgeaddr):
         user1.smtp.sendmail(from_addr=user1.addr, to_addrs=[user3.addr], msg=msg)
     assert "500" in str(e.value)
 
+
+@pytest.mark.slow
+def test_bounces_are_signed(cmsetup, cmsetup2, maildata, sshdomain2):
+    """Test that bounce messages are dkim signed"""
+
+    dkim_rejects_dir = "/tmp/filtermail-rejected/dkim-verify"
+    sshexec2 = get_sshexec(sshdomain2, ssh_options="-oStrictHostKeyChecking=accept-new")
+    sshexec2(call=remote.rdns.shell, kwargs=dict(command=f"rm -rf {dkim_rejects_dir}"))
+
+    our_user = cmsetup.gen_users(1)[0]
+    other_user = cmsetup2.gen_users(1)[0]
+    msg = maildata("encrypted.eml", from_addr=other_user.addr, to_addr=our_user.addr)
+
+    # exceed the 10kB quota of our_user mailbox to trigger a bounce message.
+    def bounce_received():
+        other_user.smtp.sendmail(
+            from_addr=other_user.addr, to_addrs=[our_user.addr], msg=msg.as_string()
+        )
+        out = sshexec2(call=remote.rdns.shell, kwargs=dict(command=f"journalctl -n 5 -u filtermail-incoming"))
+        assert "Filtering unencrypted mail." in out
+
+    try_n_times(20, bounce_received)
+
+    time.sleep(1)
+    # if bounce was dkim-signed, filtermail shouldn't log the eml.
+    with pytest.raises(FuncError):
+        sshexec2(call=remote.rdns.shell, kwargs=dict(command=f"ls {dkim_rejects_dir}"))
 
 def test_authenticated_from(cmsetup, maildata):
     """Test that envelope FROM must be the same as login."""

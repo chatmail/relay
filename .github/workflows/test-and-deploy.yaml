@@ -76,7 +76,7 @@ jobs:
 
       - run: |
           cmdeploy init staging2.testrun.org
-          sed -i 's/#\s*mtail_address/mtail_address/' chatmail.ini
+          sed -i 's/#\s*mtail_address/mtail_address/;s/max_mailbox_size = 500M/max_mailbox_size = 10k/' chatmail.ini
 
       - run: cmdeploy run --verbose --skip-dns-check
 
