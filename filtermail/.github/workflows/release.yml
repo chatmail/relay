@@ -26,13 +26,13 @@ jobs:
             --target x86_64-unknown-linux-musl \
             --target aarch64-unknown-linux-musl
       - name: Upload x86_64 binary
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: filtermail-x86_64
           path: target/x86_64-unknown-linux-musl/release/filtermail
           if-no-files-found: error
       - name: Upload aarch64 binary
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: filtermail-aarch64
           path: target/aarch64-unknown-linux-musl/release/filtermail
