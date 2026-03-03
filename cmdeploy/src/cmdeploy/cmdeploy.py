@@ -376,14 +376,14 @@ def get_parser():
     return parser
 
 
-def get_sshexec(ssh_host: str, verbose=True):
+def get_sshexec(ssh_host: str, verbose=True, **kwargs):
     if ssh_host in ["localhost", "@local"]:
         return LocalExec(verbose, docker=False)
     elif ssh_host == "@docker":
         return LocalExec(verbose, docker=True)
     if verbose:
         print(f"[ssh] login to {ssh_host}")
-    return SSHExec(ssh_host, verbose=verbose)
+    return SSHExec(ssh_host, verbose=verbose, **kwargs)
 
 
 def main(args=None):
