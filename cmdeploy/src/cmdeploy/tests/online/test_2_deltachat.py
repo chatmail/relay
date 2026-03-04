@@ -27,6 +27,7 @@ class TestMetadataTokens:
 
     def test_set_get_metadata(self, imap_mailbox):
         "set and get metadata token for an account"
+        time.sleep(5)  # make sure Metadata service had a chance to restart
         client = imap_mailbox.client
         client.send(b'a01 SETMETADATA INBOX (/private/devicetoken "1111" )\n')
         res = client.readline()
