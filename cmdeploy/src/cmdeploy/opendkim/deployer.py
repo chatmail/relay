@@ -103,6 +103,13 @@ class OpendkimDeployer(Deployer):
         )
         need_restart |= service_file.changed
 
+        files.file(
+            name="chown opendkim: /etc/dkimkeys/opendkim.private",
+            path="/etc/dkimkeys/opendkim.private",
+            user="opendkim",
+            group="opendkim",
+        )
+
         self.need_restart = need_restart
 
     def activate(self):

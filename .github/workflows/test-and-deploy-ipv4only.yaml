@@ -89,7 +89,6 @@ jobs:
 
       - name: set DNS entries
         run: |
-          ssh root@staging-ipv4.testrun.org chown opendkim:opendkim -R /etc/dkimkeys
           ssh root@staging-ipv4.testrun.org "cd relay && scripts/cmdeploy dns --zonefile staging-generated.zone --ssh-host localhost"
           ssh root@staging-ipv4.testrun.org cat relay/staging-generated.zone >> .github/workflows/staging-ipv4.testrun.org-default.zone
           cat .github/workflows/staging-ipv4.testrun.org-default.zone
