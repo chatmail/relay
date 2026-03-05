@@ -1,0 +1,70 @@
+# Traefik reverse-proxy example — use as a compose override:
+#
+#   docker compose -f docker-compose.yaml -f docker-compose-traefik.yaml up -d
+#
+# Traefik handles HTTP→HTTPS redirect and ACME certificate issuance.
+# traefik-certs-dumper extracts the certificates to the filesystem so
+# chatmail's Postfix/Dovecot/nginx can use them via TLS_EXTERNAL_CERT_AND_KEY.
+#
+# Prerequisites:
+#   mkdir -p traefik/data traefik/dynamic-configs
+#   touch traefik/data/acme.json && chmod 600 traefik/data/acme.json
+#   cp traefik/config.yaml.example traefik/config.yaml   # see below
+#
+# Required .env variables (in addition to MAIL_DOMAIN):
+#   ACME_EMAIL=admin@example.org
+
+services:
+  chatmail:
+    environment:
+      # Point chatmail at the certs dumped by traefik-certs-dumper.
+      # The container's tls-cert-reload.path watches for changes.
+      TLS_EXTERNAL_CERT_AND_KEY: >-
+        /traefik-certs/${MAIL_DOMAIN}/certificate.crt
+        /traefik-certs/${MAIL_DOMAIN}/privatekey.key
+    volumes:
+      - traefik-certs:/traefik-certs:ro
+    depends_on:
+      - traefik-certs-dumper
+    labels:
+      - traefik.enable=true
+      - traefik.http.services.chatmail.loadbalancer.server.scheme=https
+      - traefik.http.services.chatmail.loadbalancer.server.port=443
+      - traefik.http.routers.chatmail.rule=Host(`${MAIL_DOMAIN}`) || Host(`mta-sts.${MAIL_DOMAIN}`) || Host(`www.${MAIL_DOMAIN}`)
+      - traefik.http.routers.chatmail.tls=true
+      - traefik.http.routers.chatmail.tls.certresolver=letsEncrypt
+
+  traefik:
+    image: traefik:v3.3
+    container_name: traefik
+    restart: unless-stopped
+    network_mode: host
+    command:
+      - "--configFile=/config.yaml"
+      - "--certificatesresolvers.letsEncrypt.acme.email=${ACME_EMAIL}"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik/config.yaml:/config.yaml:ro
+      - ./traefik/data/acme.json:/acme.json
+      - ./traefik/dynamic-configs:/dynamic/conf:ro
+
+  traefik-certs-dumper:
+    image: ldez/traefik-certs-dumper:v2.10.0
+    restart: unless-stopped
+    depends_on:
+      - traefik
+    entrypoint: sh -c '
+      apk add openssl
+      && while ! [ -e /data/acme.json ]
+         || ! [ $$(jq ".[] | .Certificates | length" /data/acme.json | jq -s "add") != 0 ]; do
+           sleep 1;
+         done
+      && traefik-certs-dumper file
+           --version v3 --watch --domain-subdir=true
+           --source /data/acme.json --dest /certs'
+    volumes:
+      - ./traefik/data/acme.json:/data/acme.json:ro
+      - traefik-certs:/certs
+
+volumes:
+  traefik-certs:
