@@ -20,7 +20,7 @@ def test_fastcgi_working(maildomain, chatmail_config):
 
 
 @pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")
-def test_newemail_configure(maildomain, rpc, chatmail_config):
+def test_newemail_configure(maildomain, maildomain_ip, rpc, chatmail_config):
     """Test configuring accounts by scanning a QR code works."""
     url = f"DCACCOUNT:https://{maildomain}/new"
     for i in range(3):
@@ -30,12 +30,15 @@ def test_newemail_configure(maildomain, rpc, chatmail_config):
             # set_config_from_qr, so fetch credentials via requests instead
             res = requests.post(f"https://{maildomain}/new", verify=False)
             data = res.json()
-            rpc.add_or_update_transport(account_id, {
-                "addr": data["email"],
-                "password": data["password"],
-                "imapServer": maildomain,
-                "smtpServer": maildomain,
-                "certificateChecks": "acceptInvalidCertificates",
-            })
+            rpc.add_or_update_transport(
+                account_id,
+                {
+                    "addr": data["email"],
+                    "password": data["password"],
+                    "imapServer": maildomain_ip,
+                    "smtpServer": maildomain_ip,
+                    "certificateChecks": "acceptInvalidCertificates",
+                },
+            )
         else:
             rpc.add_transport_from_qr(account_id, url)

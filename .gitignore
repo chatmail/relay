@@ -5,6 +5,7 @@ __pycache__/
 *.swp
 *qr-*.png
 chatmail*.ini
+lxconfigs/
 
 
 # C extensions

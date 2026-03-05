@@ -18,7 +18,23 @@ from packaging import version
 from termcolor import colored
 
 from . import dns, remote
-from .sshexec import LocalExec, SSHExec
+from .lxc.cli import (  # noqa: F401
+    lxc_start_cmd,
+    lxc_start_cmd_options,
+    lxc_status_cmd,
+    lxc_status_cmd_options,
+    lxc_stop_cmd,
+    lxc_stop_cmd_options,
+    lxc_test_cmd,
+    lxc_test_cmd_options,
+)
+from .sshexec import (
+    LocalExec,
+    SSHExec,
+    resolve_host_from_ssh_config,
+    resolve_key_from_ssh_config,
+)
+from .www import main as webdev_main
 
 #
 # cmdeploy sub commands and options
@@ -82,18 +98,21 @@ def run_cmd_options(parser):
         help="disable checks nslookup for dns",
     )
     add_ssh_host_option(parser)
+    add_ssh_config_option(parser)
 
 
 def run_cmd(args, out):
     """Deploy chatmail services on the remote server."""
 
     ssh_host = args.ssh_host if args.ssh_host else args.config.mail_domain
-    sshexec = get_sshexec(ssh_host)
+    sshexec = get_sshexec(ssh_host, ssh_config=args.ssh_config)
     require_iroh = args.config.enable_iroh_relay
     strict_tls = args.config.tls_cert_mode == "acme"
     if not args.dns_check_disabled:
         remote_data = dns.get_initial_remote_data(sshexec, args.config.mail_domain)
-        if not dns.check_initial_remote_data(remote_data, strict_tls=strict_tls, print=out.red):
+        if not dns.check_initial_remote_data(
+            remote_data, strict_tls=strict_tls, print=out.red
+        ):
             return 1
 
     env = os.environ.copy()
@@ -108,6 +127,18 @@ def run_cmd(args, out):
     pyinf = "pyinfra --dry" if args.dry_run else "pyinfra"
 
     cmd = f"{pyinf} --ssh-user root {ssh_host} {deploy_path} -y"
+    ssh_config = args.ssh_config
+    if ssh_config:
+        ssh_config = str(Path(ssh_config).resolve())
+
+        # Use pyinfra's native SSH data keys to configure the connection directly
+        # rather than relying on paramiko config parsing (see also sshexec.py)
+        ip = resolve_host_from_ssh_config(ssh_host, ssh_config)
+        key = resolve_key_from_ssh_config(ssh_host, ssh_config)
+        data_args = f"--data ssh_hostname={ip} --data ssh_known_hosts_file=/dev/null"
+        if key:
+            data_args += f" --data ssh_key={key}"
+        cmd = f"{pyinf} --ssh-user root {ssh_host} {deploy_path} -y {data_args}"
     if ssh_host in ["localhost", "@docker"]:
         if ssh_host == "@docker":
             env["CHATMAIL_NOPORTCHECK"] = "True"
@@ -122,7 +153,11 @@ def run_cmd(args, out):
         out.check_call(cmd, env=env)
         if args.website_only:
             out.green("Website deployment completed.")
-        elif not args.dns_check_disabled and strict_tls and not remote_data["acme_account_url"]:
+        elif (
+            not args.dns_check_disabled
+            and strict_tls
+            and not remote_data["acme_account_url"]
+        ):
             out.red("Deploy completed but letsencrypt not configured")
             out.red("Run 'cmdeploy run' again")
         else:
@@ -139,15 +174,16 @@ def dns_cmd_options(parser):
         dest="zonefile",
         type=pathlib.Path,
         default=None,
-        help="write out a zonefile",
+        help="write DNS records in standard BIND format to the given file",
     )
     add_ssh_host_option(parser)
+    add_ssh_config_option(parser)
 
 
 def dns_cmd(args, out):
     """Check DNS entries and optionally generate dns zone file."""
     ssh_host = args.ssh_host if args.ssh_host else args.config.mail_domain
-    sshexec = get_sshexec(ssh_host, verbose=args.verbose)
+    sshexec = get_sshexec(ssh_host, verbose=args.verbose, ssh_config=args.ssh_config)
     tls_cert_mode = args.config.tls_cert_mode
     strict_tls = tls_cert_mode == "acme"
     remote_data = dns.get_initial_remote_data(sshexec, args.config.mail_domain)
@@ -178,13 +214,14 @@ def dns_cmd(args, out):
 
 def status_cmd_options(parser):
     add_ssh_host_option(parser)
+    add_ssh_config_option(parser)
 
 
 def status_cmd(args, out):
     """Display status for online chatmail instance."""
 
     ssh_host = args.ssh_host if args.ssh_host else args.config.mail_domain
-    sshexec = get_sshexec(ssh_host, verbose=args.verbose)
+    sshexec = get_sshexec(ssh_host, verbose=args.verbose, ssh_config=args.ssh_config)
 
     out.green(f"chatmail domain: {args.config.mail_domain}")
     if args.config.privacy_mail:
@@ -204,14 +241,18 @@ def test_cmd_options(parser):
         help="also run slow tests",
     )
     add_ssh_host_option(parser)
+    add_ssh_config_option(parser)
 
 
 def test_cmd(args, out):
     """Run local and online tests for chatmail deployment."""
 
     env = os.environ.copy()
+    env["CHATMAIL_INI"] = str(args.inipath.resolve())
     if args.ssh_host:
         env["CHATMAIL_SSH"] = args.ssh_host
+    if args.ssh_config:
+        env["CHATMAIL_SSH_CONFIG"] = str(Path(args.ssh_config).resolve())
 
     pytest_path = shutil.which("pytest")
     pytest_args = [
@@ -276,9 +317,7 @@ def bench_cmd(args, out):
 
 def webdev_cmd(args, out):
     """Run local web development loop for static web pages."""
-    from .www import main
-
-    main()
+    webdev_main()
 
 
 #
@@ -321,6 +360,16 @@ def add_ssh_host_option(parser):
     )
 
 
+def add_ssh_config_option(parser):
+    parser.add_argument(
+        "--ssh-config",
+        dest="ssh_config",
+        type=Path,
+        default=None,
+        help="Path to an SSH config file (e.g. lxconfigs/ssh-config).",
+    )
+
+
 def add_config_option(parser):
     parser.add_argument(
         "--config",
@@ -330,6 +379,7 @@ def add_config_option(parser):
         type=Path,
         help="path to the chatmail.ini file",
     )
+
     parser.add_argument(
         "--verbose",
         "-v",
@@ -340,15 +390,16 @@ def add_config_option(parser):
     )
 
 
-def add_subcommand(subparsers, func):
+def add_subcommand(subparsers, func, add_config=True):
     name = func.__name__
     assert name.endswith("_cmd")
-    name = name[:-4]
+    name = name[:-4].replace("_", "-")
     doc = func.__doc__.strip()
     help = doc.split("\n")[0].strip(".")
     p = subparsers.add_parser(name, description=doc, help=help)
     p.set_defaults(func=func)
-    add_config_option(p)
+    if add_config:
+        add_config_option(p)
     return p
 
 
@@ -362,13 +413,15 @@ def get_parser():
     """Return an ArgumentParser for the 'cmdeploy' CLI"""
 
     parser = argparse.ArgumentParser(description=description.strip())
+    parser.set_defaults(func=None, inipath=None)
     subparsers = parser.add_subparsers(title="subcommands")
 
     # find all subcommands in the module namespace
     glob = globals()
     for name, func in glob.items():
         if name.endswith("_cmd"):
-            subparser = add_subcommand(subparsers, func)
+            needs_config = not name.startswith("lxc_")
+            subparser = add_subcommand(subparsers, func, add_config=needs_config)
             addopts = glob.get(name + "_options")
             if addopts is not None:
                 addopts(subparser)
@@ -376,26 +429,27 @@ def get_parser():
     return parser
 
 
-def get_sshexec(ssh_host: str, verbose=True):
+def get_sshexec(ssh_host: str, verbose=True, ssh_config=None):
     if ssh_host in ["localhost", "@local"]:
         return LocalExec(verbose, docker=False)
     elif ssh_host == "@docker":
         return LocalExec(verbose, docker=True)
     if verbose:
         print(f"[ssh] login to {ssh_host}")
-    return SSHExec(ssh_host, verbose=verbose)
+    return SSHExec(ssh_host, verbose=verbose, ssh_config=ssh_config)
 
 
 def main(args=None):
     """Provide main entry point for 'cmdeploy' CLI invocation."""
     parser = get_parser()
     args = parser.parse_args(args=args)
-    if not hasattr(args, "func"):
+    if args.func is None:
         return parser.parse_args(["-h"])
 
     out = Out()
     kwargs = {}
-    if args.func.__name__ not in ("init_cmd", "fmt_cmd"):
+
+    if args.inipath is not None and args.func.__name__ not in ("init_cmd", "fmt_cmd"):
         if not args.inipath.exists():
             out.red(f"expecting {args.inipath} to exist, run init first?")
             raise SystemExit(1)

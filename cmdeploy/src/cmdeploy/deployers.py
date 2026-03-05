@@ -18,6 +18,7 @@ from pyinfra.facts.systemd import SystemdEnabled
 from pyinfra.operations import apt, files, pip, server, systemd
 
 from cmdeploy.cmdeploy import Out
+from cmdeploy.util import get_version_string
 
 from .acmetool import AcmetoolDeployer
 from .basedeploy import (
@@ -271,8 +272,14 @@ class WebsiteDeployer(Deployer):
                     logger.warning("Web page build failed, skipping website deployment")
                     return
             # if it is not a hugo page, upload it as is
-            files.rsync(
-                f"{www_path}/", "/var/www/html", flags=["-avz", "--chown=www-data"]
+            # pyinfra files.rsync (experimental) causes problems with ssh-config configuration
+            # the stable files.sync should do
+            files.sync(
+                src=str(www_path),
+                dest="/var/www/html",
+                user="www-data",
+                group="www-data",
+                delete=True,
             )
 
 
@@ -524,17 +531,9 @@ class FcgiwrapDeployer(Deployer):
 
 class GithashDeployer(Deployer):
     def activate(self):
-        try:
-            git_hash = subprocess.check_output(["git", "rev-parse", "HEAD"]).decode()
-        except Exception:
-            git_hash = "unknown\n"
-        try:
-            git_diff = subprocess.check_output(["git", "diff"]).decode()
-        except Exception:
-            git_diff = ""
         files.put(
             name="Upload chatmail relay git commit hash",
-            src=StringIO(git_hash + git_diff),
+            src=StringIO(get_version_string()),
             dest="/etc/chatmail-version",
             mode="700",
         )
@@ -578,11 +577,17 @@ def deploy_chatmail(config_path: Path, disable_mail: bool, website_only: bool) -
         )
 
     # Check if mtail_address interface is available (if configured)
-    if config.mtail_address and config.mtail_address not in ('127.0.0.1', '::1', 'localhost'):
+    if config.mtail_address and config.mtail_address not in (
+        "127.0.0.1",
+        "::1",
+        "localhost",
+    ):
         ipv4_addrs = host.get_fact(hardware.Ipv4Addrs)
         all_addresses = [addr for addrs in ipv4_addrs.values() for addr in addrs]
         if config.mtail_address not in all_addresses:
-            Out().red(f"Deploy failed: mtail_address {config.mtail_address} is not available (VPN up?).\n")
+            Out().red(
+                f"Deploy failed: mtail_address {config.mtail_address} is not available (VPN up?).\n"
+            )
             exit(1)
 
     if not os.environ.get("CHATMAIL_NOPORTCHECK"):

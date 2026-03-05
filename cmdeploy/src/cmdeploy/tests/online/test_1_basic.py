@@ -1,4 +1,5 @@
 import datetime
+import os
 import smtplib
 import socket
 import subprocess
@@ -13,7 +14,8 @@ from cmdeploy.cmdeploy import get_sshexec
 class TestSSHExecutor:
     @pytest.fixture(scope="class")
     def sshexec(self, sshdomain):
-        return get_sshexec(sshdomain)
+        ssh_config = os.environ.get("CHATMAIL_SSH_CONFIG")
+        return get_sshexec(sshdomain, ssh_config=ssh_config)
 
     def test_ls(self, sshexec):
         out = sshexec(call=remote.rdns.shell, kwargs=dict(command="ls"))
@@ -132,11 +134,10 @@ def test_authenticated_from(cmsetup, maildata):
 @pytest.mark.parametrize("from_addr", ["fake@example.org", "fake@testrun.org"])
 def test_reject_missing_dkim(cmsetup, maildata, from_addr):
     domain = cmsetup.maildomain
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.settimeout(10)
     try:
-        sock.connect((domain, 25))
-    except socket.timeout:
+        sock = socket.create_connection((domain, 25), timeout=10)
+        sock.close()
+    except (socket.timeout, OSError):
         pytest.skip(f"port 25 not reachable for {domain}")
 
     recipient = cmsetup.gen_users(1)[0]
