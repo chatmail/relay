@@ -1,9 +1,24 @@
 import datetime
-import importlib
-
-from jinja2 import Template
 
 from . import remote
+
+
+def parse_zone_records(text):
+    """Yield ``(name, ttl, rtype, rdata)`` from standard BIND-format text.
+
+    Skips comment lines (starting with ``;``) and blank lines.
+    Each record line must have the format ``name TTL IN type rdata``.
+    """
+    for raw_line in text.strip().splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith(";"):
+            continue
+        parts = line.split(None, 4)
+        if len(parts) < 5:
+            raise ValueError(f"Bad zone record line: {line}")
+        name = parts[0].rstrip(".")
+        # parts[2] is the IN class — ignored
+        yield name, parts[1], parts[3].upper(), parts[4]
 
 
 def get_initial_remote_data(sshexec, mail_domain):
@@ -31,13 +46,36 @@ def get_filled_zone_file(remote_data):
     if not sts_id:
         remote_data["sts_id"] = datetime.datetime.now().strftime("%Y%m%d%H%M")
 
-    template = importlib.resources.files(__package__).joinpath("chatmail.zone.j2")
-    content = template.read_text()
-    zonefile = Template(content).render(**remote_data)
-    lines = [x.strip() for x in zonefile.split("\n") if x.strip()]
+    d = remote_data["mail_domain"]
+    lines = ["; Required DNS entries"]
+    if remote_data.get("A"):
+        lines.append(f"{d}.  3600  IN  A  {remote_data['A']}")
+    if remote_data.get("AAAA"):
+        lines.append(f"{d}.  3600  IN  AAAA  {remote_data['AAAA']}")
+    lines.append(f"{d}.  3600  IN  MX  10 {d}.")
+    if remote_data.get("strict_tls"):
+        lines.append(
+            f'_mta-sts.{d}.  3600  IN  TXT  "v=STSv1; id={remote_data["sts_id"]}"'
+        )
+        lines.append(f"mta-sts.{d}.  3600  IN  CNAME  {d}.")
+    lines.append(f"www.{d}.  3600  IN  CNAME  {d}.")
+    lines.append(remote_data["dkim_entry"])
     lines.append("")
-    zonefile = "\n".join(lines)
-    return zonefile
+    lines.append("; Recommended DNS entries")
+    lines.append(f'{d}.  3600  IN  TXT  "v=spf1 a ~all"')
+    lines.append(f'_dmarc.{d}.  3600  IN  TXT  "v=DMARC1;p=reject;adkim=s;aspf=s"')
+    if remote_data.get("acme_account_url"):
+        lines.append(
+            f"{d}.  3600  IN  CAA  0 issue"
+            f' "letsencrypt.org;accounturi={remote_data["acme_account_url"]}"'
+        )
+    lines.append(f'_adsp._domainkey.{d}.  3600  IN  TXT  "dkim=discardable"')
+    lines.append(f"_submission._tcp.{d}.  3600  IN  SRV  0 1 587 {d}.")
+    lines.append(f"_submissions._tcp.{d}.  3600  IN  SRV  0 1 465 {d}.")
+    lines.append(f"_imap._tcp.{d}.  3600  IN  SRV  0 1 143 {d}.")
+    lines.append(f"_imaps._tcp.{d}.  3600  IN  SRV  0 1 993 {d}.")
+    lines.append("")
+    return "\n".join(lines)
 
 
 def check_full_zone(sshexec, remote_data, out, zonefile) -> int:

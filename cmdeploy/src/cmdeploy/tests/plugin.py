@@ -2,7 +2,9 @@ import imaplib
 import itertools
 import os
 import random
+import re
 import smtplib
+import socket
 import ssl
 import subprocess
 import time
@@ -20,6 +22,64 @@ def pytest_addoption(parser):
     )
 
 
+def _parse_ssh_config_hosts(path):
+    """Parse an OpenSSH config file and return a dict of hostname -> IP."""
+    mapping = {}
+    current_names = []
+    for ln in Path(path).read_text().splitlines():
+        line = ln.strip()
+        m = re.match(r"^Host\s+(.+)", line)
+        if m:
+            current_names = m.group(1).split()
+            continue
+        m = re.match(r"^Hostname\s+(\S+)", line)
+        if m and current_names:
+            ip = m.group(1)
+            for name in current_names:
+                mapping[name] = ip
+            current_names = []
+    return mapping
+
+
+_original_getaddrinfo = socket.getaddrinfo
+
+
+def _make_patched_getaddrinfo(host_map):
+    """Return a getaddrinfo that resolves hosts in host_map to their IPs."""
+
+    def patched_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
+        if host in host_map:
+            ip = host_map[host]
+            return _original_getaddrinfo(ip, port, family, type, proto, flags)
+        return _original_getaddrinfo(host, port, family, type, proto, flags)
+
+    return patched_getaddrinfo
+
+
+@pytest.fixture(autouse=True, scope="session")
+def _setup_localchat_dns():
+    """Monkey-patch socket.getaddrinfo to resolve .localchat via ssh-config."""
+    ssh_config = os.environ.get("CHATMAIL_SSH_CONFIG")
+    if not ssh_config or not Path(ssh_config).exists():
+        yield {}
+        return
+    host_map = _parse_ssh_config_hosts(ssh_config)
+    if not host_map:
+        yield {}
+        return
+    socket.getaddrinfo = _make_patched_getaddrinfo(host_map)
+    try:
+        yield host_map
+    finally:
+        socket.getaddrinfo = _original_getaddrinfo
+
+
+@pytest.fixture(scope="session")
+def ssh_config_host_map(_setup_localchat_dns):
+    """Return the host-name → IP map parsed from ssh-config."""
+    return _setup_localchat_dns
+
+
 def pytest_configure(config):
     config._benchresults = {}
     config.addinivalue_line(
@@ -35,6 +95,11 @@ def pytest_runtest_setup(item):
 
 
 def _get_chatmail_config():
+    ini = os.environ.get("CHATMAIL_INI")
+    if ini:
+        path = Path(ini).resolve()
+        if path.exists():
+            return read_config(path), path
     current = Path().resolve()
     while 1:
         path = current.joinpath("chatmail.ini").resolve()
@@ -63,6 +128,12 @@ def maildomain(chatmail_config):
 @pytest.fixture(scope="session")
 def sshdomain(maildomain):
     return os.environ.get("CHATMAIL_SSH", maildomain)
+
+
+@pytest.fixture(scope="session")
+def maildomain_ip(maildomain, ssh_config_host_map):
+    """Return the IP for maildomain from ssh-config, or maildomain itself."""
+    return ssh_config_host_map.get(maildomain, maildomain)
 
 
 @pytest.fixture
@@ -306,23 +377,32 @@ from deltachat_rpc_client import DeltaChat, Rpc
 class ChatmailACFactory:
     """RPC-based account factory for chatmail testing."""
 
-    def __init__(self, rpc, maildomain, gencreds, chatmail_config):
+    def __init__(
+        self,
+        rpc,
+        maildomain,
+        maildomain_ip,
+        gencreds,
+        chatmail_config,
+        ssh_config_host_map,
+    ):
         self.dc = DeltaChat(rpc)
         self.rpc = rpc
         self._maildomain = maildomain
+        self._maildomain_ip = maildomain_ip
         self.gencreds = gencreds
         self.chatmail_config = chatmail_config
+        self._ssh_config_host_map = ssh_config_host_map
 
     def _make_transport(self, domain):
         """Build a transport config dict for the given domain."""
         addr, password = self.gencreds(domain)
+        server = self._ssh_config_host_map.get(domain, domain)
         transport = {
             "addr": addr,
             "password": password,
-            # Setting server explicitly skips requesting autoconfig XML,
-            # see https://datatracker.ietf.org/doc/draft-ietf-mailmaint-autoconfig/
-            "imapServer": domain,
-            "smtpServer": domain,
+            "imapServer": server,
+            "smtpServer": server,
         }
         if self.chatmail_config.tls_cert_mode == "self":
             transport["certificateChecks"] = "acceptInvalidCertificates"
@@ -376,13 +456,17 @@ def rpc(tmp_path_factory):
 
 
 @pytest.fixture
-def cmfactory(rpc, gencreds, maildomain, chatmail_config):
+def cmfactory(
+    rpc, gencreds, maildomain, maildomain_ip, chatmail_config, ssh_config_host_map
+):
     """Return a ChatmailACFactory for creating online Delta Chat accounts."""
     return ChatmailACFactory(
         rpc=rpc,
         maildomain=maildomain,
+        maildomain_ip=maildomain_ip,
         gencreds=gencreds,
         chatmail_config=chatmail_config,
+        ssh_config_host_map=ssh_config_host_map,
     )
 
 
@@ -394,14 +478,21 @@ def remote(sshdomain):
 class Remote:
     def __init__(self, sshdomain):
         self.sshdomain = sshdomain
+        self.ssh_config = os.environ.get("CHATMAIL_SSH_CONFIG")
 
     def iter_output(self, logcmd="", ready=None):
         getjournal = "journalctl -f" if not logcmd else logcmd
         print(self.sshdomain)
         match self.sshdomain:
-            case "@local": command = []
-            case "localhost": command = []
-            case _: command = ["ssh", f"root@{self.sshdomain}"]
+            case "@local":
+                command = []
+            case "localhost":
+                command = []
+            case _:
+                command = ["ssh"]
+                if self.ssh_config:
+                    command.extend(["-F", self.ssh_config])
+                command.append(f"root@{self.sshdomain}")
         [command.append(arg) for arg in getjournal.split()]
         self.popen = subprocess.Popen(
             command,
