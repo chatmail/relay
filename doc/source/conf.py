@@ -15,7 +15,7 @@ author = 'chatmail collective'
 
 extensions = [
     #'sphinx.ext.autodoc',
-    #'sphinx.ext.viewdoc',
+    #'sphinx.ext.viewcode',
     'sphinxcontrib.mermaid',
 ]
 

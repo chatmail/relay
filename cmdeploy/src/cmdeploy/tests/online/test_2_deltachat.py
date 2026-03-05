@@ -1,4 +1,5 @@
 import ipaddress
+import os
 import re
 import time
 
@@ -92,7 +93,9 @@ class TestEndToEndDeltaChat:
         lp.sec(f"filling remote inbox for {user}")
         fn = f"7743102289.M843172P2484002.c20,S={quota},W=2398:2,"
         path = chatmail_config.mailboxes_dir.joinpath(user, "cur", fn)
-        sshexec = get_sshexec(sshdomain)
+        sshexec = get_sshexec(
+            sshdomain, ssh_config=os.environ.get("CHATMAIL_SSH_CONFIG")
+        )
         sshexec(call=rshell.write_numbytes, kwargs=dict(path=str(path), num=120))
         res = sshexec(call=rshell.dovecot_recalc_quota, kwargs=dict(user=user))
         assert res["percent"] >= 100

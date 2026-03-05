@@ -3,7 +3,7 @@ from copy import deepcopy
 import pytest
 
 from cmdeploy import remote
-from cmdeploy.dns import check_full_zone, check_initial_remote_data
+from cmdeploy.dns import check_full_zone, check_initial_remote_data, parse_zone_records
 
 
 @pytest.fixture
@@ -126,17 +126,11 @@ class TestPerformInitialChecks:
 
 
 def parse_zonefile_into_dict(zonefile, mockdns_base, only_required=False):
-    for zf_line in zonefile.split("\n"):
-        if zf_line.startswith("#"):
-            if "Recommended" in zf_line and only_required:
-                return
-            continue
-        if not zf_line.strip():
-            continue
-        zf_domain, zf_typ, zf_value = zf_line.split(maxsplit=2)
-        zf_domain = zf_domain.rstrip(".")
-        zf_value = zf_value.strip()
-        mockdns_base.setdefault(zf_typ, {})[zf_domain] = zf_value
+    if only_required:
+        # Only take records before the "; Recommended" section
+        zonefile = zonefile.split("; Recommended")[0]
+    for name, ttl, rtype, rdata in parse_zone_records(zonefile):
+        mockdns_base.setdefault(rtype, {})[name] = rdata
 
 
 class MockSSHExec:

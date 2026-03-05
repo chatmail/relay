@@ -9,6 +9,9 @@ def test_status_cmd(chatmail_config, capsys, request):
     if os.getenv("CHATMAIL_SSH"):
         command.append("--ssh-host")
         command.append(os.getenv("CHATMAIL_SSH"))
+    if os.getenv("CHATMAIL_SSH_CONFIG"):
+        command.append("--ssh-config")
+        command.append(os.getenv("CHATMAIL_SSH_CONFIG"))
     assert main(command) == 0
     status_out = capsys.readouterr()
     print(status_out.out)
