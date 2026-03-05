@@ -108,10 +108,7 @@ def run_cmd(args, out):
     pyinf = "pyinfra --dry" if args.dry_run else "pyinfra"
 
     cmd = f"{pyinf} --ssh-user root {ssh_host} {deploy_path} -y"
-    if ssh_host in ["localhost", "@docker"]:
-        if ssh_host == "@docker":
-            env["CHATMAIL_NOPORTCHECK"] = "True"
-            env["CHATMAIL_NOSYSCTL"] = "True"
+    if ssh_host == "localhost":
         cmd = f"{pyinf} @local {deploy_path} -y"
 
     if version.parse(pyinfra.__version__) < version.parse("3"):
@@ -316,7 +313,7 @@ def add_ssh_host_option(parser):
     parser.add_argument(
         "--ssh-host",
         dest="ssh_host",
-        help="Run commands on 'localhost', via '@docker', or on a specific SSH host "
+        help="Run commands on 'localhost' or on a specific SSH host "
         "instead of chatmail.ini's mail_domain.",
     )
 
@@ -378,9 +375,7 @@ def get_parser():
 
 def get_sshexec(ssh_host: str, verbose=True):
     if ssh_host in ["localhost", "@local"]:
-        return LocalExec(verbose, docker=False)
-    elif ssh_host == "@docker":
-        return LocalExec(verbose, docker=True)
+        return LocalExec(verbose)
     if verbose:
         print(f"[ssh] login to {ssh_host}")
     return SSHExec(ssh_host, verbose=verbose)
