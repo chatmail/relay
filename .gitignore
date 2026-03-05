@@ -164,3 +164,9 @@ cython_debug/
 #.idea/
 
 chatmail.zone
+
+# docker
+/data/
+/custom/
+docker/docker-compose.override.yaml
+docker/.env
