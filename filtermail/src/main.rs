@@ -46,6 +46,24 @@ use std::sync::Arc;
 
 const ENCRYPTION_NEEDED_523: &str = "523 Encryption Needed: Invalid Unencrypted Mail";
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Mode {
+    Outgoing,
+    Incoming,
+}
+
+impl std::str::FromStr for Mode {
+    type Err = &'static str;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "outgoing" => Ok(Mode::Outgoing),
+            "incoming" => Ok(Mode::Incoming),
+            _ => Err("Error: mode must be 'incoming' or 'outgoing'"),
+        }
+    }
+}
+
 #[tokio::main]
 async fn main() {
     // default to info level
@@ -72,10 +90,13 @@ async fn main() {
         unreachable!("args length checked above")
     };
 
-    if mode != "incoming" && mode != "outgoing" {
-        eprintln!("Error: mode must be 'incoming' or 'outgoing'");
-        process::exit(1);
-    }
+    let mode = match mode.parse::<Mode>() {
+        Ok(mode) => mode,
+        Err(e) => {
+            eprintln!("{e}");
+            process::exit(1);
+        }
+    };
 
     let config = match Config::from_file(config_path) {
         Ok(c) => c,
@@ -85,7 +106,7 @@ async fn main() {
         }
     };
 
-    if mode == "outgoing" {
+    if mode == Mode::Outgoing {
         let handler = Arc::new(OutgoingBeforeQueueHandler::new(config.clone()));
         let addr = format!("127.0.0.1:{}", config.filtermail_smtp_port);
         let max_size = config.max_message_size;
