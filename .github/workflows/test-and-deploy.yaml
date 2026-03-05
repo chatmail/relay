@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - j4n/docker-pr
   pull_request:
     paths-ignore:
       - 'scripts/**'
@@ -11,7 +12,67 @@ on:
       - 'CHANGELOG.md'
       - 'LICENSE'
 
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
 jobs:
+  build-docker:
+    name: Build Docker image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.image-ref.outputs.image }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        if: github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            # Tagged releases: v1.2.3 -> :1.2.3, :1.2, :latest
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            # Branch pushes: foo/docker-pr -> :foo-docker-pr
+            type=ref,event=branch
+            # Always: :sha-<hash>
+            type=sha
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/chatmail_relay.dockerfile
+          push: ${{ github.event_name == 'push' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            GIT_HASH=${{ github.sha }}
+
+      - name: Output image reference
+        id: image-ref
+        run: |
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          IMAGE="${{ env.REGISTRY }}/$(echo "${{ env.IMAGE_NAME }}" | tr '[:upper:]' '[:lower:]'):sha-${SHORT_SHA}"
+          echo "image=${IMAGE}" >> "$GITHUB_OUTPUT"
+
   deploy:
     name: deploy on staging2.testrun.org, and run tests
     runs-on: ubuntu-latest
@@ -55,6 +116,7 @@ jobs:
         run: echo venv/bin >>$GITHUB_PATH
 
       - name: upload TLS cert after rebuilding
+        id: wait-for-vps
         run: |
           echo " --- wait until staging2.testrun.org VPS is rebuilt --- "
           rm ~/.ssh/known_hosts
@@ -71,8 +133,8 @@ jobs:
       - name: add hpk42 key to staging server
         run: ssh root@staging2.testrun.org 'curl -s https://github.com/hpk42.keys >> .ssh/authorized_keys'
 
-      - name: run deploy-chatmail offline tests 
-        run: pytest --pyargs cmdeploy 
+      - name: run deploy-chatmail offline tests
+        run: pytest --pyargs cmdeploy
 
       - run: |
           cmdeploy init staging2.testrun.org
@@ -95,3 +157,133 @@ jobs:
       - name: cmdeploy dns
         run: cmdeploy dns -v
 
+      # --- Docker deploy (push only, runs even if bare failed) ---
+
+      - name: stop bare services
+        if: >-
+          !cancelled() && github.event_name == 'push'
+          && steps.wait-for-vps.outcome == 'success'
+        run: |
+          ssh root@staging2.testrun.org 'systemctl stop postfix dovecot nginx opendkim unbound filtermail doveauth chatmail-metadata iroh-relay mtail fcgiwrap acmetool 2>/dev/null || true'
+
+      - name: install Docker on VPS
+        if: >-
+          !cancelled() && github.event_name == 'push'
+          && steps.wait-for-vps.outcome == 'success'
+        run: |
+          ssh root@staging2.testrun.org 'apt-get update && apt-get install -y ca-certificates curl'
+          ssh root@staging2.testrun.org 'install -m 0755 -d /etc/apt/keyrings'
+          ssh root@staging2.testrun.org 'curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc && chmod a+r /etc/apt/keyrings/docker.asc'
+          ssh root@staging2.testrun.org 'echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian $(. /etc/os-release && echo $VERSION_CODENAME) stable" > /etc/apt/sources.list.d/docker.list'
+          ssh root@staging2.testrun.org 'apt-get update && apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin'
+
+      - name: prepare Docker bind mounts
+        if: >-
+          !cancelled() && github.event_name == 'push'
+          && steps.wait-for-vps.outcome == 'success'
+        run: |
+          ssh root@staging2.testrun.org 'mkdir -p /srv/chatmail/certs /srv/chatmail/dkim'
+          ssh root@staging2.testrun.org 'cp -a /var/lib/acme/. /srv/chatmail/certs/ && cp -a /etc/dkimkeys/. /srv/chatmail/dkim/' || true
+
+      - name: upload chatmail.ini for Docker
+        if: >-
+          !cancelled() && github.event_name == 'push'
+          && steps.wait-for-vps.outcome == 'success'
+        run: |
+          # Reuse chatmail.ini already created by the bare-metal deploy steps
+          scp chatmail.ini root@staging2.testrun.org:/srv/chatmail/chatmail.ini
+
+      - name: deploy with Docker
+        if: >-
+          !cancelled() && github.event_name == 'push'
+          && steps.wait-for-vps.outcome == 'success'
+        run: |
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          GHCR_IMAGE="${{ env.REGISTRY }}/$(echo "${{ env.IMAGE_NAME }}" | tr '[:upper:]' '[:lower:]'):sha-${SHORT_SHA}"
+          rsync -avz --exclude='.git' --exclude='venv' --exclude='__pycache__' ./ root@staging2.testrun.org:/srv/chatmail/relay/
+          # Login to GHCR on VPS and pull pre-built image
+          echo "${{ secrets.GITHUB_TOKEN }}" | ssh root@staging2.testrun.org 'docker login ghcr.io -u ${{ github.actor }} --password-stdin'
+          ssh root@staging2.testrun.org "docker pull ${GHCR_IMAGE}"
+          ssh root@staging2.testrun.org "cd /srv/chatmail/relay && CHATMAIL_IMAGE=${GHCR_IMAGE} MAIL_DOMAIN=staging2.testrun.org docker compose -f docker/docker-compose.yaml -f docker/docker-compose.ci.yaml up -d"
+
+      - name: wait for container healthy
+        if: >-
+          !cancelled() && github.event_name == 'push'
+          && steps.wait-for-vps.outcome == 'success'
+        run: |
+          # Stream journald inside the container
+          ssh root@staging2.testrun.org 'docker exec chatmail journalctl -f --no-pager' &
+          LOG_PID=$!
+          trap "kill $LOG_PID 2>/dev/null || true" EXIT
+          for i in $(seq 1 60); do
+            status=$(ssh root@staging2.testrun.org 'docker inspect --format={{.State.Health.Status}} chatmail 2>/dev/null' || echo "missing")
+            echo "  [$i/60] status=$status"
+            if [ "$status" = "healthy" ]; then
+              echo "Container is healthy."
+              exit 0
+            fi
+            if [ "$status" = "unhealthy" ]; then
+              echo "Container is unhealthy!"
+              break
+            fi
+            sleep 5
+          done
+          echo "Container did not become healthy."
+          kill $LOG_PID 2>/dev/null || true
+          echo "--- failed units ---"
+          ssh root@staging2.testrun.org 'docker exec chatmail systemctl --failed --no-pager' || true
+          echo "--- service logs ---"
+          ssh root@staging2.testrun.org 'docker exec chatmail journalctl -u dovecot -u postfix -u nginx -u unbound --no-pager -n 50' || true
+          echo "--- listening ports ---"
+          ssh root@staging2.testrun.org 'docker exec chatmail ss -tlnp' || true
+          echo "--- chatmail.ini ---"
+          ssh root@staging2.testrun.org 'docker exec chatmail cat /etc/chatmail/chatmail.ini' || true
+          exit 1
+
+      - name: show container state
+        if: >-
+          !cancelled() && github.event_name == 'push'
+          && steps.wait-for-vps.outcome == 'success'
+        run: |
+          echo "--- listening ports ---"
+          ssh root@staging2.testrun.org 'docker exec chatmail ss -tlnp'
+          echo "--- chatmail.ini ---"
+          ssh root@staging2.testrun.org 'docker exec chatmail cat /etc/chatmail/chatmail.ini'
+
+      - name: Docker integration tests
+        if: >-
+          !cancelled() && github.event_name == 'push'
+          && steps.wait-for-vps.outcome == 'success'
+        run: |
+          ssh root@staging2.testrun.org 'docker exec chatmail cmdeploy test --slow --ssh-host @local'
+
+      - name: Docker DNS
+        if: >-
+          !cancelled() && github.event_name == 'push'
+          && steps.wait-for-vps.outcome == 'success'
+        run: |
+          # Reset zone file in case bare DNS already appended to it
+          git checkout .github/workflows/staging.testrun.org-default.zone
+          ssh root@staging2.testrun.org 'docker exec chatmail chown opendkim:opendkim -R /etc/dkimkeys'
+          ssh root@staging2.testrun.org 'docker exec chatmail cmdeploy dns --ssh-host @local --zonefile /opt/chatmail/staging.zone --verbose'
+          ssh root@staging2.testrun.org 'docker cp chatmail:/opt/chatmail/staging.zone /tmp/staging.zone'
+          scp root@staging2.testrun.org:/tmp/staging.zone staging-generated.zone
+          cat staging-generated.zone >> .github/workflows/staging.testrun.org-default.zone
+          cat .github/workflows/staging.testrun.org-default.zone
+          scp .github/workflows/staging.testrun.org-default.zone root@ns.testrun.org:/etc/nsd/staging2.testrun.org.zone
+          ssh root@ns.testrun.org nsd-checkzone staging2.testrun.org /etc/nsd/staging2.testrun.org.zone
+          ssh root@ns.testrun.org systemctl reload nsd
+
+      - name: Docker final DNS check
+        if: >-
+          !cancelled() && github.event_name == 'push'
+          && steps.wait-for-vps.outcome == 'success'
+        run: ssh root@staging2.testrun.org 'docker exec chatmail cmdeploy dns -v --ssh-host @local'
+
+      # --- Cleanup ---
+
+      - name: add SSH keys
+        if: >-
+          !cancelled()
+          && steps.wait-for-vps.outcome == 'success'
+        run: ssh root@staging2.testrun.org 'curl -s https://github.com/hpk42.keys https://github.com/j4n.keys >> .ssh/authorized_keys'
