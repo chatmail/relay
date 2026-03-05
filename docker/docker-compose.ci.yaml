@@ -1,0 +1,11 @@
+# Used by .github/workflows/docker-ci.yaml
+# The GHCR image is set via CHATMAIL_IMAGE env var at deploy time.
+services:
+  chatmail:
+    image: ${CHATMAIL_IMAGE:-chatmail-relay:latest}
+    volumes:
+      - /srv/chatmail/chatmail.ini:/etc/chatmail/chatmail.ini
+      - /srv/chatmail/dkim:/etc/dkimkeys
+      - /srv/chatmail/certs:/var/lib/acme
+    environment:
+      TLS_EXTERNAL_CERT_AND_KEY: /var/lib/acme/live/${MAIL_DOMAIN}/fullchain /var/lib/acme/live/${MAIL_DOMAIN}/privkey
