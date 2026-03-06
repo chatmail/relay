@@ -17,12 +17,6 @@ They share the host's kernel but run their own init system
 (systemd), package manager, and network stack,
 so the cmdeploy deployment scripts work exactly
 as they would on a real Debian server or cloud VPS.
-Incus is
-`well supported
-<https://linuxcontainers.org/incus/docs/main/installing/>`_
-on Debian, Ubuntu, Arch, Fedora,
-and other major distributions.
-
 
 Prerequisites
 -------------
@@ -38,15 +32,8 @@ Incus is in the default repositories::
 
     sudo apt install incus
 
-**Older Debian / Ubuntu**: Use the
-`Zabbly package repository
-<https://github.com/zabbly/incus>`_::
-
-    curl -fsSL https://pkgs.zabbly.com/get/incus-stable | sudo bash
-
-**Arch Linux**::
-
-    sudo pacman -S incus
+For other distros like Arch, Fedora etc. please check out
+`Incus support on many linux distros <https://linuxcontainers.org/incus/docs/main/installing/>`_.
 
 After installing, initialise and grant yourself access::
 
