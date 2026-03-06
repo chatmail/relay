@@ -96,18 +96,14 @@ CLI reference
 
 ``lxc-stop [--destroy] [--destroy-all] [NAME ...]``
     Stop relay containers.
-    Without arguments, stops ``test0-localchat``
-    and ``test1-localchat``.
+    Without arguments, stops ``test0-localchat`` and ``test1-localchat``.
     Pass ``NAME`` to stop specific containers.
-    Use ``--destroy`` to also delete the containers
-    and their config files.
+    Use ``--destroy`` to also delete the containers and their config files.
     Use ``--destroy-all`` to additionally destroy
     the ``ns-localchat`` DNS container **and** remove
     the cached ``localchat-base`` and ``localchat-relay``
-    images, giving a fully clean slate
-    for the next ``lxc-test``.
-    User containers are **never** destroyed
-    unless named explicitly.
+    images, giving a fully clean slate for the next ``lxc-test``.
+    User containers are **never** destroyed unless named explicitly.
 
 ``lxc-test [--one]``
     Idempotent full pipeline:

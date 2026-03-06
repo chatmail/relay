@@ -249,10 +249,6 @@ def test_cmd(args, out):
 
     env = os.environ.copy()
     env["CHATMAIL_INI"] = str(args.inipath.resolve())
-    if args.ssh_host:
-        env["CHATMAIL_SSH"] = args.ssh_host
-    if args.ssh_config:
-        env["CHATMAIL_SSH_CONFIG"] = str(Path(args.ssh_config).resolve())
 
     pytest_path = shutil.which("pytest")
     pytest_args = [
@@ -266,6 +262,10 @@ def test_cmd(args, out):
     ]
     if args.slow:
         pytest_args.append("--slow")
+    if args.ssh_host:
+        pytest_args.extend(["--ssh-host", args.ssh_host])
+    if args.ssh_config:
+        pytest_args.extend(["--ssh-config", str(Path(args.ssh_config).resolve())])
     ret = out.run_ret(pytest_args, env=env)
     return ret
 

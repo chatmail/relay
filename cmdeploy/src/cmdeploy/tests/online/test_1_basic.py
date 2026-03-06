@@ -1,5 +1,4 @@
 import datetime
-import os
 import smtplib
 import socket
 import subprocess
@@ -13,8 +12,8 @@ from cmdeploy.cmdeploy import get_sshexec
 
 class TestSSHExecutor:
     @pytest.fixture(scope="class")
-    def sshexec(self, sshdomain):
-        ssh_config = os.environ.get("CHATMAIL_SSH_CONFIG")
+    def sshexec(self, sshdomain, pytestconfig):
+        ssh_config = pytestconfig.getoption("ssh_config")
         return get_sshexec(sshdomain, ssh_config=ssh_config)
 
     def test_ls(self, sshexec):
