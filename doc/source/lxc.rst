@@ -25,24 +25,16 @@ Install `Incus <https://linuxcontainers.org/incus/>`_
 (LXC container manager).
 See the `official installation guide
 <https://linuxcontainers.org/incus/docs/main/installing/>`_
-for full details, or use one of the shortcuts below:
+for full details.
 
-**Debian 12+ / Ubuntu 24.04+**
-Incus is in the default repositories::
-
-    sudo apt install incus
-
-For other distros like Arch, Fedora etc. please check out
-`Incus support on many linux distros <https://linuxcontainers.org/incus/docs/main/installing/>`_.
-
-After installing, initialise and grant yourself access::
+After installing incus, initialise and grant yourself access::
 
     sudo incus admin init --minimal
     sudo usermod -aG incus-admin $USER
 
 .. warning::
 
-   You **must log out and back in** (or run ``newgrp incus-admin``)
+   You **must now log out and back in** (or run ``newgrp incus-admin``)
    after adding yourself to the group.
    Without this, all ``cmdeploy lxc-*`` commands
    will fail with permission errors.
@@ -58,6 +50,7 @@ Quick start
 
     cd relay
     scripts/initenv.sh               # bootstrap venv
+    source venv/bin/activate         # activate venv
     cmdeploy lxc-test                # create containers, deploy, test
 
 
