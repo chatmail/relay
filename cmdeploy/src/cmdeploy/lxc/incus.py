@@ -472,7 +472,7 @@ class DNSContainer(Container):
     """Specialised container handle for the PowerDNS name server."""
 
     def __init__(self, incus):
-        super().__init__(incus, DNS_CONTAINER_NAME, domain=DNS_DOMAIN)
+        super().__init__(incus, DNS_CONTAINER_NAME, domain=DNS_DOMAIN, memory="256MiB")
 
     def pdnsutil(self, *args, check=True):
         """Run ``pdnsutil <args>`` inside the DNS container."""
