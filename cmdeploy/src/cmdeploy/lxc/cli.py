@@ -37,15 +37,13 @@ def lxc_start_cmd_options(parser):
 def lxc_start_cmd(args, out):
     """Create/Ensure and start LXC relay and DNS containers."""
     ix = Incus()
-    relays = [ix.get_container(n) for n in args.names] or [
-        ix.get_container(RELAY_NAMES[0])
-    ]
     out.green("Ensuring DNS container (ns-localchat) ...")
     dns_ct = ix.get_dns_container()
     dns_ct.ensure()
-    dns_ip = dns_ct.ipv4
-    print(f"  DNS container IP: {dns_ip}")
+    print(f"  DNS container IP: {dns_ct.ipv4}")
 
+    names = args.names if args.names else RELAY_NAMES
+    relays = list(ix.get_container(n) for n in names)
     for ct in relays:
         out.green(f"Ensuring container {ct.name!r} ({ct.domain}) ...")
         ct.ensure()
@@ -81,12 +79,12 @@ def lxc_start_cmd(args, out):
         print(
             f"Resetting DNS zones for {len(started)} domain(s) (A + AAAA records) ..."
         )
-        dns_ct.reset_dns_records(dns_ip, started)
+        dns_ct.reset_dns_records(dns_ct.ipv4, started)
 
         for ct in relays:
             if ct.name in started_cnames:
                 print(f"  Configuring DNS in {ct.name} ...")
-                ct.configure_dns(dns_ip)
+                ct.configure_dns(dns_ct.ipv4)
 
     # Generate the unified SSH config
     out.green("Writing ssh-config ...")

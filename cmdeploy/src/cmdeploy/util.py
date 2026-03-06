@@ -57,7 +57,9 @@ def get_version_string():
     """
     git_hash = get_git_hash() or "unknown"
     try:
-        git_diff = shell("git diff", cwd=str(_project_root())).stdout
+        git_diff = shell("git diff", cwd=str(_project_root())).stdout.strip()
     except Exception:
         git_diff = ""
-    return git_hash + "\n" + git_diff
+    if git_diff:
+        return f"{git_hash}\n{git_diff}"
+    return git_hash
