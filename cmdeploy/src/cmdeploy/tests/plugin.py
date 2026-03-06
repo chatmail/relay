@@ -20,6 +20,18 @@ def pytest_addoption(parser):
     parser.addoption(
         "--slow", action="store_true", default=False, help="also run slow tests"
     )
+    parser.addoption(
+        "--ssh-host",
+        dest="ssh_host",
+        default=None,
+        help="SSH host (overrides mail_domain for SSH operations).",
+    )
+    parser.addoption(
+        "--ssh-config",
+        dest="ssh_config",
+        default=None,
+        help="Path to an SSH config file (e.g. lxconfigs/ssh-config).",
+    )
 
 
 def _parse_ssh_config_hosts(path):
@@ -57,9 +69,9 @@ def _make_patched_getaddrinfo(host_map):
 
 
 @pytest.fixture(autouse=True, scope="session")
-def _setup_localchat_dns():
+def _setup_localchat_dns(pytestconfig):
     """Monkey-patch socket.getaddrinfo to resolve .localchat via ssh-config."""
-    ssh_config = os.environ.get("CHATMAIL_SSH_CONFIG")
+    ssh_config = pytestconfig.getoption("ssh_config")
     if not ssh_config or not Path(ssh_config).exists():
         yield {}
         return
@@ -126,8 +138,8 @@ def maildomain(chatmail_config):
 
 
 @pytest.fixture(scope="session")
-def sshdomain(maildomain):
-    return os.environ.get("CHATMAIL_SSH", maildomain)
+def sshdomain(maildomain, pytestconfig):
+    return pytestconfig.getoption("ssh_host") or maildomain
 
 
 @pytest.fixture(scope="session")
@@ -471,14 +483,14 @@ def cmfactory(
 
 
 @pytest.fixture
-def remote(sshdomain):
-    return Remote(sshdomain)
+def remote(sshdomain, pytestconfig):
+    return Remote(sshdomain, ssh_config=pytestconfig.getoption("ssh_config"))
 
 
 class Remote:
-    def __init__(self, sshdomain):
+    def __init__(self, sshdomain, ssh_config=None):
         self.sshdomain = sshdomain
-        self.ssh_config = os.environ.get("CHATMAIL_SSH_CONFIG")
+        self.ssh_config = ssh_config
 
     def iter_output(self, logcmd="", ready=None):
         getjournal = "journalctl -f" if not logcmd else logcmd
