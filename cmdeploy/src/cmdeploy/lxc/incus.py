@@ -120,7 +120,7 @@ class Incus:
         return json.loads(result.stdout)
 
     def run_output(self, args, check=True):
-        """Run an incus command and return its stdout.
+        """Run an incus command and return its stripped stdout.
 
         When *check* is False, returns *None* on non-zero exit
         instead of raising.
@@ -128,7 +128,7 @@ class Incus:
         result = self.run(args, check=check)
         if result.returncode != 0:
             return None
-        return result.stdout
+        return result.stdout.strip()
 
     def _find_image(self, alias):
         """Return *alias* if an image with that alias exists, else None."""
@@ -396,9 +396,10 @@ class RelayContainer(Container):
 
     def configure_hosts(self, ip):
         """Set hostname and /etc/hosts inside the container."""
-        self.bash(f"""\
+        self.bash(f"""
             echo '{self.name}' > /etc/hostname
             hostname {self.name}
+            sed -i '/ {self.domain}$/d' /etc/hosts
             echo '{ip} {self.name} {self.domain}' >> /etc/hosts
         """)
 
@@ -419,16 +420,14 @@ class RelayContainer(Container):
 
     def deployed_version(self):
         """Read /etc/chatmail-version, or None if absent."""
-        output = self.bash("cat /etc/chatmail-version", check=False)
-        return output.strip() if output else None
+        return self.bash("cat /etc/chatmail-version", check=False)
 
     def deployed_domain(self):
         """Read the domain deployed on the container (postfix myhostname)."""
-        output = self.bash(
+        return self.bash(
             "postconf -h myhostname 2>/dev/null",
             check=False,
         )
-        return output.strip() if output else None
 
     def verify_ssh(self, ssh_config):
         """Verify SSH connectivity to this container."""
