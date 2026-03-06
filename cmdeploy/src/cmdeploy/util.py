@@ -37,27 +37,31 @@ def shell(cmd, check=False, **kwargs):
     return subprocess.run(collapse(cmd), shell=True, text=True, check=check, **kwargs)
 
 
-def get_git_hash():
+def get_git_hash(root=None):
     """Return the local HEAD commit hash, or None."""
+    if root is None:
+        root = _project_root()
     result = shell(
         "git rev-parse HEAD",
-        cwd=str(_project_root()),
+        cwd=str(root),
     )
     if result.returncode == 0:
         return result.stdout.strip()
     return None
 
 
-def get_version_string():
+def get_version_string(root=None):
     """Return ``git_hash\\ngit_diff`` for the local working tree.
 
     Used by :class:`~cmdeploy.deployers.GithashDeployer` to write
     ``/etc/chatmail-version`` and by ``lxc-status`` to compare
     the deployed state against the local checkout.
     """
-    git_hash = get_git_hash() or "unknown"
+    if root is None:
+        root = _project_root()
+    git_hash = get_git_hash(root=root) or "unknown"
     try:
-        git_diff = shell("git diff", cwd=str(_project_root())).stdout.strip()
+        git_diff = shell("git diff", cwd=str(root)).stdout.strip()
     except Exception:
         git_diff = ""
     if git_diff:
