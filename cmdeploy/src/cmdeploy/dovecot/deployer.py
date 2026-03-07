@@ -141,11 +141,15 @@ def _configure_dovecot(config: Config, debug: bool = False) -> (bool, bool):
                 # Skip updating limits if already sufficient
                 # (enables running in incus containers where sysctl readonly)
                 continue
+            # in containers the following can fail see also
+            # https://docs.pyinfra.com/en/3.x/arguments.html#operation-meta-callbacks
             server.sysctl(
                 name=f"Change {key}",
                 key=key,
                 value=65535,
                 persist=True,
+                _ignore_errors=True,
+                _continue_on_error=True,
             )
 
     timezone_env = files.line(
