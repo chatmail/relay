@@ -4,7 +4,6 @@ import os
 import subprocess
 import threading
 import time
-from contextlib import contextmanager
 
 from ..util import (
     collapse,
@@ -47,9 +46,9 @@ def lxc_start_cmd(args, out):
     dns_ct = ix.get_dns_container()
     dns_ct.ensure()
     if not ix.find_dns_image():
-        with _section(out, "LXC: publishing DNS image"):
+        with out.section("LXC: publishing DNS image"):
             dns_ct.publish_as_dns_image()
-    print(f"  DNS container IP: {dns_ct.ipv4}")
+    out.print(f"  DNS container IP: {dns_ct.ipv4}")
 
     names = args.names if args.names else RELAY_NAMES
     relays = list(ix.get_container(n) for n in names)
@@ -58,12 +57,12 @@ def lxc_start_cmd(args, out):
         ct.ensure()
         ip = ct.ipv4
 
-        print("  Configuring container hostname ...")
+        out.print("  Configuring container hostname ...")
         ct.configure_hosts(ip)
 
-        print(f"  Writing {ct.ini.name} ...")
+        out.print(f"  Writing {ct.ini.name} ...")
         ct.write_ini(disable_ipv6=args.ipv4_only)
-        print(f"  Config: {ct.ini}")
+        out.print(f"  Config: {ct.ini}")
         if args.ipv4_only:
             ct.disable_ipv6()
             ipv6 = None
@@ -74,10 +73,10 @@ def lxc_start_cmd(args, out):
                 check=False,
             )
             ipv6 = output.strip() if output else None
-        print(f"  {_format_addrs(ip, ipv6)}")
+        out.print(f"  {_format_addrs(ip, ipv6)}")
 
         out.green(f"  Container {ct.name!r} ready: {ct.domain} -> {ip}")
-        print()
+        out.print()
 
     # Reset DNS zones only for the containers we just started
     started_cnames = {ct.name for ct in relays}
@@ -85,26 +84,33 @@ def lxc_start_cmd(args, out):
     started = [c for c in managed if c["name"] in started_cnames]
 
     if started:
-        print(
-            f"Resetting DNS zones for {len(started)} domain(s) (A + AAAA records) ..."
+        out.print(
+            f"Resetting DNS zones for {len(started)}"
+            " domain(s) (A + AAAA records) ..."
         )
         dns_ct.reset_dns_records(dns_ct.ipv4, started)
 
         for ct in relays:
             if ct.name in started_cnames:
-                print(f"  Configuring DNS in {ct.name} ...")
+                out.print(f"  Configuring and testing DNS in {ct.name} ...")
                 ct.configure_dns(dns_ct.ipv4)
+                if not ct.check_dns():
+                    out.red(
+                        f"  DNS check failed for {ct.name}"
+                        ": cannot resolve external hosts"
+                    )
+                    return 1
 
     # Generate the unified SSH config
     out.green("Writing ssh-config ...")
     ssh_cfg = ix.write_ssh_config()
-    print(f"  {ssh_cfg}")
+    out.print(f"  {ssh_cfg}")
 
     # Verify SSH via the generated config
     for ct in relays:
-        print(f"  Verifying SSH to {ct.name} via ssh-config ...")
+        out.print(f"  Verifying SSH to {ct.name} via ssh-config ...")
         if ct.verify_ssh(ssh_cfg):
-            print(f"  SSH OK: ssh -F lxconfigs/ssh-config {ct.domain}")
+            out.print(f"  SSH OK: ssh -F lxconfigs/ssh-config {ct.domain}")
         else:
             out.red(f"  WARNING: SSH verification failed for {ct.name}")
 
@@ -119,8 +125,8 @@ def lxc_start_cmd(args, out):
     # Optionally run cmdeploy run on each relay
     if args.run:
         for ct in relays:
-            with _section(out, f"cmdeploy run: {ct.sname} ({ct.domain})"):
-                ret = _run_cmdeploy("run", ct, ix, extra=["--skip-dns-check"])
+            with out.section(f"cmdeploy run: {ct.sname} ({ct.domain})"):
+                ret = _run_cmdeploy("run", ct, ix, out, extra=["--skip-dns-check"])
                 if ret:
                     out.red(f"Deploy to {ct.sname} failed (exit {ret})")
                     return ret
@@ -209,13 +215,13 @@ def lxc_test_cmd(args, out):
     # Per-relay: start containers, then deploy in parallel.
     ipv4_only_flags = {RELAY_NAMES[0]: False, RELAY_NAMES[1]: True}
 
-    # Phase 1 — start all containers (sequential, fast)
+    # Phase 1: start all containers (sequential, fast)
     for ct in map(ix.get_container, relay_names):
         name = ct.sname
         ipv4_only = ipv4_only_flags.get(name, False)
         label = "IPv4-only" if ipv4_only else "dual-stack"
 
-        with _section(out, f"LXC: lxc-start {name} ({label})"):
+        with out.section(f"LXC: lxc-start {name} ({label})"):
             args.names = [name]
             args.ipv4_only = ipv4_only
             args.run = False
@@ -223,48 +229,45 @@ def lxc_test_cmd(args, out):
             if ret:
                 return ret
 
-    # Phase 2 — deploy all relays in parallel
+    # Phase 2: deploy all relays in parallel
     to_deploy = []
     for ct in map(ix.get_container, relay_names):
         status = _deploy_status(ct, local_hash, ix)
         if "IN-SYNC" in status:
-            _section_line(
-                out, f"cmdeploy run: {ct.sname} — {status}, skipping"
-            )
+            out.section_line(f"cmdeploy run: {ct.sname}: {status}, skipping")
         else:
             to_deploy.append(ct)
 
     if to_deploy:
-        with _section(out, "cmdeploy run (parallel)"):
+        with out.section("cmdeploy run (parallel)"):
             ret = _run_cmdeploy_parallel(
                 "run", to_deploy, ix, out, extra=["--skip-dns-check"]
             )
             if ret:
                 return ret
 
-    # Phase 3 — publish images (sequential, fast)
+    # Phase 3: publish images (sequential, fast)
     for ct in map(ix.get_container, relay_names):
         if ct.publish_image():
-            _section_line(out, f"LXC: published {ct.sname} image")
+            out.section_line(f"LXC: published {ct.sname} image")
         else:
-            _section_line(
-                out,
-                f"LXC: publish {ct.sname} image — skipped, cached",
+            out.section_line(
+                f"LXC: publish {ct.sname} image: skipped, cached",
             )
 
     for ct in map(ix.get_container, relay_names):
-        with _section(out, f"cmdeploy dns: {ct.sname} ({ct.domain})"):
-            ret = _run_cmdeploy("dns", ct, ix, extra=["--zonefile", str(ct.zone)])
+        with out.section(f"cmdeploy dns: {ct.sname} ({ct.domain})"):
+            ret = _run_cmdeploy("dns", ct, ix, out, extra=["--zonefile", str(ct.zone)])
             if ret:
                 out.red(f"DNS for {ct.sname} failed (exit {ret})")
                 return ret
 
-    with _section(out, "LXC: PowerDNS zone update"):
+    with out.section("LXC: PowerDNS zone update"):
         dns_ct = ix.get_dns_container()
         for ct in map(ix.get_container, relay_names):
             if ct.zone.exists():
                 zone_data = ct.zone.read_text()
-                print(f"  Loading {ct.zone} into PowerDNS ...")
+                out.print(f"  Loading {ct.zone} into PowerDNS ...")
                 dns_ct.set_dns_records(zone_data)
 
     # Run tests in both directions when two relays are available.
@@ -279,14 +282,20 @@ def lxc_test_cmd(args, out):
             env = os.environ.copy()
             env["CHATMAIL_DOMAIN2"] = second.domain
 
-        with _section(out, f"cmdeploy test: {label}"):
-            ret = _run_cmdeploy("test", first, ix, **({"env": env} if env else {}))
+        with out.section(f"cmdeploy test: {label}"):
+            ret = _run_cmdeploy("test", first, ix, out, **({"env": env} if env else {}))
             if ret:
                 out.red(f"Tests failed (exit {ret})")
                 return ret
 
     elapsed = time.time() - t_total
-    _section_line(out, f"lxc-test complete ({elapsed:.1f}s)")
+    out.section_line(f"lxc-test complete ({elapsed:.1f}s)")
+    if out.section_timings:
+        out.print("Section timings:")
+        for name, secs in out.section_timings:
+            out.print(f"  {name:.<50s} {secs:5.1f}s")
+        out.print(f"  {'total':.<50s} {elapsed:5.1f}s")
+    out.section_timings.clear()
     return 0
 
 
@@ -321,7 +330,7 @@ def lxc_status_cmd(args, out):
 
     dns_ip = None
     for c in containers:
-        _print_container_status(c, ix, local_hash)
+        _print_container_status(out, c, ix, local_hash)
         if c["name"] == ix.get_dns_container().name:
             dns_ip = c["ip"]
 
@@ -330,7 +339,7 @@ def lxc_status_cmd(args, out):
     return 0
 
 
-def _print_container_status(c, ix, local_hash):
+def _print_container_status(out, c, ix, local_hash):
     """Print name/status, domain/IPs, and RAM for one container."""
     cname = c["name"]
     is_running = c.get("status") == "Running"
@@ -343,13 +352,13 @@ def _print_container_status(c, ix, local_hash):
         tag = "running"
     else:
         tag = f"running {_deploy_status(ct, local_hash, ix)}"
-    print(f"  {cname:20s} {tag}")
+    out.print(f"  {cname:20s} {tag}")
 
     # Second line: domain, IPv4, IPv6
     domain = c.get("domain", "")
     ip = c.get("ip") or "?"
     ipv6 = c.get("ipv6")
-    print(f"  {domain:20s} {_format_addrs(ip, ipv6)}")
+    out.print(f"  {domain:20s} {_format_addrs(ip, ipv6)}")
 
     # Third line: RAM (RSS), config
     indent = " " * 21
@@ -365,20 +374,20 @@ def _print_container_status(c, ix, local_hash):
     else:
         detail = ram_str
 
-    print(f"  {indent}{detail}")
-    print()
+    out.print(f"  {indent}{detail}")
+    out.print()
 
 
 def _print_ssh_status(out, ix):
     """Print SSH integration status."""
-    print()
+    out.print()
     ssh_cfg = ix.ssh_config_path
     if ix.check_ssh_include():
         out.green("SSH: ~/.ssh/config includes lxconfigs/ssh-config ✓")
     else:
         out.red("SSH: ~/.ssh/config does NOT include lxconfigs/ssh-config")
-        print("  Add to ~/.ssh/config:")
-        print(f"      Include {ssh_cfg}")
+        out.print("  Add to ~/.ssh/config:")
+        out.print(f"      Include {ssh_cfg}")
 
 
 def _print_dns_forwarding_status(out, dns_ip):
@@ -395,11 +404,11 @@ def _print_dns_forwarding_status(out, dns_ip):
         out.green(f"DNS: .localchat forwarding to {dns_ip} ✓")
     elif dns_ok is False:
         out.red("DNS: .localchat forwarding NOT configured")
-        print("  Run:")
-        print(f"      sudo resolvectl dns incusbr0 {dns_ip}")
-        print("      sudo resolvectl domain incusbr0 ~localchat")
+        out.print("  Run:")
+        out.print(f"      sudo resolvectl dns incusbr0 {dns_ip}")
+        out.print("      sudo resolvectl domain incusbr0 ~localchat")
     else:
-        print("  DNS: .localchat forwarding status UNKNOWN")
+        out.print("  DNS: .localchat forwarding status UNKNOWN")
 
 
 # -------------------------------------------------------------------
@@ -414,26 +423,6 @@ def _format_addrs(ip, ipv6=None):
     return ", ".join(parts)
 
 
-SECTION_WIDTH = 72
-
-
-@contextmanager
-def _section(out, title):
-    bar = "\u2501" * (SECTION_WIDTH - len(title) - 5)
-    out.green(f"\u2501\u2501\u2501 {title} {bar}")
-    t0 = time.time()
-    yield
-    elapsed = time.time() - t0
-    print(f"{'':>{SECTION_WIDTH - 10}}({elapsed:.1f}s)")
-    print()
-
-
-def _section_line(out, title):
-    bar = "\u2501" * (SECTION_WIDTH - len(title) - 5)
-    out.green(f"\u2501\u2501\u2501 {title} {bar}")
-    print()
-
-
 def _deploy_status(ct, local_hash, ix):
     """Return a human-readable deploy status string.
 
@@ -445,7 +434,7 @@ def _deploy_status(ct, local_hash, ix):
         return "NOT DEPLOYED"
 
     # A container launched from the relay image has the same
-    # git hash but a different domain — always redeploy.
+    # git hash but a different domain - always redeploy.
     deployed_domain = ct.deployed_domain()
     if deployed_domain and deployed_domain != ct.domain:
         return f"DOMAIN-MISMATCH (deployed: {deployed_domain})"
@@ -461,7 +450,7 @@ def _deploy_status(ct, local_hash, ix):
     if deployed_hash != local_hash:
         return f"STALE (deployed: {short}, local: {local_short})"
 
-    # Hash matches — check for uncommitted diffs
+    # Hash matches - check for uncommitted diffs
     local_version = get_version_string()
     if deployed != local_version:
         return f"DIRTY ({local_short}, undeployed changes)"
@@ -491,7 +480,7 @@ def _build_cmdeploy_cmd(subcmd, ct, ix, extra=None):
     """)
 
 
-def _run_cmdeploy(subcmd, ct, ix, extra=None, **kwargs):
+def _run_cmdeploy(subcmd, ct, ix, out, extra=None, **kwargs):
     """Run ``cmdeploy <subcmd>`` with standard --config/--ssh flags.
 
     *ct* is a Container (uses ``ct.ini`` and ``ct.domain``).
@@ -500,7 +489,7 @@ def _run_cmdeploy(subcmd, ct, ix, extra=None, **kwargs):
     cmd = _build_cmdeploy_cmd(subcmd, ct, ix, extra=extra)
     if "cwd" not in kwargs:
         kwargs["cwd"] = str(ix.project_root)
-    print(f"  [$ {cmd}]")
+    out.print(f"  [$ {cmd}]")
     return shell(cmd, capture_output=False, **kwargs).returncode
 
 
@@ -521,7 +510,7 @@ def _run_cmdeploy_parallel(subcmd, containers, ix, out, extra=None):
 
     for ct in containers:
         cmd = _build_cmdeploy_cmd(subcmd, ct, ix, extra=extra)
-        print(f"  [{ct.sname}] $ {cmd}")
+        out.print(f"  [{ct.sname}] $ {cmd}")
         proc = subprocess.Popen(
             cmd,
             shell=True,
@@ -538,12 +527,14 @@ def _run_cmdeploy_parallel(subcmd, containers, ix, out, extra=None):
             line = raw.rstrip("\n")
             lines.append(line)
             if "Starting operation" in line:
-                print(f"{prefix} {line}")
+                out.print(f"{prefix} {line}")
 
     threads = []
     for ct, proc, lines in procs:
         t = threading.Thread(
-            target=_reader, args=(ct, proc, lines), daemon=True,
+            target=_reader,
+            args=(ct, proc, lines),
+            daemon=True,
         )
         t.start()
         threads.append(t)
@@ -557,13 +548,10 @@ def _run_cmdeploy_parallel(subcmd, containers, ix, out, extra=None):
     first_failure = 0
     for ct, proc, lines in procs:
         if proc.returncode:
-            out.red(
-                f"Deploy to {ct.sname} failed "
-                f"(exit {proc.returncode})"
-            )
+            out.red(f"Deploy to {ct.sname} failed " f"(exit {proc.returncode})")
             tail = lines[-_FAIL_CONTEXT_LINES:]
             for tl in tail:
-                print(f"  [{ct.sname}] {tl}")
+                out.print(f"  [{ct.sname}] {tl}")
             if not first_failure:
                 first_failure = proc.returncode
 

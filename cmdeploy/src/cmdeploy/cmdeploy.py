@@ -10,6 +10,8 @@ import pathlib
 import shutil
 import subprocess
 import sys
+import time
+from contextlib import contextmanager
 from pathlib import Path
 
 import pyinfra
@@ -330,17 +332,44 @@ def webdev_cmd(args, out):
 
 
 class Out:
-    """Convenience output printer providing coloring."""
+    """Convenience output printer providing coloring and section formatting."""
+
+    SECTION_WIDTH = 72
+
+    def __init__(self):
+        self.section_timings = []
 
     def red(self, msg, file=sys.stderr):
-        print(colored(msg, "red"), file=file)
+        print(colored(msg, "red"), file=file, flush=True)
 
     def green(self, msg, file=sys.stderr):
-        print(colored(msg, "green"), file=file)
+        print(colored(msg, "green"), file=file, flush=True)
+
+    def print(self, msg="", **kwargs):
+        """Print to stdout with automatic flush."""
+        print(msg, flush=True, **kwargs)
+
+    @contextmanager
+    def section(self, title):
+        """Context manager that prints a section header and records elapsed time."""
+        bar = "\u2501" * (self.SECTION_WIDTH - len(title) - 5)
+        self.green(f"\u2501\u2501\u2501 {title} {bar}")
+        t0 = time.time()
+        yield
+        elapsed = time.time() - t0
+        self.section_timings.append((title, elapsed))
+        self.print(f"{'':>{self.SECTION_WIDTH - 10}}({elapsed:.1f}s)")
+        self.print()
+
+    def section_line(self, title):
+        """Print a section header without timing."""
+        bar = "\u2501" * (self.SECTION_WIDTH - len(title) - 5)
+        self.green(f"\u2501\u2501\u2501 {title} {bar}")
+        self.print()
 
     def __call__(self, msg, red=False, green=False, file=sys.stdout):
         color = "red" if red else ("green" if green else None)
-        print(colored(msg, color), file=file)
+        print(colored(msg, color), file=file, flush=True)
 
     def check_call(self, arg, env=None, quiet=False):
         if not quiet:

@@ -126,7 +126,9 @@ class TestLxcStatus:
         assert "status" in result.stdout.lower()
 
     def test_shows_containers(self, lxc_setup, capsys):
-        class QuietOut:
+        from cmdeploy.cmdeploy import Out
+
+        class QuietOut(Out):
             def red(self, msg, **kw):
                 pass
 

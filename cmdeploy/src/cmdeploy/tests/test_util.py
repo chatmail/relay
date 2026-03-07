@@ -61,6 +61,16 @@ def test_git_helpers_with_commits_and_diffs(tmp_path):
     assert new_hash != git_hash
     assert get_version_string(root=tmp_path) == new_hash
 
+    # Diffs inside excluded test dirs are invisible to the version string
+    test_dir = tmp_path / "cmdeploy" / "src" / "cmdeploy" / "tests"
+    test_dir.mkdir(parents=True)
+    test_file = test_dir / "test_foo.py"
+    test_file.write_text("pass")
+    shell("git add .", cwd=tmp_path, check=True)
+    shell("git commit -m 'add test file'", cwd=tmp_path, check=True)
+    test_file.write_text("assert True")
+    assert get_version_string(root=tmp_path) == get_git_hash(root=tmp_path)
+
 
 def test_build_chatmaild_sdist(tmp_path):
     dist_dir = tmp_path / "dist"
@@ -70,7 +80,7 @@ def test_build_chatmaild_sdist(tmp_path):
     assert result.name.endswith(".tar.gz")
     assert result.stat().st_size > 0
 
-    # Second call is idempotent — returns the same file, no rebuild
+    # Second call is idempotent - returns the same file, no rebuild
     mtime = result.stat().st_mtime
     result2 = build_chatmaild_sdist(dist_dir)
     assert result2 == result

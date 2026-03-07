@@ -17,11 +17,11 @@ def collapse(text):
 
     Handy for writing shell commands across multiple lines::
 
-        cmd = collapse(f\"\"\"
+        cmd = collapse(f\"""
             cmdeploy run
             --config {ct.ini}
             --ssh-host {ct.domain}
-        \"\"\")
+        \""")
     """
     return textwrap.dedent(text).replace("\n", " ").strip()
 
@@ -52,18 +52,34 @@ def get_git_hash(root=None):
     return None
 
 
+DIFF_EXCLUDES = (
+    ":(exclude)cmdeploy/src/cmdeploy/tests",
+    ":(exclude)chatmaild/src/chatmaild/tests",
+)
+"""Git pathspecs appended to ``git diff`` so that changes
+limited to test files do not affect the deployed version string."""
+
+
 def get_version_string(root=None):
     """Return ``git_hash\\ngit_diff`` for the local working tree.
 
     Used by :class:`~cmdeploy.deployers.GithashDeployer` to write
     ``/etc/chatmail-version`` and by ``lxc-status`` to compare
     the deployed state against the local checkout.
+
+    Changes inside directories listed in :data:`DIFF_EXCLUDES`
+    are ignored so that test-only edits do not trigger
+    a redeployment.
     """
     if root is None:
         root = _project_root()
     git_hash = get_git_hash(root=root) or "unknown"
+    excludes = " ".join(f"'{e}'" for e in DIFF_EXCLUDES)
     try:
-        git_diff = shell("git diff", cwd=str(root)).stdout.strip()
+        git_diff = shell(
+            f"git diff -- . {excludes}",
+            cwd=str(root),
+        ).stdout.strip()
     except Exception:
         git_diff = ""
     if git_diff:
