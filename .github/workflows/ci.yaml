@@ -16,27 +16,101 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: download filtermail
         run: curl -L https://github.com/chatmail/filtermail/releases/download/v0.5.2/filtermail-x86_64 -o /usr/local/bin/filtermail && chmod +x /usr/local/bin/filtermail
-      - name: run chatmaild tests 
+      - name: run chatmaild tests
         working-directory: chatmaild
         run: pipx run tox
 
   scripts:
-    name: deploy-chatmail tests 
+    name: deploy-chatmail tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: initenv 
+      - name: initenv
         run: scripts/initenv.sh
 
       - name: append venv/bin to PATH
         run: echo venv/bin >>$GITHUB_PATH
 
-      - name: run formatting checks 
-        run: cmdeploy fmt -v 
+      - name: run formatting checks
+        run: cmdeploy fmt -v
 
-      - name: run deploy-chatmail offline tests 
-        run: pytest --pyargs cmdeploy 
+      - name: run deploy-chatmail offline tests
+        run: pytest --pyargs cmdeploy
 
-      # all other cmdeploy commands require a staging server 
-      # see https://github.com/deltachat/chatmail/issues/100
+  lxc-test:
+    name: LXC deploy and test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: install incus
+        run: |
+          # zabbly is the official incus community packages source
+          curl -fsSL https://pkgs.zabbly.com/key.asc \
+            | sudo gpg --dearmor -o /etc/apt/keyrings/zabbly.gpg
+          sudo sh -c 'cat <<EOF > /etc/apt/sources.list.d/zabbly-incus-stable.sources
+          Enabled: yes
+          Types: deb
+          URIs: https://pkgs.zabbly.com/incus/stable
+          Suites: $(. /etc/os-release && echo ${VERSION_CODENAME})
+          Components: main
+          Architectures: $(dpkg --print-architecture)
+          Signed-By: /etc/apt/keyrings/zabbly.gpg
+          EOF'
+          sudo apt-get update
+          sudo apt-get install -y incus
+
+      - name: initialise incus
+        run: |
+          sudo systemctl stop docker.socket docker || true
+          sudo iptables -P FORWARD ACCEPT
+          sudo sysctl -w fs.inotify.max_user_instances=65535
+          sudo sysctl -w fs.inotify.max_user_watches=65535
+          sudo incus admin init --minimal
+          sudo usermod -aG incus-admin "$USER"
+
+      - name: initenv
+        run: scripts/initenv.sh
+
+      - name: append venv/bin to PATH
+        run: echo venv/bin >>$GITHUB_PATH
+
+      - name: restore cached images
+        id: cache-images
+        uses: actions/cache@v4
+        with:
+          path: |
+            /tmp/localchat-base.tar.gz
+            /tmp/localchat-ns.tar.gz
+            /tmp/localchat-test0.tar.gz
+            /tmp/localchat-test1.tar.gz
+            lxconfigs/id_localchat*
+          key: incus-images-${{ runner.os }}-${{ github.ref_name }}-${{ hashFiles('chatmaild/src/**', 'cmdeploy/src/**') }}
+          restore-keys: |
+            incus-images-${{ runner.os }}-${{ github.ref_name }}-
+            incus-images-${{ runner.os }}-main-
+            incus-images-${{ runner.os }}-
+
+      - name: import cached images
+        run: |
+          for alias in localchat-base localchat-ns localchat-test0 localchat-test1; do
+            if [ -f /tmp/$alias.tar.gz ]; then
+              sg incus-admin -c "incus image import /tmp/$alias.tar.gz --alias $alias" || true
+            fi
+          done
+
+      - name: lxc-test
+        run: sg incus-admin -c 'cmdeploy lxc-test'
+
+      - name: export images for cache
+        if: always()
+        run: |
+          for alias in localchat-base localchat-ns localchat-test0 localchat-test1; do
+            if ! [ -f /tmp/$alias.tar.gz ]; then
+              sg incus-admin -c "incus image export $alias /tmp/$alias" || true
+            fi
+          done
