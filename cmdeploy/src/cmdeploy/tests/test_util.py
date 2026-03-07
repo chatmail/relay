@@ -1,4 +1,3 @@
-
 from cmdeploy.util import collapse, get_git_hash, get_version_string, shell
 
 

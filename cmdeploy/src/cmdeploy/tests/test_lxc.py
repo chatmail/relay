@@ -43,7 +43,6 @@ def relay_container(lxc_setup):
 
 @pytest.fixture
 def cmdeploy():
-
     def run(*args):
         return subprocess.run(
             [sys.executable, "-m", "cmdeploy.cmdeploy", *args],
@@ -127,7 +126,6 @@ class TestLxcStatus:
         assert "status" in result.stdout.lower()
 
     def test_shows_containers(self, lxc_setup, capsys):
-
         class QuietOut:
             def red(self, msg, **kw):
                 pass
@@ -142,7 +140,6 @@ class TestLxcStatus:
         assert "running" in captured
 
     def test_deploy_freshness(self, ix, monkeypatch):
-
         ct = ix.get_container("x")
 
         monkeypatch.setattr(

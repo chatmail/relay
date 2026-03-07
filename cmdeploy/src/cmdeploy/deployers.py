@@ -343,12 +343,12 @@ class TurnDeployer(Deployer):
     def install(self):
         (url, sha256sum) = {
             "x86_64": (
-                "https://github.com/chatmail/chatmail-turn/releases/download/v0.3/chatmail-turn-x86_64-linux",
-                "841e527c15fdc2940b0469e206188ea8f0af48533be12ecb8098520f813d41e4",
+                "https://github.com/chatmail/chatmail-turn/releases/download/v0.4/chatmail-turn-x86_64-linux",
+                "1ec1f5c50122165e858a5a91bcba9037a28aa8cb8b64b8db570aa457c6141a8a",
             ),
             "aarch64": (
-                "https://github.com/chatmail/chatmail-turn/releases/download/v0.3/chatmail-turn-aarch64-linux",
-                "a5fc2d06d937b56a34e098d2cd72a82d3e89967518d159bf246dc69b65e81b42",
+                "https://github.com/chatmail/chatmail-turn/releases/download/v0.4/chatmail-turn-aarch64-linux",
+                "0fb3e792419494e21ecad536464929dba706bb2c88884ed8f1788141d26fc756",
             ),
         }[host.get_fact(facts.server.Arch)]
 
