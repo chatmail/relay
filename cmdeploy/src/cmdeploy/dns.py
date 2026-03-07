@@ -9,16 +9,16 @@ def parse_zone_records(text):
     Skips comment lines (starting with ``;``) and blank lines.
     Each record line must have the format ``name TTL IN type rdata``.
     """
-    for raw_line in text.strip().splitlines():
+    for raw_line in text.splitlines():
         line = raw_line.strip()
         if not line or line.startswith(";"):
             continue
-        parts = line.split(None, 4)
-        if len(parts) < 5:
-            raise ValueError(f"Bad zone record line: {line}")
-        name = parts[0].rstrip(".")
-        # parts[2] is the IN class — ignored
-        yield name, parts[1], parts[3].upper(), parts[4]
+        try:
+            name, ttl, _in, rtype, rdata = line.split(None, 4)
+        except ValueError:
+            raise ValueError(f"Bad zone record line: {line!r}") from None
+        name = name.rstrip(".")
+        yield name, ttl, rtype.upper(), rdata
 
 
 def get_initial_remote_data(sshexec, mail_domain):

@@ -279,10 +279,3 @@ deployment in several ways:
   These are not globally routable, but are sufficient for testing IPv6 service binding
   (Postfix, Dovecot, Nginx) and DNS AAAA records inside the local environment.
   test1 runs with ``disable_ipv6 = True`` to exercise the IPv4-only deployment path.
-
-**TURN server does not start**:
-  ``chatmail-turn`` discovers its listen addresses by enumerating globally routable IPs but
-  LXC containers only have private RFC 1918 addresses (``10.x.x.x``),
-  so the address list is empty and the server exits immediately.
-  `PR #11 on chatmail-turn <https://github.com/chatmail/chatmail-turn/pull/11>`_
-  is meant to fix this.

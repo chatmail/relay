@@ -125,6 +125,27 @@ class TestPerformInitialChecks:
         assert not l
 
 
+def test_parse_zone_records():
+    text = """
+    ; This is a comment
+    some.domain. 3600 IN A 1.1.1.1
+
+    ; Another comment
+    www.some.domain. 3600 IN CNAME some.domain.
+    """
+    records = list(parse_zone_records(text))
+    assert records == [
+        ("some.domain", "3600", "A", "1.1.1.1"),
+        ("www.some.domain", "3600", "CNAME", "some.domain."),
+    ]
+
+
+def test_parse_zone_records_invalid_line():
+    text = "invalid line"
+    with pytest.raises(ValueError, match="Bad zone record line"):
+        list(parse_zone_records(text))
+
+
 def parse_zonefile_into_dict(zonefile, mockdns_base, only_required=False):
     if only_required:
         # Only take records before the "; Recommended" section
