@@ -10,7 +10,7 @@ from cmdeploy.lxc import cli
 from cmdeploy.lxc.incus import Incus
 
 pytestmark = pytest.mark.skipif(
-    not shutil.which("incus") or not shutil.which("lxc"),
+    not shutil.which("incus"),
     reason="incus/lxc not installed",
 )
 
