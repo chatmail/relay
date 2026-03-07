@@ -2,10 +2,16 @@
 
 import os
 import subprocess
+import threading
 import time
 from contextlib import contextmanager
 
-from ..util import collapse, get_git_hash, get_version_string, shell
+from ..util import (
+    collapse,
+    get_git_hash,
+    get_version_string,
+    shell,
+)
 from .incus import Incus, RelayContainer
 
 RELAY_NAMES = ("test0", "test1")
@@ -40,6 +46,9 @@ def lxc_start_cmd(args, out):
     out.green("Ensuring DNS container (ns-localchat) ...")
     dns_ct = ix.get_dns_container()
     dns_ct.ensure()
+    if not ix.find_dns_image():
+        with _section(out, "LXC: publishing DNS image"):
+            dns_ct.publish_as_dns_image()
     print(f"  DNS container IP: {dns_ct.ipv4}")
 
     names = args.names if args.names else RELAY_NAMES
@@ -150,6 +159,9 @@ def lxc_stop_cmd(args, out):
         if destroy:
             out.green(f"Destroying container {ct.name!r} ...")
             ct.destroy()
+            if hasattr(ct, "image_alias"):
+                out.green(f"  Deleting cached image {ct.image_alias!r} ...")
+                ix.run(["image", "delete", ct.image_alias], check=False)
         else:
             out.green(f"Stopping container {ct.name!r} ...")
             ct.stop(force=True)
@@ -194,10 +206,10 @@ def lxc_test_cmd(args, out):
 
     local_hash = get_git_hash()
 
-    # Per-relay: start, deploy, then snapshot the first relay as a
-    # reusable image so the second relay launches pre-deployed.
+    # Per-relay: start containers, then deploy in parallel.
     ipv4_only_flags = {RELAY_NAMES[0]: False, RELAY_NAMES[1]: True}
 
+    # Phase 1 — start all containers (sequential, fast)
     for ct in map(ix.get_container, relay_names):
         name = ct.sname
         ipv4_only = ipv4_only_flags.get(name, False)
@@ -211,20 +223,34 @@ def lxc_test_cmd(args, out):
             if ret:
                 return ret
 
+    # Phase 2 — deploy all relays in parallel
+    to_deploy = []
+    for ct in map(ix.get_container, relay_names):
         status = _deploy_status(ct, local_hash, ix)
         if "IN-SYNC" in status:
-            _section_line(out, f"cmdeploy run: {name} — {status}, skipping")
+            _section_line(
+                out, f"cmdeploy run: {ct.sname} — {status}, skipping"
+            )
         else:
-            with _section(out, f"cmdeploy run: {name} ({ct.domain})"):
-                ret = _run_cmdeploy("run", ct, ix, extra=["--skip-dns-check"])
-                if ret:
-                    out.red(f"Deploy to {name} failed (exit {ret})")
-                    return ret
+            to_deploy.append(ct)
 
-        # Snapshot the first relay so subsequent ones launch pre-deployed
-        if not ix.find_relay_image():
-            with _section(out, "LXC: publishing relay image"):
-                ct.publish_as_relay_image()
+    if to_deploy:
+        with _section(out, "cmdeploy run (parallel)"):
+            ret = _run_cmdeploy_parallel(
+                "run", to_deploy, ix, out, extra=["--skip-dns-check"]
+            )
+            if ret:
+                return ret
+
+    # Phase 3 — publish images (sequential, fast)
+    for ct in map(ix.get_container, relay_names):
+        if ct.publish_image():
+            _section_line(out, f"LXC: published {ct.sname} image")
+        else:
+            _section_line(
+                out,
+                f"LXC: publish {ct.sname} image — skipped, cached",
+            )
 
     for ct in map(ix.get_container, relay_names):
         with _section(out, f"cmdeploy dns: {ct.sname} ({ct.domain})"):
@@ -241,16 +267,23 @@ def lxc_test_cmd(args, out):
                 print(f"  Loading {ct.zone} into PowerDNS ...")
                 dns_ct.set_dns_records(zone_data)
 
-    with _section(out, "cmdeploy test"):
-        first = ix.get_container(relay_names[0])
+    # Run tests in both directions when two relays are available.
+    test_pairs = [(0, 1), (1, 0)] if len(relay_names) > 1 else [(0,)]
+    for pair in test_pairs:
+        first = ix.get_container(relay_names[pair[0]])
+        label = first.sname
         env = None
-        if len(relay_names) > 1:
+        if len(pair) > 1:
+            second = ix.get_container(relay_names[pair[1]])
+            label = f"{first.sname} \u2194 {second.sname}"
             env = os.environ.copy()
-            env["CHATMAIL_DOMAIN2"] = ix.get_container(relay_names[1]).domain
-        ret = _run_cmdeploy("test", first, ix, **({"env": env} if env else {}))
-        if ret:
-            out.red(f"Tests failed (exit {ret})")
-            return ret
+            env["CHATMAIL_DOMAIN2"] = second.domain
+
+        with _section(out, f"cmdeploy test: {label}"):
+            ret = _run_cmdeploy("test", first, ix, **({"env": env} if env else {}))
+            if ret:
+                out.red(f"Tests failed (exit {ret})")
+                return ret
 
     elapsed = time.time() - t_total
     _section_line(out, f"lxc-test complete ({elapsed:.1f}s)")
@@ -446,22 +479,92 @@ def _add_name_args(parser, help_text=None):
     )
 
 
+def _build_cmdeploy_cmd(subcmd, ct, ix, extra=None):
+    """Build the ``cmdeploy <subcmd>`` command string."""
+    extra_str = " ".join(extra) if extra else ""
+    return collapse(f"""\
+        cmdeploy {subcmd}
+        --config {ct.ini}
+        --ssh-config {ix.ssh_config_path}
+        --ssh-host {ct.domain}
+        {extra_str}
+    """)
+
+
 def _run_cmdeploy(subcmd, ct, ix, extra=None, **kwargs):
     """Run ``cmdeploy <subcmd>`` with standard --config/--ssh flags.
 
     *ct* is a Container (uses ``ct.ini`` and ``ct.domain``).
     Returns the subprocess exit code.
     """
-    extra_str = " ".join(extra) if extra else ""
-    cmd = f"""\
-        cmdeploy {subcmd}
-        --config {ct.ini}
-        --ssh-config {ix.ssh_config_path}
-        --ssh-host {ct.domain}
-        {extra_str}
-    """
+    cmd = _build_cmdeploy_cmd(subcmd, ct, ix, extra=extra)
     if "cwd" not in kwargs:
         kwargs["cwd"] = str(ix.project_root)
-    cmd = collapse(cmd)
     print(f"  [$ {cmd}]")
     return shell(cmd, capture_output=False, **kwargs).returncode
+
+
+# Number of tail lines to print on failure.
+_FAIL_CONTEXT_LINES = 40
+
+
+def _run_cmdeploy_parallel(subcmd, containers, ix, out, extra=None):
+    """Run ``cmdeploy <subcmd>`` for every container in parallel.
+
+    Output is captured and filtered: only lines containing
+    ``"Start operation"`` are printed (prefixed with the relay
+    short-name).  On failure the last *_FAIL_CONTEXT_LINES*
+    lines of that process's output are shown.
+    """
+    procs = []  # list of (container, Popen, collected_lines)
+    cwd = str(ix.project_root)
+
+    for ct in containers:
+        cmd = _build_cmdeploy_cmd(subcmd, ct, ix, extra=extra)
+        print(f"  [{ct.sname}] $ {cmd}")
+        proc = subprocess.Popen(
+            cmd,
+            shell=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            cwd=cwd,
+        )
+        procs.append((ct, proc, []))
+
+    def _reader(ct, proc, lines):
+        prefix = f"  [{ct.sname}]"
+        for raw in proc.stdout:
+            line = raw.rstrip("\n")
+            lines.append(line)
+            if "Starting operation" in line:
+                print(f"{prefix} {line}")
+
+    threads = []
+    for ct, proc, lines in procs:
+        t = threading.Thread(
+            target=_reader, args=(ct, proc, lines), daemon=True,
+        )
+        t.start()
+        threads.append(t)
+
+    for t in threads:
+        t.join()
+    for _, proc, _ in procs:
+        proc.wait()
+
+    # Check results
+    first_failure = 0
+    for ct, proc, lines in procs:
+        if proc.returncode:
+            out.red(
+                f"Deploy to {ct.sname} failed "
+                f"(exit {proc.returncode})"
+            )
+            tail = lines[-_FAIL_CONTEXT_LINES:]
+            for tl in tail:
+                print(f"  [{ct.sname}] {tl}")
+            if not first_failure:
+                first_failure = proc.returncode
+
+    return first_failure

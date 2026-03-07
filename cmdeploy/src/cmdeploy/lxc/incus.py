@@ -14,10 +14,18 @@ DOMAIN_SUFFIX = ".localchat"
 UPSTREAM_IMAGE = "images:debian/12"
 BASE_IMAGE_ALIAS = "localchat-base"
 BASE_SETUP_NAME = "localchat-base-setup"
-RELAY_IMAGE_ALIAS = "localchat-relay"
+DNS_IMAGE_ALIAS = "localchat-ns"
 
 DNS_CONTAINER_NAME = "ns-localchat"
 DNS_DOMAIN = "ns.localchat"
+
+BRIDGE_IPV4 = "10.200.200.1/24"
+DNS_IP = "10.200.200.2"
+RELAY_IPS = {
+    "test0": "10.200.200.10",
+    "test1": "10.200.200.11",
+    "test2": "10.200.200.12",
+}
 
 
 def _extract_ip(net_data, family="inet"):
@@ -139,14 +147,16 @@ class Incus:
                     return alias
         return None
 
-    def find_relay_image(self):
-        """Return the relay image alias if it exists, else None."""
-        return self._find_image(RELAY_IMAGE_ALIAS)
+    def find_dns_image(self):
+        """Return the DNS image alias if it exists, else None."""
+        return self._find_image(DNS_IMAGE_ALIAS)
 
     def delete_images(self):
-        """Delete the cached base and relay images."""
-        for alias in (RELAY_IMAGE_ALIAS, BASE_IMAGE_ALIAS):
+        """Delete all cached localchat images."""
+        for alias in (DNS_IMAGE_ALIAS, BASE_IMAGE_ALIAS):
             self.run(["image", "delete", alias], check=False)
+        for name in RELAY_IPS:
+            self.run(["image", "delete", f"localchat-{name}"], check=False)
 
     def list_managed(self):
         """Return list of dicts with name, ip, ipv6, domain, status, memory_usage."""
@@ -188,14 +198,25 @@ class Incus:
 
         self.run(["delete", BASE_SETUP_NAME, "--force"], check=False)
         self.run(["image", "delete", BASE_IMAGE_ALIAS], check=False)
-        self.run(["launch", UPSTREAM_IMAGE, BASE_SETUP_NAME])
+        self.run(
+            ["launch", UPSTREAM_IMAGE, BASE_SETUP_NAME, "-c", "limits.memory=512MiB"]
+        )
 
-        ct = Container(self, BASE_SETUP_NAME)
+        ct = Container(self, BASE_SETUP_NAME, memory="512MiB")
         ct.wait_ready()
 
         key_path = self.ssh_key_path
         pub_key = key_path.with_suffix(".pub").read_text().strip()
-        ct.bash(f"""\
+        print("  ── apt-get install (base image) ──")
+        ct.bash(
+            f"""\
+            systemctl disable --now systemd-resolved 2>/dev/null || true
+            rm -f /etc/resolv.conf
+            echo 'nameserver 9.9.9.9' > /etc/resolv.conf
+            while fuser /var/lib/apt/lists/lock >/dev/null 2>&1 ; do
+                echo "Waiting for other apt-get instance to finish..."
+                sleep 5
+            done
             apt-get -o DPkg::Lock::Timeout=60 update
             DEBIAN_FRONTEND=noninteractive apt-get install -y openssh-server python3
             systemctl enable ssh
@@ -204,13 +225,38 @@ class Incus:
             chmod 700 /root/.ssh
             echo '{pub_key}' > /root/.ssh/authorized_keys
             chmod 600 /root/.ssh/authorized_keys
-        """)
+        """,
+            capture=False,
+        )
+        print("  ── base image install done ──")
 
         self.run(["stop", BASE_SETUP_NAME])
         self.run(["publish", BASE_SETUP_NAME, f"--alias={BASE_IMAGE_ALIAS}"])
         self.run(["delete", BASE_SETUP_NAME, "--force"])
         print(f"  Base image '{BASE_IMAGE_ALIAS}' ready.")
         return BASE_IMAGE_ALIAS
+
+    def ensure_bridge(self):
+        """Ensure incusbr0 exists and uses our fixed IPv4 subnet."""
+        bridge = self.run_json(["network", "show", "incusbr0"], check=False)
+        if bridge and bridge.get("config", {}).get("ipv4.address") == BRIDGE_IPV4:
+            return
+
+        print(f"  Configuring incusbr0 with static subnet {BRIDGE_IPV4} ...")
+        if not bridge:
+            self.run(["network", "create", "incusbr0"], check=False)
+
+        self.run(
+            [
+                "network",
+                "set",
+                "incusbr0",
+                f"ipv4.address={BRIDGE_IPV4}",
+                "ipv4.nat=true",
+                "ipv6.address=none",
+                "dns.mode=none",
+            ]
+        )
 
     def get_container(self, name):
         """Return a container handle for the given name.
@@ -237,21 +283,25 @@ class Container:
     so callers don't repeat the name everywhere.
     """
 
-    def __init__(self, incus, name, domain=None, memory="100MiB"):
+    def __init__(self, incus, name, domain=None, memory="200MiB", ipv4=None):
         self.incus = incus
         self.name = name
         self.domain = domain or f"{name}{DOMAIN_SUFFIX}"
         self.memory = memory
-        self.ipv4 = None
+        self.ipv4 = ipv4
         self.ipv6 = None
 
-    def bash(self, script, check=True):
+    def bash(self, script, check=True, capture=True):
         """Returns stdout from executing ``bash -ec <script>`` inside this container.
 
         *script* is dedented and stripped so callers can use triple-quoted strings.
         When *check* is False, returns *None* on non-zero exit instead of raising.
+        When *capture* is False, output streams to the terminal and None is returned.
         """
         cmd = ["exec", self.name, "--", "bash", "-ec", textwrap.dedent(script).strip()]
+        if not capture:
+            self.incus.run(cmd, check=check, capture=False)
+            return None
         return self.incus.run_output(cmd, check=check)
 
     def run_cmd(self, *args, check=True):
@@ -273,15 +323,28 @@ class Container:
             cmd.append("--force")
         self.incus.run(cmd, check=False)
 
-    def launch(self):
-        """Launch from the best available image, return the alias used."""
-        image = self.incus.find_relay_image() or self.incus.ensure_base_image()
-        print(f"  Launching from '{image}' image ...")
+    def launch(self, image=None):
+        """Launch from the specified image, or the base image if None."""
+        self.incus.ensure_bridge()
+        if image is None:
+            image = self.incus.ensure_base_image()
         cfg = []
         cfg += ("-c", f"{LABEL_KEY}=true")
         cfg += ("-c", f"user.localchat-domain={self.domain}")
         cfg += ("-c", f"limits.memory={self.memory}")
-        self.incus.run(["launch", image, self.name, *cfg])
+        self.incus.run(["init", image, self.name, *cfg])
+        if self.ipv4:
+            self.incus.run(
+                [
+                    "config",
+                    "device",
+                    "override",
+                    self.name,
+                    "eth0",
+                    f"ipv4.address={self.ipv4}",
+                ]
+            )
+        self.incus.run(["start", self.name])
         return image
 
     def ensure(self):
@@ -294,12 +357,19 @@ class Container:
         data = self.incus.run_json(["list", self.name], check=False) or []
 
         existing = [c for c in data if c["name"] == self.name]
+        image = None
         if existing:
-            if existing[0]["status"] != "Running":
+            status = existing[0]["status"]
+            if status != "Running":
+                print(f"  Starting stopped {self.name} container ...")
                 self.start()
+            else:
+                print(f"  {self.name} already running")
         else:
-            self.launch()
+            image = self.launch()
         self.wait_ready()
+        if image:
+            print(f"  Ensured {self.name} (launched from {image!r} image)")
         return self
 
     def destroy(self):
@@ -366,14 +436,21 @@ class RelayContainer(Container):
             f"{name}-localchat",
             domain=f"_{name}{DOMAIN_SUFFIX}",
             memory="500MiB",
+            ipv4=RELAY_IPS.get(name),
         )
         self.sname = name
+        self.image_alias = f"localchat-{name}"
         self.ini = incus.lxconfigs_dir / f"chatmail-{name}.ini"
         self.zone = incus.lxconfigs_dir / f"{name}.zone"
 
     def launch(self):
-        """Launch (from a potentially cached image) and clear inherited chatmail-version."""
-        image = super().launch()
+        """Launch from a cached per-relay image if available, else from base."""
+        cached = self.incus._find_image(self.image_alias)
+        if cached:
+            print(f"  Using cached image {cached!r}")
+        else:
+            print("  No cached image, building from base")
+        image = super().launch(image=cached)
         self.bash("rm -f /etc/chatmail-version")
         return image
 
@@ -403,20 +480,23 @@ class RelayContainer(Container):
             echo '{ip} {self.name} {self.domain}' >> /etc/hosts
         """)
 
-    def publish_as_relay_image(self):
-        """Publish this container as a reusable relay image.
+    def publish_image(self):
+        """Publish this container as a reusable per-relay image.
 
-        Stops the container, publishes it as 'localchat-relay',
-        then restarts it.
+        Returns True if an image was published,
+        False if a cached image already existed.
         """
-        if self.incus.find_relay_image():
-            return
-        print(f"  Publishing {self.name!r} as '{RELAY_IMAGE_ALIAS}' image ...")
+        if self.incus._find_image(self.image_alias):
+            return False
+        self.bash("apt-get clean && rm -rf /var/lib/apt/lists/*")
+        print(f"  Publishing {self.name!r} as {self.image_alias!r} image ...")
         self.incus.run(
-            ["publish", self.name, f"--alias={RELAY_IMAGE_ALIAS}", "--force"]
+            ["publish", self.name, f"--alias={self.image_alias}", "--force"],
+            capture=False,
         )
         self.wait_ready()
-        print(f"  Relay image '{RELAY_IMAGE_ALIAS}' ready.")
+        print(f"  Image {self.image_alias!r} ready.")
+        return True
 
     def deployed_version(self):
         """Read /etc/chatmail-version, or None if absent."""
@@ -472,7 +552,31 @@ class DNSContainer(Container):
     """Specialised container handle for the PowerDNS name server."""
 
     def __init__(self, incus):
-        super().__init__(incus, DNS_CONTAINER_NAME, domain=DNS_DOMAIN)
+        super().__init__(
+            incus, DNS_CONTAINER_NAME, domain=DNS_DOMAIN, memory="256MiB", ipv4=DNS_IP
+        )
+
+    def launch(self):
+        """Launch from cached DNS image if available, else from base image."""
+        cached = self.incus._find_image(DNS_IMAGE_ALIAS)
+        if cached:
+            print(f"  Using cached image {cached!r}")
+        else:
+            print("  No cached image, building from base")
+        return super().launch(image=cached)
+
+    def publish_as_dns_image(self):
+        """Publish this container as a reusable DNS image."""
+        if self.incus._find_image(DNS_IMAGE_ALIAS):
+            return
+        self.bash("apt-get clean && rm -rf /var/lib/apt/lists/*")
+        print(f"  Publishing {self.name!r} as {DNS_IMAGE_ALIAS!r} image ...")
+        self.incus.run(
+            ["publish", self.name, f"--alias={DNS_IMAGE_ALIAS}", "--force"],
+            capture=False,
+        )
+        self.wait_ready()
+        print(f"  DNS image {DNS_IMAGE_ALIAS!r} ready.")
 
     def pdnsutil(self, *args, check=True):
         """Run ``pdnsutil <args>`` inside the DNS container."""
