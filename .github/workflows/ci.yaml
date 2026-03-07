@@ -89,7 +89,7 @@ jobs:
             /tmp/localchat-test0.tar.gz
             /tmp/localchat-test1.tar.gz
             lxconfigs/id_localchat*
-          key: incus-images-${{ runner.os }}-${{ github.ref_name }}-${{ hashFiles('chatmaild/src/**', 'cmdeploy/src/**') }}
+          key: incus-images-${{ runner.os }}-${{ github.ref_name }}
           restore-keys: |
             incus-images-${{ runner.os }}-${{ github.ref_name }}-
             incus-images-${{ runner.os }}-main-
