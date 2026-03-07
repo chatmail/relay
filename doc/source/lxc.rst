@@ -93,13 +93,12 @@ CLI reference
 
     2. ``cmdeploy run``: deploy chatmail services on each relay
 
-    3. publish ``localchat-relay`` image after first successful deploy
+    3. locally cache ``localchat-relay`` image after first successful deploy
 
     4. ``cmdeploy dns --zonefile``: generate standard
        BIND-format zone files, load full DNS records
 
     5. ``cmdeploy test``: run full test suite
-       with ``-n4 -x``
 
     By default creates, deploys, and tests both ``test0`` and ``test1``
     for dual-domain federation testing (sets ``CHATMAIL_DOMAIN2=_test1.localchat``).
@@ -221,12 +220,12 @@ per-container ``chatmail-*.ini`` files, zone files, and ``ssh-config``.
 
 The only state *outside* the repository is the Incus containers and images themselves
 (managed via the ``incus`` CLI, labelled with ``user.localchat-managed=true``).
-Two cached images are published to the local Incus image store:
+The Incus image store retains the following snapshot images:
 
 * ``localchat-base``: Debian 12 with openssh-server and Python (built on first run)
 
 * ``localchat-relay``: fully deployed relay snapshot,
-  published after the first successful ``cmdeploy run``.
+  cached after the first successful ``cmdeploy run``.
   Subsequent relay containers launch from this image
   so the deploy step is mostly no-ops (roughly 3× faster than a fresh deploy).
   Relay containers are limited to **500 MiB RAM** and the DNS container to **100 MiB**.

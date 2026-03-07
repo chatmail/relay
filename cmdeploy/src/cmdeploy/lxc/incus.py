@@ -230,12 +230,7 @@ class Incus:
 
 
 class Container:
-    """Lightweight handle for an Incus container.
-
-    Carries the container *name* and provides convenience methods
-    for running commands, managing lifecycle, and extracting state
-    so callers don't repeat the name everywhere.
-    """
+    """The base container handle wraps all interactions with incus."""
 
     def __init__(self, incus, name, domain=None, memory="100MiB"):
         self.incus = incus
@@ -385,6 +380,7 @@ class RelayContainer(Container):
 
     def disable_ipv6(self):
         """Disable IPv6 inside the container via sysctl."""
+        # incus provides net.* virtalization
         self.bash("""\
             sysctl -w net.ipv6.conf.all.disable_ipv6=1
             sysctl -w net.ipv6.conf.default.disable_ipv6=1
@@ -469,7 +465,7 @@ class RelayContainer(Container):
 
 
 class DNSContainer(Container):
-    """Specialised container handle for the PowerDNS name server."""
+    """Container handle for the PowerDNS name server."""
 
     def __init__(self, incus):
         super().__init__(incus, DNS_CONTAINER_NAME, domain=DNS_DOMAIN)
