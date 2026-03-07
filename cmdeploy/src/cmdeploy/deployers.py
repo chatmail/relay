@@ -3,9 +3,6 @@ Chat Mail pyinfra deploy.
 """
 
 import os
-import shutil
-import subprocess
-import sys
 from io import StringIO
 from pathlib import Path
 
@@ -18,7 +15,7 @@ from pyinfra.facts.systemd import SystemdEnabled
 from pyinfra.operations import apt, files, pip, server, systemd
 
 from cmdeploy.cmdeploy import Out
-from cmdeploy.util import get_version_string
+from cmdeploy.util import get_chatmaild_sdist, get_version_string
 
 from .acmetool import AcmetoolDeployer
 from .basedeploy import (
@@ -55,20 +52,6 @@ class Port(FactBase):
         return output[0]
 
 
-def _build_chatmaild(dist_dir) -> None:
-    dist_dir = Path(dist_dir).resolve()
-    if dist_dir.exists():
-        shutil.rmtree(dist_dir)
-    dist_dir.mkdir()
-    subprocess.check_output(
-        [sys.executable, "-m", "build", "-n"]
-        + ["--sdist", "chatmaild", "--outdir", str(dist_dir)]
-    )
-    entries = list(dist_dir.iterdir())
-    assert len(entries) == 1
-    return entries[0]
-
-
 def remove_legacy_artifacts():
     if not has_systemd():
         return
@@ -84,7 +67,7 @@ def remove_legacy_artifacts():
 
 def _install_remote_venv_with_chatmaild() -> None:
     remove_legacy_artifacts()
-    dist_file = _build_chatmaild(dist_dir=Path("chatmaild/dist"))
+    dist_file = get_chatmaild_sdist()
     remote_base_dir = "/usr/local/lib/chatmaild"
     remote_dist_file = f"{remote_base_dir}/dist/{dist_file.name}"
     remote_venv_dir = f"{remote_base_dir}/venv"

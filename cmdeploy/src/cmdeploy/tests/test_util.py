@@ -1,4 +1,13 @@
-from cmdeploy.util import collapse, get_git_hash, get_version_string, shell
+import pytest
+
+from cmdeploy.util import (
+    build_chatmaild_sdist,
+    collapse,
+    get_chatmaild_sdist,
+    get_git_hash,
+    get_version_string,
+    shell,
+)
 
 
 def test_collapse():
@@ -51,3 +60,28 @@ def test_git_helpers_with_commits_and_diffs(tmp_path):
     new_hash = get_git_hash(root=tmp_path)
     assert new_hash != git_hash
     assert get_version_string(root=tmp_path) == new_hash
+
+
+def test_build_chatmaild_sdist(tmp_path):
+    dist_dir = tmp_path / "dist"
+
+    # First call builds the sdist
+    result = build_chatmaild_sdist(dist_dir)
+    assert result.name.endswith(".tar.gz")
+    assert result.stat().st_size > 0
+
+    # Second call is idempotent — returns the same file, no rebuild
+    mtime = result.stat().st_mtime
+    result2 = build_chatmaild_sdist(dist_dir)
+    assert result2 == result
+    assert result2.stat().st_mtime == mtime
+
+
+def test_get_chatmaild_sdist_errors(tmp_path):
+    with pytest.raises(FileNotFoundError):
+        get_chatmaild_sdist(tmp_path / "nonexistent")
+
+    empty = tmp_path / "empty"
+    empty.mkdir()
+    with pytest.raises(FileNotFoundError):
+        get_chatmaild_sdist(empty)

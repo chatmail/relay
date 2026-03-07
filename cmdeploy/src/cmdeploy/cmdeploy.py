@@ -34,6 +34,7 @@ from .sshexec import (
     resolve_host_from_ssh_config,
     resolve_key_from_ssh_config,
 )
+from .util import build_chatmaild_sdist
 from .www import main as webdev_main
 
 #
@@ -120,6 +121,9 @@ def run_cmd(args, out):
     env["CHATMAIL_WEBSITE_ONLY"] = "True" if args.website_only else ""
     env["CHATMAIL_DISABLE_MAIL"] = "True" if args.disable_mail else ""
     env["CHATMAIL_REQUIRE_IROH"] = "True" if require_iroh else ""
+
+    if not args.website_only:
+        build_chatmaild_sdist()
     if not args.dns_check_disabled:
         env["CHATMAIL_ADDR_V4"] = remote_data.get("A") or ""
         env["CHATMAIL_ADDR_V6"] = remote_data.get("AAAA") or ""

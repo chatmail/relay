@@ -1,6 +1,8 @@
 """Shared utility functions for cmdeploy."""
 
+import fcntl
 import subprocess
+import sys
 import textwrap
 from pathlib import Path
 
@@ -15,11 +17,11 @@ def collapse(text):
 
     Handy for writing shell commands across multiple lines::
 
-        cmd = collapse(f\"""
+        cmd = collapse(f\"\"\"
             cmdeploy run
             --config {ct.ini}
             --ssh-host {ct.domain}
-        \""")
+        \"\"\")
     """
     return textwrap.dedent(text).replace("\n", " ").strip()
 
@@ -67,3 +69,42 @@ def get_version_string(root=None):
     if git_diff:
         return f"{git_hash}\n{git_diff}"
     return git_hash
+
+
+def _chatmaild_default_dist_dir():
+    return _project_root() / "chatmaild" / "dist"
+
+
+def build_chatmaild_sdist(dist_dir=None):
+    """Build the chatmaild sdist if not already present (idempotent, process-safe)."""
+
+    if dist_dir is None:
+        dist_dir = _chatmaild_default_dist_dir()
+    dist_dir = Path(dist_dir).resolve()
+    dist_dir.mkdir(parents=True, exist_ok=True)
+
+    lockfile = dist_dir.parent / ".dist.lock"
+    with open(lockfile, "w") as fh:
+        fcntl.flock(fh, fcntl.LOCK_EX)
+        existing = [p for p in dist_dir.iterdir() if p.suffix == ".gz"]
+        if existing:
+            return existing[0]
+        subprocess.check_output(
+            [sys.executable, "-m", "build", "-n"]
+            + ["--sdist", "chatmaild", "--outdir", str(dist_dir)],
+            cwd=str(_project_root()),
+        )
+        return get_chatmaild_sdist(dist_dir)
+
+
+def get_chatmaild_sdist(dist_dir=None):
+    """Return the path to the pre-built chatmaild sdist."""
+    if dist_dir is None:
+        dist_dir = _chatmaild_default_dist_dir()
+
+    entries = list(Path(dist_dir).iterdir())
+    if len(entries) == 0:
+        raise FileNotFoundError(f"dist directory is empty: {dist_dir}")
+    if len(entries) > 1:
+        raise ValueError(f"expected one file in {dist_dir}, found {len(entries)}")
+    return entries[0]
