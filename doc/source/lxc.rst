@@ -56,8 +56,10 @@ Quick start
 
 The ``lxc-test`` command executes each ``cmdeploy`` subprocess command
 so you can copy-paste and run them individually.
+A section timing summary is printed at the end.
 No host DNS delegation or ``~/.ssh/config`` changes are needed
-because lxc-test passes ssh-related CLI options to "cmdeploy run" and "cmdeploy test" commands.
+because lxc-test passes ssh-related CLI options to
+``cmdeploy run`` and ``cmdeploy test`` commands.
 
 
 CLI reference
@@ -80,20 +82,22 @@ CLI reference
     Pass ``NAME`` to stop specific containers.
     Use ``--destroy`` to also delete the containers and their config files.
     Use ``--destroy-all`` to additionally destroy
-    the ``ns-localchat`` DNS container **and** remove
-    the cached ``localchat-base`` and ``localchat-relay``
-    images, giving a fully clean slate for the next ``lxc-test``.
+    the ``ns-localchat`` DNS container **and** remove all cached
+    images (``localchat-base``, per-relay images),
+    giving a fully clean slate for the next ``lxc-test``.
     User containers are **never** destroyed unless named explicitly.
 
 ``lxc-test [--one]``
     Idempotent full pipeline:
 
-    1. ``lxc-start``: create ``test0`` + ``test1``
-       containers, minimal DNS
+    1. ``lxc-start``: create ``test0`` + ``test1`` containers,
+       configure DNS with readiness check
 
-    2. ``cmdeploy run``: deploy chatmail services on each relay
+    2. ``cmdeploy run``: deploy chatmail services
+       on all relays **in parallel**
 
-    3. publish ``localchat-relay`` image after first successful deploy
+    3. publish per-relay cached images (``localchat-test0``,
+       ``localchat-test1``) after first successful deploy
 
     4. ``cmdeploy dns --zonefile``: generate standard
        BIND-format zone files, load full DNS records
@@ -221,15 +225,18 @@ per-container ``chatmail-*.ini`` files, zone files, and ``ssh-config``.
 
 The only state *outside* the repository is the Incus containers and images themselves
 (managed via the ``incus`` CLI, labelled with ``user.localchat-managed=true``).
-Two cached images are published to the local Incus image store:
+Several cached images are published to the local Incus image store:
 
-* ``localchat-base``: Debian 12 with openssh-server and Python (built on first run)
+* ``localchat-base``: Debian 12 with openssh-server and Python
+  (built on first run)
 
-* ``localchat-relay``: fully deployed relay snapshot,
+* ``localchat-test0``, ``localchat-test1``: per-relay snapshots
   published after the first successful ``cmdeploy run``.
-  Subsequent relay containers launch from this image
-  so the deploy step is mostly no-ops (roughly 3× faster than a fresh deploy).
-  Relay containers are limited to **500 MiB RAM** and the DNS container to **100 MiB**.
+  Subsequent containers launch from these images
+  so the deploy step is mostly no-ops.
+
+Relay containers are limited to **500 MiB RAM**
+and the DNS container to **256 MiB**.
 
 
 .. _lxc-tls:
