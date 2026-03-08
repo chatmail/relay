@@ -228,7 +228,6 @@ The Incus image store retains the following snapshot images:
   cached after the first successful ``cmdeploy run``.
   Subsequent relay containers launch from this image
   so the deploy step is mostly no-ops (roughly 3× faster than a fresh deploy).
-  Relay containers are limited to **500 MiB RAM** and the DNS container to **100 MiB**.
 
 
 .. _lxc-tls:

@@ -178,18 +178,14 @@ class Incus:
             return None
         return result.stdout.strip()
 
-    def _find_image(self, alias):
-        """Return *alias* if an image with that alias exists, else None."""
+    def find_image(self, aliases):
+        """Return the first alias from *aliases* that exists, else None."""
         images = self.run_json(["image", "list"], check=False) or []
-        for img in images:
-            for a in img.get("aliases", []):
-                if a.get("name") == alias:
-                    return alias
+        existing = {a.get("name") for img in images for a in img.get("aliases", [])}
+        for alias in aliases:
+            if alias in existing:
+                return alias
         return None
-
-    def find_relay_image(self):
-        """Return the relay image alias if it exists, else None."""
-        return self._find_image(RELAY_IMAGE_ALIAS)
 
     def delete_images(self):
         """Delete the cached base and relay images."""
@@ -229,7 +225,7 @@ class Incus:
         slow apt-get install step.
         Returns the image alias.
         """
-        if self._find_image(BASE_IMAGE_ALIAS):
+        if self.find_image([BASE_IMAGE_ALIAS]):
             self.out.print(f"  Base image '{BASE_IMAGE_ALIAS}' already cached.")
             return BASE_IMAGE_ALIAS
 
@@ -282,7 +278,7 @@ class Incus:
 class Container:
     """The base container handle wraps all interactions with incus."""
 
-    def __init__(self, incus, name, domain=None, memory="100MiB"):
+    def __init__(self, incus, name, domain=None, memory="200MiB"):
         self.incus = incus
         self.out = incus.out
         self.name = name
@@ -322,7 +318,12 @@ class Container:
 
     def launch(self):
         """Launch from the best available image, return the alias used."""
-        image = self.incus.find_relay_image() or self.incus.ensure_base_image()
+        image = self.incus.find_image([RELAY_IMAGE_ALIAS, BASE_IMAGE_ALIAS])
+        if not image:
+            raise RuntimeError(
+                f"No base image '{BASE_IMAGE_ALIAS}' found. "
+                "Call ensure_base_image() before launching containers."
+            )
         self.out.print(f"  Launching from '{image}' image ...")
         cfg = []
         cfg += ("-c", f"{LABEL_KEY}=true")
@@ -412,7 +413,7 @@ class RelayContainer(Container):
             incus,
             f"{name}-localchat",
             domain=f"_{name}{DOMAIN_SUFFIX}",
-            memory="500MiB",
+            memory="600MiB",
         )
         self.sname = name
         self.ini = incus.lxconfigs_dir / f"chatmail-{name}.ini"
@@ -456,7 +457,7 @@ class RelayContainer(Container):
 
         Stops the container, 'publishes' it as 'localchat-relay', then restarts it.
         """
-        if self.incus.find_relay_image():
+        if self.incus.find_image([RELAY_IMAGE_ALIAS]):
             return
         self.out.print(
             f"  Locally caching {self.name!r} as '{RELAY_IMAGE_ALIAS}' image ..."
@@ -484,11 +485,7 @@ class RelayContainer(Container):
         return shell(cmd, timeout=15).returncode == 0
 
     def configure_dns(self, dns_ip):
-        """Point this container's resolver at *dns_ip* and verify it works.
-
-        Disables systemd-resolved, writes a static /etc/resolv.conf,
-        and configures unbound to forward .localchat queries to *dns_ip*.
-        """
+        """Point this container's resolver at *dns_ip* and verify it works."""
         self.bash(f"""\
             systemctl disable --now systemd-resolved 2>/dev/null || true
             rm -f /etc/resolv.conf
