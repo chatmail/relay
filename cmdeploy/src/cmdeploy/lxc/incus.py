@@ -20,6 +20,10 @@ DNS_CONTAINER_NAME = "ns-localchat"
 DNS_DOMAIN = "ns.localchat"
 
 
+class DNSConfigurationError(Exception):
+    """Raised when the DNS container is not reachable or not answering."""
+
+
 def _extract_ip(net_data, family="inet"):
     """Extract the first global-scope IP of *family* from network state data.
 
@@ -196,6 +200,7 @@ class Incus:
         key_path = self.ssh_key_path
         pub_key = key_path.with_suffix(".pub").read_text().strip()
         ct.bash(f"""\
+            echo 'nameserver 9.9.9.9' > /etc/resolv.conf
             apt-get -o DPkg::Lock::Timeout=60 update
             DEBIAN_FRONTEND=noninteractive apt-get install -y openssh-server python3
             systemctl enable ssh
@@ -431,11 +436,10 @@ class RelayContainer(Container):
         return shell(cmd, timeout=15).returncode == 0
 
     def configure_dns(self, dns_ip):
-        """Point this container's resolver at *dns_ip*.
+        """Point this container's resolver at *dns_ip* and verify it works.
 
-        Disables systemd-resolved to free port 53 and writes
-        a static /etc/resolv.conf.  Also configures unbound
-        (if present) to forward .localchat queries.
+        Disables systemd-resolved, writes a static /etc/resolv.conf,
+        and configures unbound to forward .localchat queries to *dns_ip*.
         """
         self.bash(f"""\
             systemctl disable --now systemd-resolved 2>/dev/null || true
@@ -448,6 +452,27 @@ class RelayContainer(Container):
             > /etc/unbound/unbound.conf.d/localchat-forward.conf
             systemctl restart unbound 2>/dev/null || true
         """)
+        self._wait_dns_reachable(dns_ip)
+
+    def _wait_dns_reachable(self, dns_ip, timeout=10):
+        """Poll until *dns_ip* answers a DNS query from this container."""
+        if self.bash("which dig", check=False) is None:
+            self.bash(
+                "DEBIAN_FRONTEND=noninteractive "
+                "apt-get install -y dnsutils 2>/dev/null || true"
+            )
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            result = self.bash(
+                f"dig @{dns_ip} . SOA +short +time=1 +tries=1",
+                check=False,
+            )
+            if result and result.strip():
+                return
+            time.sleep(0.5)
+        raise DNSConfigurationError(
+            f"DNS at {dns_ip} not reachable from {self.name} after {timeout}s"
+        )
 
     def write_ini(self, disable_ipv6=False):
         """Generate a chatmail.ini config file in lxconfigs/."""
@@ -479,11 +504,25 @@ class DNSContainer(Container):
         self.pdnsutil("replace-rrset", zone, name, rtype, ttl, rdata)
 
     def restart_services(self):
-        """Restart pdns and pdns-recursor."""
+        """Restart pdns and pdns-recursor, then wait until DNS is answering."""
         self.bash("""\
             systemctl restart pdns
             systemctl restart pdns-recursor || true
         """)
+        self._wait_dns_ready()
+
+    def _wait_dns_ready(self, timeout=10):
+        """Poll until the recursor answers a query on port 53."""
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            result = self.bash(
+                "dig @127.0.0.1 . SOA +short +time=1 +tries=1",
+                check=False,
+            )
+            if result and result.strip():
+                return
+            time.sleep(0.5)
+        raise DNSConfigurationError(f"DNS recursor not answering after {timeout}s")
 
     def ensure(self):
         """Create the DNS container with PowerDNS if needed.
@@ -502,6 +541,12 @@ class DNSContainer(Container):
             ["network", "set", "incusbr0", f"raw.dnsmasq=dhcp-option=6,{self.ipv4}"],
             check=False,
         )
+
+    def destroy(self):
+        """Stop, delete, and reset bridge DNS config."""
+        super().destroy()
+        self.incus.run(["network", "unset", "incusbr0", "dns.mode"], check=False)
+        self.incus.run(["network", "unset", "incusbr0", "raw.dnsmasq"], check=False)
 
     def _install_powerdns(self):
         """Install and configure PowerDNS if not already present."""
@@ -550,6 +595,7 @@ class DNSContainer(Container):
             systemctl start pdns-recursor
             echo 'nameserver 127.0.0.1' > /etc/resolv.conf
         """)
+        self._wait_dns_ready()
 
     def reset_dns_records(self, dns_ip, domains):
         """Create DNS zones with initial A records via pdnsutil.
