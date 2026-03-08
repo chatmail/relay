@@ -12,7 +12,7 @@ from cmdeploy.util import Out
 
 pytestmark = pytest.mark.skipif(
     not shutil.which("incus"),
-    reason="incus/lxc not installed",
+    reason="incus not installed",
 )
 
 
