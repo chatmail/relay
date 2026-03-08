@@ -241,7 +241,7 @@ class Incus:
 
         key_path = self.ssh_key_path
         pub_key = key_path.with_suffix(".pub").read_text().strip()
-        ct.bash(f"""\
+        ct.bash(f"""
             echo 'nameserver 9.9.9.9' > /etc/resolv.conf
             apt-get -o DPkg::Lock::Timeout=60 update
             DEBIAN_FRONTEND=noninteractive apt-get install -y openssh-server python3
@@ -436,7 +436,7 @@ class RelayContainer(Container):
         """Disable IPv6 inside the container via sysctl."""
         # incus provides net.* virtualization for LXC containers so that
         # these sysctls only affect the container's network namespace.
-        self.bash("""\
+        self.bash("""
             sysctl -w net.ipv6.conf.all.disable_ipv6=1
             sysctl -w net.ipv6.conf.default.disable_ipv6=1
             mkdir -p /etc/sysctl.d
@@ -488,7 +488,7 @@ class RelayContainer(Container):
 
     def configure_dns(self, dns_ip):
         """Point this container's resolver at *dns_ip* and verify DNS is reachable."""
-        self.bash(f"""\
+        self.bash(f"""
             systemctl disable --now systemd-resolved 2>/dev/null || true
             rm -f /etc/resolv.conf
             echo 'nameserver {dns_ip}' > /etc/resolv.conf
@@ -556,7 +556,7 @@ class DNSContainer(Container):
 
     def restart_services(self):
         """Restart pdns and pdns-recursor, then wait until DNS is answering."""
-        self.bash("""\
+        self.bash("""
             systemctl restart pdns
             systemctl restart pdns-recursor || true
         """)
@@ -604,7 +604,7 @@ class DNSContainer(Container):
         if self.run_cmd("which", "pdns_server", check=False) is not None:
             return
 
-        self.bash("""\
+        self.bash("""
             systemctl disable --now systemd-resolved 2>/dev/null || true
             rm -f /etc/resolv.conf
             echo 'nameserver 9.9.9.9' > /etc/resolv.conf
@@ -629,7 +629,7 @@ class DNSContainer(Container):
 
         self.push_file_content(
             "/etc/powerdns/pdns.conf",
-            """\
+            """
             launch=gsqlite3
             gsqlite3-database=/var/lib/powerdns/pdns.sqlite3
             local-address=127.0.0.1
@@ -639,7 +639,7 @@ class DNSContainer(Container):
 
         self.push_file_content(
             "/etc/powerdns/recursor.conf",
-            """\
+            """
             local-address=0.0.0.0
             local-port=53
             forward-zones=localchat=127.0.0.1:5353
@@ -650,7 +650,7 @@ class DNSContainer(Container):
             """,
         )
 
-        self.bash("""\
+        self.bash("""
             systemctl start pdns
             systemctl start pdns-recursor
             echo 'nameserver 127.0.0.1' > /etc/resolv.conf
