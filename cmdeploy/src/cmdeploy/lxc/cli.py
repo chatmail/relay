@@ -4,7 +4,7 @@ import os
 import time
 
 from ..util import get_git_hash, get_version_string, shell
-from .incus import Incus, RelayContainer
+from .incus import RELAY_IMAGE_ALIAS, Incus, RelayContainer
 
 RELAY_NAMES = ("test0", "test1")
 
@@ -228,7 +228,7 @@ def lxc_test_cmd(args, out):
                     return ret
 
         # Snapshot the first relay so subsequent ones launch pre-deployed
-        if not ix.find_relay_image():
+        if not ix.find_image([RELAY_IMAGE_ALIAS]):
             with out.section("lxc-test: caching relay image"):
                 ct.publish_as_relay_image()
 
