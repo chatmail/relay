@@ -15,9 +15,8 @@ from pathlib import Path
 import pyinfra
 from chatmaild.config import read_config, write_initial_config
 from packaging import version
-from termcolor import colored
 
-from . import dns, remote
+from . import dns, remote  # noqa: F401
 from .lxc.cli import (  # noqa: F401
     lxc_start_cmd,
     lxc_start_cmd_options,
@@ -35,6 +34,7 @@ from .sshexec import (
     resolve_host_from_ssh_config,
     resolve_key_from_ssh_config,
 )
+from .util import Out
 from .www import main as webdev_main
 
 #
@@ -124,6 +124,8 @@ def run_cmd(args, out):
     if not args.dns_check_disabled:
         env["CHATMAIL_ADDR_V4"] = remote_data.get("A") or ""
         env["CHATMAIL_ADDR_V6"] = remote_data.get("AAAA") or ""
+    env["DEBIAN_FRONTEND"] = "noninteractive"
+    env["TERM"] = "linux"
     deploy_path = importlib.resources.files(__package__).joinpath("run.py").resolve()
     pyinf = "pyinfra --dry" if args.dry_run else "pyinfra"
 
@@ -151,7 +153,10 @@ def run_cmd(args, out):
         return 1
 
     try:
-        out.check_call(cmd, env=env)
+        ret = out.shell(cmd, env=env)
+        if ret:
+            out.red("Deploy failed")
+            return 1
         if args.website_only:
             out.green("Website deployment completed.")
         elif (
@@ -267,7 +272,7 @@ def test_cmd(args, out):
         pytest_args.extend(["--ssh-host", args.ssh_host])
     if args.ssh_config:
         pytest_args.extend(["--ssh-config", str(Path(args.ssh_config).resolve())])
-    ret = out.run_ret(pytest_args, env=env)
+    ret = out.shell(" ".join(pytest_args), env=env)
     return ret
 
 
@@ -304,8 +309,8 @@ def fmt_cmd(args, out):
     format_args.extend(sources)
     check_args.extend(sources)
 
-    out.check_call(" ".join(format_args), quiet=not args.verbose)
-    out.check_call(" ".join(check_args), quiet=not args.verbose)
+    out.shell(" ".join(format_args), quiet=not args.verbose)
+    out.shell(" ".join(check_args), quiet=not args.verbose)
 
 
 def bench_cmd(args, out):
@@ -324,32 +329,6 @@ def webdev_cmd(args, out):
 #
 # Parsing command line options and starting commands
 #
-
-
-class Out:
-    """Convenience output printer providing coloring."""
-
-    def red(self, msg, file=sys.stderr):
-        print(colored(msg, "red"), file=file)
-
-    def green(self, msg, file=sys.stderr):
-        print(colored(msg, "green"), file=file)
-
-    def __call__(self, msg, red=False, green=False, file=sys.stdout):
-        color = "red" if red else ("green" if green else None)
-        print(colored(msg, color), file=file)
-
-    def check_call(self, arg, env=None, quiet=False):
-        if not quiet:
-            self(f"[$ {arg}]", file=sys.stderr)
-        return subprocess.check_call(arg, shell=True, env=env)
-
-    def run_ret(self, args, env=None, quiet=False):
-        if not quiet:
-            cmdstring = " ".join(args)
-            self(f"[$ {cmdstring}]", file=sys.stderr)
-        proc = subprocess.run(args, env=env, check=False)
-        return proc.returncode
 
 
 def add_ssh_host_option(parser):
@@ -381,15 +360,6 @@ def add_config_option(parser):
         help="path to the chatmail.ini file",
     )
 
-    parser.add_argument(
-        "--verbose",
-        "-v",
-        dest="verbose",
-        action="store_true",
-        default=False,
-        help="provide verbose logging",
-    )
-
 
 def add_subcommand(subparsers, func, add_config=True):
     name = func.__name__
@@ -415,6 +385,14 @@ def get_parser():
 
     parser = argparse.ArgumentParser(description=description.strip())
     parser.set_defaults(func=None, inipath=None)
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        dest="verbose",
+        action="count",
+        default=0,
+        help="increase verbosity (can be repeated: -v, -vv)",
+    )
     subparsers = parser.add_subparsers(title="subcommands")
 
     # find all subcommands in the module namespace
@@ -447,7 +425,7 @@ def main(args=None):
     if args.func is None:
         return parser.parse_args(["-h"])
 
-    out = Out()
+    out = Out(sepchar="\u2501", verbosity=args.verbose)
     kwargs = {}
 
     if args.inipath is not None and args.func.__name__ not in ("init_cmd", "fmt_cmd"):

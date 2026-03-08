@@ -47,7 +47,8 @@ class Incus:
     all modules share a single entry point for Incus interactions.
     """
 
-    def __init__(self):
+    def __init__(self, out):
+        self.out = out
         self.project_root = Path(__file__).resolve().parent.parent.parent.parent.parent
         self.lxconfigs_dir = self.project_root / "lxconfigs"
         self.lxconfigs_dir.mkdir(exist_ok=True)
@@ -98,15 +99,58 @@ class Incus:
         return f"Include {self.ssh_config_path}" in lines
 
     def run(self, args, check=True, capture=True, input=None):
-        """Run an incus command."""
+        """Run an incus command.
+
+        When *capture* is True and *verbosity* >= 1, output is streamed
+        to the terminal line-by-line while also being captured for
+        later return via result.stdout.
+        """
         cmd = ["incus"] + list(args)
-        kwargs = dict(check=check, text=True, input=input)
-        if capture:
-            kwargs["capture_output"] = True
-        else:
-            kwargs["stdout"] = None
-            kwargs["stderr"] = None
-        return subprocess.run(cmd, **kwargs)  # noqa: PLW1510
+        sub = self.out.new_prefixed_out("  ")
+
+        if not capture:
+            # Simple case: let subprocess handle streams (no capture)
+            if self.out.verbosity >= 1:
+                sub.print(f"$ {' '.join(cmd)}")
+            return subprocess.run(
+                cmd, text=True, input=input, check=check, stdout=None, stderr=None
+            )
+
+        # Capture case: we may need to stream while capturing
+        if sub.verbosity >= 1:
+            cmd_lines = " ".join(cmd).splitlines()
+            sub.print(f"$ {cmd_lines.pop(0)}")
+            if sub.verbosity >= 2:
+                for line in cmd_lines:
+                    sub.print(f"  {line}")
+
+        proc = subprocess.Popen(
+            cmd,
+            text=True,
+            stdin=subprocess.PIPE if input else None,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+        )
+
+        stdout_lines = []
+        if input:
+            proc.stdin.write(input)
+            proc.stdin.close()
+
+        for line in proc.stdout:
+            stdout_lines.append(line)
+            if sub.verbosity >= 2:
+                sub.print(f"  > {line.rstrip()}")
+
+        ret = proc.wait()
+        stdout = "".join(stdout_lines)
+        if check and ret != 0:
+            for line in stdout.splitlines():
+                if sub.verbosity < 1:  # and we haven't printed it yet
+                    sub.red(line)
+            raise subprocess.CalledProcessError(ret, cmd, output=stdout)
+
+        return subprocess.CompletedProcess(cmd, ret, stdout=stdout)
 
     def run_json(self, args, check=True):
         """Run an incus command with ``--format=json``.
@@ -186,9 +230,10 @@ class Incus:
         Returns the image alias.
         """
         if self._find_image(BASE_IMAGE_ALIAS):
+            self.out.print(f"  Base image '{BASE_IMAGE_ALIAS}' already cached.")
             return BASE_IMAGE_ALIAS
 
-        print("  Building base image (one-time setup) ...")
+        self.out.print("  Building base image (one-time setup) ...")
 
         self.run(["delete", BASE_SETUP_NAME, "--force"], check=False)
         self.run(["image", "delete", BASE_IMAGE_ALIAS], check=False)
@@ -214,7 +259,7 @@ class Incus:
         self.run(["stop", BASE_SETUP_NAME])
         self.run(["publish", BASE_SETUP_NAME, f"--alias={BASE_IMAGE_ALIAS}"])
         self.run(["delete", BASE_SETUP_NAME, "--force"])
-        print(f"  Base image '{BASE_IMAGE_ALIAS}' ready.")
+        self.out.print(f"  Base image '{BASE_IMAGE_ALIAS}' ready.")
         return BASE_IMAGE_ALIAS
 
     def get_container(self, name):
@@ -239,6 +284,7 @@ class Container:
 
     def __init__(self, incus, name, domain=None, memory="100MiB"):
         self.incus = incus
+        self.out = incus.out
         self.name = name
         self.domain = domain or f"{name}{DOMAIN_SUFFIX}"
         self.memory = memory
@@ -251,7 +297,8 @@ class Container:
         *script* is dedented and stripped so callers can use triple-quoted strings.
         When *check* is False, returns *None* on non-zero exit instead of raising.
         """
-        cmd = ["exec", self.name, "--", "bash", "-ec", textwrap.dedent(script).strip()]
+        script = textwrap.dedent(script).strip()
+        cmd = ["exec", self.name, "--", "bash", "-ec", script]
         return self.incus.run_output(cmd, check=check)
 
     def run_cmd(self, *args, check=True):
@@ -276,7 +323,7 @@ class Container:
     def launch(self):
         """Launch from the best available image, return the alias used."""
         image = self.incus.find_relay_image() or self.incus.ensure_base_image()
-        print(f"  Launching from '{image}' image ...")
+        self.out.print(f"  Launching from '{image}' image ...")
         cfg = []
         cfg += ("-c", f"{LABEL_KEY}=true")
         cfg += ("-c", f"user.localchat-domain={self.domain}")
@@ -407,17 +454,18 @@ class RelayContainer(Container):
     def publish_as_relay_image(self):
         """Publish this container as a reusable relay image.
 
-        Stops the container, publishes it as 'localchat-relay',
-        then restarts it.
+        Stops the container, 'publishes' it as 'localchat-relay', then restarts it.
         """
         if self.incus.find_relay_image():
             return
-        print(f"  Publishing {self.name!r} as '{RELAY_IMAGE_ALIAS}' image ...")
+        self.out.print(
+            f"  Locally caching {self.name!r} as '{RELAY_IMAGE_ALIAS}' image ..."
+        )
         self.incus.run(
             ["publish", self.name, f"--alias={RELAY_IMAGE_ALIAS}", "--force"]
         )
         self.wait_ready()
-        print(f"  Relay image '{RELAY_IMAGE_ALIAS}' ready.")
+        self.out.print(f"  Relay image '{RELAY_IMAGE_ALIAS}' ready.")
 
     def deployed_version(self):
         """Read /etc/chatmail-version, or None if absent."""
@@ -611,7 +659,7 @@ class DNSContainer(Container):
         for d in domains:
             domain = d["domain"]
             ip = d["ip"]
-            print(f"  {domain} -> {ip}")
+            self.out.print(f"  {domain} -> {ip}")
 
             # Delete and recreate zone fresh (removes stale records)
             self.pdnsutil("delete-zone", domain, check=False)
@@ -628,11 +676,11 @@ class DNSContainer(Container):
             ipv6 = d.get("ipv6")
             if ipv6:
                 self.replace_rrset(domain, ".", "AAAA", "3600", ipv6)
-                print(f"    zone reset: SOA, NS, A, AAAA  ({ip}, {ipv6})")
+                self.out.print(f"    zone reset: SOA, NS, A, AAAA  ({ip}, {ipv6})")
             else:
                 # Remove any stale AAAA record
                 self.pdnsutil("delete-rrset", domain, ".", "AAAA", check=False)
-                print(f"    zone reset: SOA, NS, A  ({ip}, IPv4-only)")
+                self.out.print(f"    zone reset: SOA, NS, A  ({ip}, IPv4-only)")
 
         self.restart_services()
 

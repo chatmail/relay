@@ -91,18 +91,19 @@ def check_full_zone(sshexec, remote_data, out, zonefile) -> int:
     if required_diff:
         out.red("Please set required DNS entries at your DNS provider:\n")
         for line in required_diff:
-            out(line)
-        out("")
+            out.print(line)
+        out.print()
         returncode = 1
     if remote_data.get("dkim_entry") in required_diff:
-        out(
-            "If the DKIM entry above does not work with your DNS provider, you can try this one:\n"
+        out.print(
+            "If the DKIM entry above does not work with your DNS provider,"
+            " you can try this one:\n"
         )
-        out(remote_data.get("web_dkim_entry") + "\n")
+        out.print(remote_data.get("web_dkim_entry") + "\n")
     if recommended_diff:
-        out("WARNING: these recommended DNS entries are not set:\n")
+        out.print("WARNING: these recommended DNS entries are not set:\n")
         for line in recommended_diff:
-            out(line)
+            out.print(line)
 
     if not (recommended_diff or required_diff):
         out.green("Great! All your DNS entries are verified and correct.")

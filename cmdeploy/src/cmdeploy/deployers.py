@@ -17,9 +17,6 @@ from pyinfra.facts.files import Sha256File
 from pyinfra.facts.systemd import SystemdEnabled
 from pyinfra.operations import apt, files, pip, server, systemd
 
-from cmdeploy.cmdeploy import Out
-from cmdeploy.util import get_version_string
-
 from .acmetool import AcmetoolDeployer
 from .basedeploy import (
     Deployer,
@@ -37,6 +34,7 @@ from .nginx.deployer import NginxDeployer
 from .opendkim.deployer import OpendkimDeployer
 from .postfix.deployer import PostfixDeployer
 from .selfsigned.deployer import SelfSignedTlsDeployer
+from .util import Out, get_version_string
 from .www import build_webpages, find_merge_conflict, get_paths
 
 

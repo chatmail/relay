@@ -8,6 +8,7 @@ import pytest
 
 from cmdeploy.lxc import cli
 from cmdeploy.lxc.incus import Incus
+from cmdeploy.util import Out
 
 pytestmark = pytest.mark.skipif(
     not shutil.which("incus"),
@@ -22,12 +23,14 @@ pytestmark = pytest.mark.skipif(
 
 @pytest.fixture
 def ix():
-    return Incus()
+    out = Out()
+    return Incus(out)
 
 
 @pytest.fixture(scope="session")
 def lxc_setup():
-    ix = Incus()
+    out = Out()
+    ix = Incus(out)
     ix.get_dns_container().ensure()
     return ix.list_managed()
 
@@ -126,7 +129,7 @@ class TestLxcStatus:
         assert "status" in result.stdout.lower()
 
     def test_shows_containers(self, lxc_setup, capsys):
-        class QuietOut:
+        class QuietOut(Out):
             def red(self, msg, **kw):
                 pass
 
