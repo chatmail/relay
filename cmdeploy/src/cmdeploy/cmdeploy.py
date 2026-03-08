@@ -16,8 +16,8 @@ import pyinfra
 from chatmaild.config import read_config, write_initial_config
 from packaging import version
 
-from . import dns, remote  # noqa: F401
-from .lxc.cli import (  # noqa: F401
+from . import dns, remote
+from .lxc.cli import (
     lxc_start_cmd,
     lxc_start_cmd_options,
     lxc_status_cmd,
@@ -379,6 +379,23 @@ Setup your chatmail server configuration and
 deploy it via SSH to your remote location.
 """
 
+# Explicit subcommand registry: (cmd_func, options_func_or_None, needs_config).
+# LXC commands don't need a chatmail.ini (no config); all others do.
+SUBCOMMANDS = [
+    (init_cmd, init_cmd_options, True),
+    (run_cmd, run_cmd_options, True),
+    (dns_cmd, dns_cmd_options, True),
+    (status_cmd, status_cmd_options, True),
+    (test_cmd, test_cmd_options, True),
+    (fmt_cmd, fmt_cmd_options, True),
+    (bench_cmd, None, True),
+    (webdev_cmd, None, True),
+    (lxc_start_cmd, lxc_start_cmd_options, False),
+    (lxc_stop_cmd, lxc_stop_cmd_options, False),
+    (lxc_status_cmd, lxc_status_cmd_options, False),
+    (lxc_test_cmd, lxc_test_cmd_options, False),
+]
+
 
 def get_parser():
     """Return an ArgumentParser for the 'cmdeploy' CLI"""
@@ -395,15 +412,10 @@ def get_parser():
     )
     subparsers = parser.add_subparsers(title="subcommands")
 
-    # find all subcommands in the module namespace
-    glob = globals()
-    for name, func in glob.items():
-        if name.endswith("_cmd"):
-            needs_config = not name.startswith("lxc_")
-            subparser = add_subcommand(subparsers, func, add_config=needs_config)
-            addopts = glob.get(name + "_options")
-            if addopts is not None:
-                addopts(subparser)
+    for func, addopts, needs_config in SUBCOMMANDS:
+        subparser = add_subcommand(subparsers, func, add_config=needs_config)
+        if addopts is not None:
+            addopts(subparser)
 
     return parser
 
