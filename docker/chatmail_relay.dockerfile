@@ -52,8 +52,6 @@ RUN printf '[params]\nmail_domain = build.local\n' > /tmp/chatmail.ini
 
 RUN CMDEPLOY_STAGES=install \
     CHATMAIL_INI=/tmp/chatmail.ini \
-    CHATMAIL_NOSYSCTL=True \
-    CHATMAIL_NOPORTCHECK=True \
     /opt/cmdeploy/bin/pyinfra @local \
         /opt/chatmail/cmdeploy/src/cmdeploy/run.py -y
 

@@ -2,8 +2,6 @@
 
 set -euo pipefail
 export CHATMAIL_INI="${CHATMAIL_INI:-/etc/chatmail/chatmail.ini}"
-export CHATMAIL_NOSYSCTL=True
-export CHATMAIL_NOPORTCHECK=True
 
 CMDEPLOY=/opt/cmdeploy/bin/cmdeploy
 
