@@ -10,6 +10,7 @@ from pyinfra.operations import apt, files, server, systemd
 from cmdeploy.basedeploy import (
     Deployer,
     activate_remote_units,
+    blocked_service_startup,
     configure_remote_units,
     get_resource,
     has_systemd,
@@ -28,9 +29,11 @@ class DovecotDeployer(Deployer):
         arch = host.get_fact(Arch)
         if has_systemd() and "dovecot.service" in host.get_fact(SystemdEnabled):
             return  # already installed and running
-        _install_dovecot_package("core", arch)
-        _install_dovecot_package("imapd", arch)
-        _install_dovecot_package("lmtpd", arch)
+
+        with blocked_service_startup():
+            _install_dovecot_package("core", arch)
+            _install_dovecot_package("imapd", arch)
+            _install_dovecot_package("lmtpd", arch)
 
     def configure(self):
         configure_remote_units(self.config.mail_domain, self.units)
