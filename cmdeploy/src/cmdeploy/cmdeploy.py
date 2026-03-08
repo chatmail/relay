@@ -28,6 +28,7 @@ from .lxc.cli import (  # noqa: F401
     lxc_test_cmd,
     lxc_test_cmd_options,
 )
+from .lxc.incus import DNSConfigurationError
 from .sshexec import (
     LocalExec,
     SSHExec,
@@ -464,6 +465,9 @@ def main(args=None):
         if res is None:
             res = 0
         return res
+    except DNSConfigurationError as exc:
+        out.red(str(exc))
+        return 1
     except KeyboardInterrupt:
         out.red("KeyboardInterrupt")
         sys.exit(130)
