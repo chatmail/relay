@@ -409,13 +409,16 @@ class ChatmailACFactory:
     def _make_transport(self, domain):
         """Build a transport config dict for the given domain."""
         addr, password = self.gencreds(domain)
-        server = self._ssh_config_host_map.get(domain, domain)
         transport = {
             "addr": addr,
             "password": password,
-            "imapServer": server,
-            "smtpServer": server,
         }
+        # To support running against local relays without host DNS resolution
+        # we attempt resolving the domain via ssh-config
+        # because otherwise core fails to find the address
+        server = self._ssh_config_host_map.get(domain)
+        if server is not None:
+            transport.update({"imapServer": server, "smtpServer": server})
         if self.chatmail_config.tls_cert_mode == "self":
             transport["certificateChecks"] = "acceptInvalidCertificates"
         return transport
