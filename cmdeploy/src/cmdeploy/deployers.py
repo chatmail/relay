@@ -2,7 +2,6 @@
 Chat Mail pyinfra deploy.
 """
 
-import os
 import shutil
 import subprocess
 import sys
@@ -14,6 +13,7 @@ from pyinfra import facts, host, logger
 from pyinfra.api import FactBase
 from pyinfra.facts import hardware
 from pyinfra.facts.files import Sha256File
+from pyinfra.facts.server import Command
 from pyinfra.facts.systemd import SystemdEnabled
 from pyinfra.operations import apt, files, pip, server, systemd
 
@@ -593,7 +593,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool, website_only: bool) -
             Out().red(f"Deploy failed: mtail_address {config.mtail_address} is not available (VPN up?).\n")
             exit(1)
 
-    if not os.environ.get("CHATMAIL_NOPORTCHECK"):
+    if host.get_fact(Command, "systemd-detect-virt -c || true") == "none":
         port_services = [
             (["master", "smtpd"], 25),
             ("unbound", 53),
