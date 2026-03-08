@@ -442,7 +442,7 @@ def _run_cmdeploy(subcmd, ct, ix, out, extra=None, **kwargs):
     """
     extra_str = " ".join(extra) if extra else ""
     v_flag = " -" + "v" * out.verbosity if out.verbosity > 0 else ""
-    cmd = f"""\
+    cmd = f"""
         cmdeploy {subcmd}{v_flag}
         --config {ct.ini}
         --ssh-config {ix.ssh_config_path}
