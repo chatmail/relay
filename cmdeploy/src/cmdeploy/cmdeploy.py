@@ -371,6 +371,14 @@ def add_subcommand(subparsers, func, add_config=True):
     p.set_defaults(func=func)
     if add_config:
         add_config_option(p)
+    p.add_argument(
+        "-v",
+        "--verbose",
+        dest="verbose",
+        action="count",
+        default=0,
+        help="increase verbosity (can be repeated: -v, -vv)",
+    )
     return p
 
 
@@ -402,14 +410,6 @@ def get_parser():
 
     parser = argparse.ArgumentParser(description=description.strip())
     parser.set_defaults(func=None, inipath=None)
-    parser.add_argument(
-        "-v",
-        "--verbose",
-        dest="verbose",
-        action="count",
-        default=0,
-        help="increase verbosity (can be repeated: -v, -vv)",
-    )
     subparsers = parser.add_subparsers(title="subcommands")
 
     for func, addopts, needs_config in SUBCOMMANDS:

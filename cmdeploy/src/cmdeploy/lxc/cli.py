@@ -209,7 +209,7 @@ def lxc_test_cmd(args, out):
         name = ct.sname
         ipv4_only = ipv4_only_flags.get(name, False)
         v_flag = " -" + "v" * out.verbosity if out.verbosity > 0 else ""
-        start_cmd = f"cmdeploy{v_flag} lxc-start {name}"
+        start_cmd = f"cmdeploy lxc-start{v_flag} {name}"
         if ipv4_only:
             start_cmd += " --ipv4-only"
         with out.section(f"cmdeploy lxc-start: {name}"):
@@ -443,7 +443,7 @@ def _run_cmdeploy(subcmd, ct, ix, out, extra=None, **kwargs):
     extra_str = " ".join(extra) if extra else ""
     v_flag = " -" + "v" * out.verbosity if out.verbosity > 0 else ""
     cmd = f"""\
-        cmdeploy{v_flag} {subcmd}
+        cmdeploy {subcmd}{v_flag}
         --config {ct.ini}
         --ssh-config {ix.ssh_config_path}
         --ssh-host {ct.domain}
