@@ -1,21 +1,15 @@
 Local testing with LXC/Incus
 ============================
 
-.. warning::
-
-   cmdeploy LXC support is geared towards local testing and CI, only.
-   Do not base production setups on it.
-
-
 The ``cmdeploy`` tool includes support for running
 chatmail relays inside local
 `Incus <https://linuxcontainers.org/incus/>`_ LXC containers.
-This is useful for development, testing, and CI
+This is meant for development, testing, and CI
 without requiring a remote server.
-LXC system containers behave like lightweight virtual machines.
-They share the host's kernel but run their own init system
-(systemd), package manager, and network stack,
-so the cmdeploy deployment scripts work exactly
+LXC system containers are lightweight virtual machines
+that share the host's kernel but run their own init system,
+package manager, and network stack,
+so the cmdeploy deployment scripts work pretty much
 as they would on a real Debian server or cloud VPS.
 
 Prerequisites
@@ -31,6 +25,16 @@ After installing incus, initialise and grant yourself access::
 
     sudo incus admin init --minimal
     sudo usermod -aG incus-admin $USER
+
+
+.. caution::
+
+   Adding yourself to ``incus-admin`` grants effective root access
+   to the host: any member can mount host directories into a container
+   and manipulate them as root.
+   This is fine for local testing of your own relay branches,
+   but do **not** use it for production setups
+   or for testing untrusted relay branches from others.
 
 .. warning::
 
@@ -53,11 +57,13 @@ Quick start
     source venv/bin/activate         # activate venv
     cmdeploy lxc-test                # create containers, deploy, test
 
-
-The ``lxc-test`` command executes each ``cmdeploy`` subprocess command
-so you can copy-paste and run them individually.
+The ``lxc-test`` command provides an automated way
+to run the full deployment and test pipeline.
+It executes several ``cmdeploy`` subcommands in sequential steps.
+If a step fails, you can copy-paste the printed command
+and run it manually to debug.
 No host DNS delegation or ``~/.ssh/config`` changes are needed
-because lxc-test passes ssh-related CLI options to "cmdeploy run" and "cmdeploy test" commands.
+because ``lxc-test`` passes the required SSH and DNS options directly.
 
 
 CLI reference
@@ -86,20 +92,6 @@ CLI reference
     User containers are **never** destroyed unless named explicitly.
 
 ``lxc-test [--one]``
-    Idempotent full pipeline:
-
-    1. ``lxc-start``: create ``test0`` + ``test1``
-       containers, minimal DNS
-
-    2. ``cmdeploy run``: deploy chatmail services on each relay
-
-    3. locally cache ``localchat-relay`` image after first successful deploy
-
-    4. ``cmdeploy dns --zonefile``: generate standard
-       BIND-format zone files, load full DNS records
-
-    5. ``cmdeploy test``: run full test suite
-
     By default creates, deploys, and tests both ``test0`` and ``test1``
     for dual-domain federation testing (sets ``CHATMAIL_DOMAIN2=_test1.localchat``).
     test0 runs dual-stack (IPv4 + IPv6) while test1 runs IPv4-only (``disable_ipv6 = True``).

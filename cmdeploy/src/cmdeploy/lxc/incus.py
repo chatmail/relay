@@ -95,8 +95,9 @@ class Incus:
         user_ssh_config = Path.home() / ".ssh" / "config"
         if not user_ssh_config.exists():
             return False
-        lines = filter(None, map(str.strip, user_ssh_config.open("r")))
-        return f"Include {self.ssh_config_path}" in lines
+        lines = user_ssh_config.read_text().splitlines()
+        target = f"include {self.ssh_config_path}".lower()
+        return any(line.strip().lower() == target for line in lines)
 
     def run(self, args, check=True, capture=True, input=None):
         """Run an incus command.
@@ -190,7 +191,7 @@ class Incus:
     def delete_images(self):
         """Delete the cached base and relay images."""
         for alias in (RELAY_IMAGE_ALIAS, BASE_IMAGE_ALIAS):
-            self.run(["image", "delete", alias], check=False)
+            self.run(["image", "delete", alias], check=False)  # ok if absent
 
     def list_managed(self):
         """Return list of dicts with name, ip, ipv6, domain, status, memory_usage."""
@@ -433,7 +434,8 @@ class RelayContainer(Container):
 
     def disable_ipv6(self):
         """Disable IPv6 inside the container via sysctl."""
-        # incus provides net.* virtalization
+        # incus provides net.* virtualization for LXC containers so that
+        # these sysctls only affect the container's network namespace.
         self.bash("""\
             sysctl -w net.ipv6.conf.all.disable_ipv6=1
             sysctl -w net.ipv6.conf.default.disable_ipv6=1
@@ -485,7 +487,7 @@ class RelayContainer(Container):
         return shell(cmd, timeout=15).returncode == 0
 
     def configure_dns(self, dns_ip):
-        """Point this container's resolver at *dns_ip* and verify it works."""
+        """Point this container's resolver at *dns_ip* and verify DNS is reachable."""
         self.bash(f"""\
             systemctl disable --now systemd-resolved 2>/dev/null || true
             rm -f /etc/resolv.conf
@@ -535,7 +537,11 @@ class RelayContainer(Container):
 
 
 class DNSContainer(Container):
-    """Container handle for the PowerDNS name server."""
+    """Container handle for the PowerDNS name server.
+
+    Manages the authoritative and recursive DNS services required for
+    name resolution in the local testing environment.
+    """
 
     def __init__(self, incus):
         super().__init__(incus, DNS_CONTAINER_NAME, domain=DNS_DOMAIN)

@@ -430,14 +430,8 @@ def _deploy_status(ct, local_hash, ix):
     return f"IN-SYNC ({short})"
 
 
-def _add_name_args(parser, help_text=None):
-    """Add optional positional NAME arguments."""
-    parser.add_argument(
-        "names",
-        nargs="*",
-        metavar="NAME",
-        help=help_text or "Relay name(s) to operate on.",
-    )
+def _add_name_args(parser, help_text):
+    parser.add_argument("names", nargs="*", metavar="NAME", help=help_text)
 
 
 def _run_cmdeploy(subcmd, ct, ix, out, extra=None, **kwargs):
