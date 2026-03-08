@@ -605,9 +605,18 @@ class DNSContainer(Container):
             systemctl disable --now systemd-resolved 2>/dev/null || true
             rm -f /etc/resolv.conf
             echo 'nameserver 9.9.9.9' > /etc/resolv.conf
+
+            # Block automatic service startup during package installation
+            printf '#!/bin/sh\\nexit 101\\n' > /usr/sbin/policy-rc.d
+            chmod +x /usr/sbin/policy-rc.d
+
             apt-get -o DPkg::Lock::Timeout=60 update
             DEBIAN_FRONTEND=noninteractive apt-get install -y \
                 pdns-server pdns-backend-sqlite3 sqlite3 pdns-recursor dnsutils
+
+            # Remove the startup block
+            rm /usr/sbin/policy-rc.d
+
             systemctl stop pdns pdns-recursor || true
             mkdir -p /var/lib/powerdns
             sqlite3 /var/lib/powerdns/pdns.sqlite3 \
