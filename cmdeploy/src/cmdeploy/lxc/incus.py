@@ -483,8 +483,8 @@ class RelayContainer(Container):
 
     def verify_ssh(self, ssh_config):
         """Verify SSH connectivity to this container."""
-        cmd = f"ssh -F {ssh_config} -o ConnectTimeout=10 root@{self.domain} hostname"
-        return shell(cmd, timeout=15).returncode == 0
+        cmd = f"ssh -F {ssh_config} -o ConnectTimeout=60 root@{self.domain} hostname"
+        return shell(cmd, timeout=60).returncode == 0
 
     def configure_dns(self, dns_ip):
         """Point this container's resolver at *dns_ip* and verify DNS is reachable."""
@@ -562,7 +562,7 @@ class DNSContainer(Container):
         """)
         self._wait_dns_ready()
 
-    def _wait_dns_ready(self, timeout=10):
+    def _wait_dns_ready(self, timeout=60):
         """Poll until the recursor answers a query on port 53."""
         deadline = time.time() + timeout
         while time.time() < deadline:
