@@ -247,6 +247,13 @@ def lxc_test_cmd(args, out):
                 out.print(f"Loading {ct.zone} into PowerDNS ...")
                 dns_ct.set_dns_records(zone_data)
 
+        # Restart filtermail so its in-process DNS cache
+        # does not hold stale negative DKIM responses
+        # from before the zones were loaded.
+        for ct in map(ix.get_container, relay_names):
+            out.print(f"Restarting filtermail-incoming on {ct.name} ...")
+            ct.bash("systemctl restart filtermail-incoming")
+
     with out.section("cmdeploy test"):
         first = ix.get_container(relay_names[0])
         env = None
