@@ -491,7 +491,7 @@ class RelayContainer(Container):
         self.bash(f"""
             systemctl disable --now systemd-resolved 2>/dev/null || true
             rm -f /etc/resolv.conf
-            echo 'nameserver {dns_ip}' > /etc/resolv.conf
+            printf 'nameserver {dns_ip}\noptions use-vc\n' >/etc/resolv.conf
             mkdir -p /etc/unbound/unbound.conf.d
             printf 'server:\\n  domain-insecure: "localchat"\\n\\n
             forward-zone:\\n  name: "localchat"\\n
