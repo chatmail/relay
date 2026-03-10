@@ -29,8 +29,8 @@ jobs:
       - name: prepare SSH
         run: |
           mkdir ~/.ssh
-          echo "${{ secrets.STAGING_SSH_KEY }}" >> ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
+          echo "${{ secrets.STAGING_SSH_KEY }}" >> ~/.ssh/staging.testrun.org
+          chmod 600 ~/.ssh/staging.testrun.org
 
       - run: pip install hetzner-relay/
 
