@@ -13,7 +13,7 @@ on:
 
 jobs:
   allocate:
-    uses: chatmail/hpool/.github/workflows/allocate.yml@main
+    uses: chatmail/hetzner-relay/.github/workflows/allocate.yml@main
 
   deploy-and-test:
     name: deploy on allocated VPS, and run tests
@@ -46,7 +46,7 @@ jobs:
 
   rebuild:
     needs: [allocate, deploy-and-test]
-    uses: chatmail/hpool/.github/workflows/rebuild.yml@main
+    uses: chatmail/hetzner-relay/.github/workflows/rebuild.yml@main
     if: always()
     with:
       vps_name: ${{ needs.allocate.outputs.vps_name }}
