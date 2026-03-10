@@ -18,11 +18,13 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-        repository: chatmail/hetzner-relay
-        path: hetzner-relay
+        with:
+          repository: chatmail/hetzner-relay
+          path: hetzner-relay
 
       - uses: actions/checkout@v4
-        path: relay
+        with:
+          path: relay
 
       - name: prepare SSH
         run: |
