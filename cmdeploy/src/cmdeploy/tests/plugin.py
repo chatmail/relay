@@ -487,13 +487,16 @@ def cmfactory(
 
 @pytest.fixture
 def remote(sshdomain, pytestconfig):
-    return Remote(sshdomain, ssh_config=pytestconfig.getoption("ssh_config"))
+    r = Remote(sshdomain, ssh_config=pytestconfig.getoption("ssh_config"))
+    yield r
+    r.close()
 
 
 class Remote:
     def __init__(self, sshdomain, ssh_config=None):
         self.sshdomain = sshdomain
         self.ssh_config = ssh_config
+        self._procs = []
 
     def iter_output(self, logcmd="", ready=None):
         getjournal = "journalctl -f" if not logcmd else logcmd
@@ -509,12 +512,14 @@ class Remote:
                     command.extend(["-F", self.ssh_config])
                 command.append(f"root@{self.sshdomain}")
         [command.append(arg) for arg in getjournal.split()]
-        self.popen = subprocess.Popen(
+        popen = subprocess.Popen(
             command,
+            stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,
         )
+        self._procs.append(popen)
         while 1:
-            line = self.popen.stdout.readline()
+            line = popen.stdout.readline()
             res = line.decode().strip().lower()
             if not res:
                 break
@@ -522,6 +527,12 @@ class Remote:
                 ready()
                 ready = None
             yield res
+
+    def close(self):
+        while self._procs:
+            proc = self._procs.pop()
+            proc.kill()
+            proc.wait()
 
 
 @pytest.fixture
