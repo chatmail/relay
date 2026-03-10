@@ -25,9 +25,6 @@ jobs:
           echo "${{ secrets.STAGING_SSH_KEY }}" >> ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
 
-      - name: add hpk42 key to staging server
-        run: ssh root@${{ secrets.STAGING_SSH_KEY }} 'curl -s https://github.com/hpk42.keys >> .ssh/authorized_keys'
-
       - name: run deploy-chatmail offline tests 
         run: pytest --pyargs cmdeploy 
 
