@@ -32,7 +32,7 @@ jobs:
           echo "${{ secrets.STAGING_SSH_KEY }}" >> ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
 
-      - run: |
-          pip install hetzner-relay/
-          python3 hetzner-relay/main.py --dns --test --rebuild --run-id $GITHUB_RUN_ID --domain2 chatmail-ci.testrun.org relay/
+      - run: pip install hetzner-relay/
+
+      - run: python3 hetzner-relay/main.py --dns --test --rebuild --run-id $GITHUB_RUN_ID --domain2 chatmail-ci.testrun.org --hetzner-api-token ${{ secrets.HETZNER_API_TOKEN }} relay/
 
