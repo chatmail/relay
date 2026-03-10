@@ -38,9 +38,5 @@ jobs:
       - run: |
           git clone https://github.com/chatmail/hetzner-relay ../hetzner-relay
           pip install ../hetzner-relay
-          #python3 ../hetzner-relay/main.py --dns --test --vps ${{ needs.allocate.outputs.vps_name }} --run-id $GITHUB_RUN_ID --domain2 chatmail-ci.testrun.org .
+          python3 ../hetzner-relay/main.py --dns --test --rebuild --run-id $GITHUB_RUN_ID --domain2 chatmail-ci.testrun.org .
 
-  test-workflow:
-    uses: chatmail/hetzner-relay/.github/workflows/test.yml@main
-    with:
-      config_path: test
