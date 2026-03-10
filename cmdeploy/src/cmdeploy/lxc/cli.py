@@ -114,7 +114,7 @@ def _lxc_start_cmd(args, out):
         )
         sub.green(f"    Include {ssh_cfg}")
 
-    # Optionally run cmdeploy run on each relay
+    # Optionally run cmdeploy run + dns on each relay
     if args.run:
         for ct in relays:
             with out.section(f"cmdeploy run: {ct.sname} ({ct.domain})"):
@@ -122,6 +122,20 @@ def _lxc_start_cmd(args, out):
                 if ret:
                     out.red(f"Deploy to {ct.sname} failed (exit {ret})")
                     return ret
+
+        with out.section("loading DNS zones"):
+            for ct in relays:
+                ret = _run_cmdeploy(
+                    "dns", ct, ix, out,
+                    extra=["--zonefile", str(ct.zone)],
+                )
+                if ret:
+                    out.red(f"DNS for {ct.sname} failed (exit {ret})")
+                    return ret
+                if ct.zone.exists():
+                    dns_ct.set_dns_records(ct.zone.read_text())
+                out.print(f"Restarting filtermail-incoming on {ct.name}")
+                ct.bash("systemctl restart filtermail-incoming")
 
 
 # -------------------------------------------------------------------
