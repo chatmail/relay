@@ -297,12 +297,11 @@ class Incus:
 class Container:
     """The base container handle wraps all interactions with incus."""
 
-    def __init__(self, incus, name, domain=None, memory="200MiB"):
+    def __init__(self, incus, name, domain=None):
         self.incus = incus
         self.out = incus.out
         self.name = name
         self.domain = domain or f"{name}{DOMAIN_SUFFIX}"
-        self.memory = memory
         self.ipv4 = None
         self.ipv6 = None
 
@@ -347,7 +346,6 @@ class Container:
         cfg = []
         cfg += ("-c", f"{LABEL_KEY}=true")
         cfg += ("-c", f"user.localchat-domain={self.domain}")
-        cfg += ("-c", f"limits.memory={self.memory}")
         self.incus.run(["launch", image, self.name, *cfg])
         return image
 
@@ -432,7 +430,6 @@ class RelayContainer(Container):
             incus,
             f"{name}-localchat",
             domain=f"_{name}{DOMAIN_SUFFIX}",
-            memory="600MiB",
         )
         self.sname = name
         self.ini = incus.lxconfigs_dir / f"chatmail-{name}.ini"
