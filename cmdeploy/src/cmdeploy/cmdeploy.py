@@ -260,10 +260,10 @@ def test_cmd(args, out):
     pytest_args = [
         pytest_path,
         "cmdeploy/src/",
-        "-n4",
         "-rs",
         "-x",
-        "-v",
+        "-vv" if args.verbose > 1 else "-v",
+        "-s",
         "--durations=5",
     ]
     if args.slow:
