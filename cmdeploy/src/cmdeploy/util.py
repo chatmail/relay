@@ -90,6 +90,7 @@ class Out:
             cmd,
             shell=True,
             text=True,
+            stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             env=env,
@@ -133,6 +134,7 @@ def shell(cmd, check=False, **kwargs):
     """
     if "capture_output" not in kwargs and "stdout" not in kwargs:
         kwargs["capture_output"] = True
+    kwargs.setdefault("stdin", subprocess.DEVNULL)
     return subprocess.run(collapse(cmd), shell=True, text=True, check=check, **kwargs)
 
 

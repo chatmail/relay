@@ -128,7 +128,7 @@ class Incus:
         proc = subprocess.Popen(
             cmd,
             text=True,
-            stdin=subprocess.PIPE if input else None,
+            stdin=subprocess.PIPE if input else subprocess.DEVNULL,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
         )
