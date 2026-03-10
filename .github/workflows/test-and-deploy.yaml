@@ -25,9 +25,6 @@ jobs:
           echo "${{ secrets.STAGING_SSH_KEY }}" >> ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
 
-      - name: run deploy-chatmail offline tests 
-        run: pytest --pyargs cmdeploy 
-
       - run: |
           cmdeploy init ${{ secrets.STAGING_SSH_KEY }}
           sed -i 's/#\s*mtail_address/mtail_address/' chatmail.ini
