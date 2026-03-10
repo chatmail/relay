@@ -14,9 +14,9 @@ DOMAIN_SUFFIX = ".localchat"
 UPSTREAM_IMAGE = "images:debian/12"
 BASE_IMAGE_ALIAS = "localchat-base"
 BASE_SETUP_NAME = "localchat-base-setup"
-RELAY_IMAGE_ALIAS = "localchat-relay"
 
 DNS_CONTAINER_NAME = "ns-localchat"
+DNS_IMAGE_ALIAS = "localchat-ns"
 DNS_DOMAIN = "ns.localchat"
 
 
@@ -184,7 +184,16 @@ class Incus:
         )
         if result.returncode != 0:
             return None
-        return json.loads(result.stdout)
+        try:
+            return json.loads(result.stdout)
+        except json.JSONDecodeError as e:
+            msg = f"Incus JSON processing failed for {args!r}: {e!s}"
+            self.out.red(msg)
+            self.out.red(f"Captured stdout: {result.stdout!r}")
+            self.out.red(f"Captured stderr: {result.stderr!r}")
+            if check:
+                raise
+            return None
 
     def run_output(self, args, check=True):
         """Run an incus command and return its stripped stdout.
@@ -207,8 +216,13 @@ class Incus:
         return None
 
     def delete_images(self):
-        """Delete the cached base and relay images."""
-        for alias in (RELAY_IMAGE_ALIAS, BASE_IMAGE_ALIAS):
+        """Delete localchat-base and per-container images."""
+        for alias in [
+            BASE_IMAGE_ALIAS,
+            DNS_IMAGE_ALIAS,
+            "localchat-test0",
+            "localchat-test1",
+        ]:
             self.run(["image", "delete", alias], check=False)  # ok if absent
 
     def list_managed(self):
@@ -238,7 +252,7 @@ class Incus:
     def ensure_base_image(self):
         """Build and cache a base image with openssh and the SSH key.
 
-        The image is published as a local incus image with alias
+        The image is cached as a local incus image with alias
         'localchat-base'.  Subsequent container launches use this
         image instead of the upstream Debian 12, skipping the
         slow apt-get install step.
@@ -338,7 +352,7 @@ class Container:
 
     def launch(self):
         """Launch from the best available image, return the alias used."""
-        image = self.incus.find_image([RELAY_IMAGE_ALIAS, BASE_IMAGE_ALIAS])
+        image = self.incus.find_image([BASE_IMAGE_ALIAS])
         if not image:
             raise RuntimeError(
                 f"No base image '{BASE_IMAGE_ALIAS}' found. "
@@ -419,6 +433,18 @@ class Container:
                     parts = line.split()
                     return int(parts[2]), int(parts[1])
 
+    def ensure_cached_as_image(self):
+        """Cache this container as a respective image."""
+        alias = self.image_alias
+        if self.incus.find_image([alias]):
+            return
+        self.out.print("  Cleaning apt cache before caching image ...")
+        self.bash("apt-get clean")
+        self.out.print(f"  Caching {self.name!r} as '{alias}' ...")
+        self.incus.run(["publish", self.name, f"--alias={alias}", "--force"])
+        self.out.print(f"  Image '{alias}' cached.")
+        self.wait_ready()
+
 
 class RelayContainer(Container):
     """Container handle for a chatmail relay.
@@ -434,12 +460,22 @@ class RelayContainer(Container):
             domain=f"_{name}{DOMAIN_SUFFIX}",
         )
         self.sname = name
+        self.image_alias = f"localchat-{name}"
         self.ini = incus.lxconfigs_dir / f"chatmail-{name}.ini"
         self.zone = incus.lxconfigs_dir / f"{name}.zone"
 
     def launch(self):
-        """Launch (from a potentially cached image) and clear inherited chatmail-version."""
-        image = super().launch()
+        """Launch from localchat-{sname} if cached, else localchat-base."""
+
+        candidates = [self.image_alias]
+        candidates.append(BASE_IMAGE_ALIAS)
+        image = self.incus.find_image(candidates)
+        assert image, f"No deployment base, candidates: {','.join(candidates)}"
+        self.out.print(f"  Launching from '{image}' image ...")
+        cfg = []
+        cfg += ("-c", f"{LABEL_KEY}=true")
+        cfg += ("-c", f"user.localchat-domain={self.domain}")
+        self.incus.run(["launch", image, self.name, *cfg])
         self.bash("rm -f /etc/chatmail-version")
         return image
 
@@ -473,22 +509,6 @@ class RelayContainer(Container):
             sed -i '/ {self.domain}$/d' /etc/hosts
             echo '{ip} {self.name} {self.domain}' >> /etc/hosts
         """)
-
-    def publish_as_relay_image(self):
-        """Publish this container as a reusable relay image.
-
-        Stops the container, 'publishes' it as 'localchat-relay', then restarts it.
-        """
-        if self.incus.find_image([RELAY_IMAGE_ALIAS]):
-            return
-        self.out.print(
-            f"  Locally caching {self.name!r} as '{RELAY_IMAGE_ALIAS}' image ..."
-        )
-        self.incus.run(
-            ["publish", self.name, f"--alias={RELAY_IMAGE_ALIAS}", "--force"]
-        )
-        self.wait_ready()
-        self.out.print(f"  Relay image '{RELAY_IMAGE_ALIAS}' ready.")
 
     def deployed_version(self):
         """Read /etc/chatmail-version, or None if absent."""
@@ -572,6 +592,21 @@ class DNSContainer(Container):
 
     def __init__(self, incus):
         super().__init__(incus, DNS_CONTAINER_NAME, domain=DNS_DOMAIN)
+        self.image_alias = DNS_IMAGE_ALIAS
+
+    def launch(self):
+        """Launch from localchat-ns if cached, else localchat-base."""
+        image = self.incus.find_image([DNS_IMAGE_ALIAS, BASE_IMAGE_ALIAS])
+        if not image:
+            raise RuntimeError(
+                f"No base image '{BASE_IMAGE_ALIAS}' found. "
+                "Call ensure_base_image() before launching containers."
+            )
+        self.out.print(f"  Launching from '{image}' image ...")
+        cfg = []
+        cfg += ("-c", f"{LABEL_KEY}=true")
+        cfg += ("-c", f"user.localchat-domain={self.domain}")
+        self.incus.run(["launch", image, self.name, *cfg])
 
     def pdnsutil(self, *args, check=True):
         """Run ``pdnsutil <args>`` inside the DNS container."""

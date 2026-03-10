@@ -16,27 +16,97 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: download filtermail
         run: curl -L https://github.com/chatmail/filtermail/releases/download/v0.5.2/filtermail-x86_64 -o /usr/local/bin/filtermail && chmod +x /usr/local/bin/filtermail
-      - name: run chatmaild tests 
+      - name: run chatmaild tests
         working-directory: chatmaild
         run: pipx run tox
 
   scripts:
-    name: deploy-chatmail tests 
+    name: deploy-chatmail tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: initenv 
+      - name: initenv
         run: scripts/initenv.sh
 
       - name: append venv/bin to PATH
         run: echo venv/bin >>$GITHUB_PATH
 
-      - name: run formatting checks 
-        run: cmdeploy fmt -v 
+      - name: run formatting checks
+        run: cmdeploy fmt -v
 
-      - name: run deploy-chatmail offline tests 
-        run: pytest --pyargs cmdeploy 
+      - name: run deploy-chatmail offline tests
+        run: pytest --pyargs cmdeploy
 
-      # all other cmdeploy commands require a staging server 
-      # see https://github.com/deltachat/chatmail/issues/100
+  lxc-test:
+    name: LXC deploy and test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: install incus
+        run: sudo apt-get update && sudo apt-get install -y incus
+
+      - name: initialise incus
+        run: |
+          sudo systemctl stop docker.socket docker || true
+          sudo iptables -P FORWARD ACCEPT
+          sudo sysctl -w fs.inotify.max_user_instances=65535
+          sudo sysctl -w fs.inotify.max_user_watches=65535
+          sudo incus admin init --minimal --quiet
+          sudo usermod -aG incus-admin "$USER"
+
+      - name: initenv
+        run: scripts/initenv.sh
+
+      - name: append venv/bin to PATH
+        run: echo venv/bin >>$GITHUB_PATH
+
+      - name: restore cached images
+        id: cache-images
+        uses: actions/cache@v4
+        with:
+          path: |
+            /tmp/localchat-base.tar.gz
+            /tmp/localchat-ns.tar.gz
+            /tmp/localchat-test0.tar.gz
+            /tmp/localchat-test1.tar.gz
+            lxconfigs/id_localchat*
+          key: incus-contain-v2-${{ runner.os }}-${{ github.ref_name }}
+          restore-keys: |
+            incus-contain-v2-${{ runner.os }}-${{ github.ref_name }}-
+            incus-contain-v2-${{ runner.os }}-main-
+            incus-contain-v2-${{ runner.os }}-
+
+      - name: import cached images
+        run: |
+          for alias in localchat-base localchat-ns localchat-test0 localchat-test1; do
+            if [ -f /tmp/$alias.tar.gz ]; then
+              sg incus-admin -c "incus --quiet image import /tmp/$alias.tar.gz --alias $alias" || true
+            fi
+          done
+
+      - name: cmdeploy lxc-test
+        run: sg incus-admin -c 'cmdeploy lxc-test -vv'
+
+      - name: show container logs on failure
+        if: failure() || cancelled()
+        run: |
+          for c in test0-localchat test1-localchat; do
+            echo "::group::$c journal (warnings+errors)"
+            sg incus-admin -c "incus exec $c -- journalctl -p warning --no-pager -n200" 2>/dev/null || echo "no log"
+            echo "::endgroup::"
+            echo "::group::$c failed services"
+            sg incus-admin -c "incus exec $c -- systemctl --no-pager --failed" || true
+            echo "::endgroup::"
+          done
+
+      - name: export images for cache
+        if: always()
+        run: |
+          for alias in localchat-base localchat-ns localchat-test0 localchat-test1; do
+            sg incus-admin -c "incus --quiet image export $alias /tmp/$alias" || true
+          done

@@ -4,7 +4,7 @@ import os
 import time
 
 from ..util import get_git_hash, get_version_string, shell
-from .incus import RELAY_IMAGE_ALIAS, Incus, RelayContainer
+from .incus import Incus, RelayContainer
 
 RELAY_NAMES = ("test0", "test1")
 
@@ -47,6 +47,7 @@ def _lxc_start_cmd(args, out):
     out.green("Ensuring DNS container (ns-localchat) ...")
     dns_ct = ix.get_dns_container()
     dns_ct.ensure()
+    dns_ct.ensure_cached_as_image()
     sub.print(f"DNS container IP: {dns_ct.ipv4}")
 
     names = args.names if args.names else RELAY_NAMES
@@ -116,17 +117,39 @@ def _lxc_start_cmd(args, out):
 
     # Optionally run cmdeploy run + dns on each relay
     if args.run:
+        local_hash = get_git_hash()
         for ct in relays:
+            status = _deploy_status(ct, local_hash, ix)
             with out.section(f"cmdeploy run: {ct.sname} ({ct.domain})"):
-                ret = _run_cmdeploy("run", ct, ix, out, extra=["--skip-dns-check"])
-                if ret:
-                    out.red(f"Deploy to {ct.sname} failed (exit {ret})")
-                    return ret
+                if "IN-SYNC" in status:
+                    out.print(f"{ct.sname} is {status}, skipping")
+                else:
+                    ret = _run_cmdeploy("run", ct, ix, out, extra=["--skip-dns-check"])
+                    if ret:
+                        out.red(f"Deploy to {ct.sname} failed (exit {ret})")
+                        return ret
+                    # Cache a per-relay image after each successful deploy
+                    # so the next run can launch directly from the deployed state.
+                    with out.section(f"lxc-test: caching {ct.sname} image"):
+                        ct.ensure_cached_as_image()
 
-        with out.section("loading DNS zones"):
-            for ct in relays:
+        # Restart mail services to flush stale DNS state.
+        # Cached container images boot with a resolv.conf
+        # pointing to the previous run's DNS IP;
+        # configure_dns() already restarted unbound,
+        # but postfix/dovecot may hold stale results
+        # from the window between boot and DNS fix.
+        for ct in relays:
+            out.print(f"Restarting mail services on {ct.name} ...")
+            ct.bash("systemctl restart postfix dovecot opendkim")
+
+        for ct in relays:
+            with out.section(f"cmdeploy dns: {ct.sname} ({ct.domain})"):
                 ret = _run_cmdeploy(
-                    "dns", ct, ix, out,
+                    "dns",
+                    ct,
+                    ix,
+                    out,
                     extra=["--zonefile", str(ct.zone)],
                 )
                 if ret:
@@ -134,7 +157,10 @@ def _lxc_start_cmd(args, out):
                     return ret
                 if ct.zone.exists():
                     dns_ct.set_dns_records(ct.zone.read_text())
-                out.print(f"Restarting filtermail-incoming on {ct.name}")
+                # Restart filtermail so its in-process DNS cache
+                # does not hold stale negative DKIM responses
+                # from before the zones were loaded.
+                out.print(f"Restarting filtermail-incoming on {ct.name} ...")
                 ct.bash("systemctl restart filtermail-incoming")
 
 
@@ -209,71 +235,26 @@ def lxc_test_cmd(args, out):
     """
     ix = Incus(out)
     t_total = time.time()
-    relay_names = list(RELAY_NAMES)
-    if args.one:
-        relay_names = relay_names[:1]
+    v_flag = " -" + "v" * out.verbosity if out.verbosity > 0 else ""
 
-    local_hash = get_git_hash()
+    ret = out.shell(f"cmdeploy lxc-start{v_flag} --run test0", cwd=str(ix.project_root))
+    if ret:
+        return ret
 
-    # Per-relay: start, deploy, then snapshot the first relay as a
-    # reusable image so the second relay launches pre-deployed.
-    ipv4_only_flags = {RELAY_NAMES[0]: False, RELAY_NAMES[1]: True}
-
-    for ct in map(ix.get_container, relay_names):
-        name = ct.sname
-        ipv4_only = ipv4_only_flags.get(name, False)
-        v_flag = " -" + "v" * out.verbosity if out.verbosity > 0 else ""
-        start_cmd = f"cmdeploy lxc-start{v_flag} {name}"
-        if ipv4_only:
-            start_cmd += " --ipv4-only"
-        with out.section(f"cmdeploy lxc-start: {name}"):
-            ret = out.shell(start_cmd, cwd=str(ix.project_root))
-            if ret:
-                return ret
-
-        status = _deploy_status(ct, local_hash, ix)
-        with out.section(f"cmdeploy run: {name}"):
-            if "IN-SYNC" in status:
-                out.print(f"{name} is {status}, skipping")
-            else:
-                ret = _run_cmdeploy("run", ct, ix, out, extra=["--skip-dns-check"])
-                if ret:
-                    out.red(f"Deploy to {name} failed (exit {ret})")
-                    return ret
-
-        # Snapshot the first relay so subsequent ones launch pre-deployed
-        if not ix.find_image([RELAY_IMAGE_ALIAS]):
-            with out.section("lxc-test: caching relay image"):
-                ct.publish_as_relay_image()
-
-    for ct in map(ix.get_container, relay_names):
-        with out.section(f"cmdeploy dns: {ct.sname} ({ct.domain})"):
-            ret = _run_cmdeploy("dns", ct, ix, out, extra=["--zonefile", str(ct.zone)])
-            if ret:
-                out.red(f"DNS for {ct.sname} failed (exit {ret})")
-                return ret
-
-    with out.section(f"lxc-test: loading DNS zones {' & '.join(relay_names)}"):
-        dns_ct = ix.get_dns_container()
-        for ct in map(ix.get_container, relay_names):
-            if ct.zone.exists():
-                zone_data = ct.zone.read_text()
-                out.print(f"Loading {ct.zone} into PowerDNS ...")
-                dns_ct.set_dns_records(zone_data)
-
-        # Restart filtermail so its in-process DNS cache
-        # does not hold stale negative DKIM responses
-        # from before the zones were loaded.
-        for ct in map(ix.get_container, relay_names):
-            out.print(f"Restarting filtermail-incoming on {ct.name} ...")
-            ct.bash("systemctl restart filtermail-incoming")
+    if not args.one:
+        ret = out.shell(
+            f"cmdeploy lxc-start{v_flag} --run test1 --ipv4-only",
+            cwd=str(ix.project_root),
+        )
+        if ret:
+            return ret
 
     with out.section("cmdeploy test"):
-        first = ix.get_container(relay_names[0])
+        first = ix.get_container("test0")
         env = None
-        if len(relay_names) > 1:
+        if not args.one:
             env = os.environ.copy()
-            env["CHATMAIL_DOMAIN2"] = ix.get_container(relay_names[1]).domain
+            env["CHATMAIL_DOMAIN2"] = ix.get_container("test1").domain
         ret = _run_cmdeploy("test", first, ix, out, **({"env": env} if env else {}))
         if ret:
             out.red(f"Tests failed (exit {ret})")
