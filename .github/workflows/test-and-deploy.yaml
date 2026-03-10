@@ -26,10 +26,6 @@ jobs:
           chmod 600 ~/.ssh/id_ed25519
 
       - run: |
-          cmdeploy init ${{ secrets.STAGING_SSH_KEY }}
-          sed -i 's/#\s*mtail_address/mtail_address/' chatmail.ini
-
-      - run: |
           git clone https://github.com/chatmail/hetzner-relay ../hetzner-relay
           pip install ../hetzner-relay
           python3 ../hetzner-relay/main.py --dns --test --rebuild --run-id $GITHUB_RUN_ID --domain2 chatmail-ci.testrun.org .
