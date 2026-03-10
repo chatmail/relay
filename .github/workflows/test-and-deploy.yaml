@@ -19,7 +19,7 @@ jobs:
     name: deploy on allocated VPS, and run tests
     runs-on: ubuntu-latest
     needs: allocate
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
