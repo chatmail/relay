@@ -12,13 +12,9 @@ on:
       - 'LICENSE'
 
 jobs:
-  allocate:
-    uses: chatmail/hetzner-relay/.github/workflows/allocate.yml@main
-
   deploy-and-test:
     name: deploy on allocated VPS, and run tests
     runs-on: ubuntu-latest
-    needs: allocate
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -42,11 +38,9 @@ jobs:
       - run: |
           git clone https://github.com/chatmail/hetzner-relay ../hetzner-relay
           pip install ../hetzner-relay
-          python3 ../hetzner-relay/main.py --dns --test --vps ${{ needs.allocate.outputs.vps_name }} --run-id $GITHUB_RUN_ID --domain2 chatmail-ci.testrun.org .
+          #python3 ../hetzner-relay/main.py --dns --test --vps ${{ needs.allocate.outputs.vps_name }} --run-id $GITHUB_RUN_ID --domain2 chatmail-ci.testrun.org .
 
-  rebuild:
-    needs: [allocate, deploy-and-test]
-    uses: chatmail/hetzner-relay/.github/workflows/rebuild.yml@main
-    if: always()
+  test-workflow:
+    uses: chatmail/hetzner-relay/.github/workflows/test.yml@main
     with:
-      vps_name: ${{ needs.allocate.outputs.vps_name }}
+      config_path: test
