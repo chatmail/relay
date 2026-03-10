@@ -176,7 +176,7 @@ running two `PowerDNS <https://www.powerdns.com/>`_ services:
 * **pdns-recursor** (recursive) listens on the Incus
   bridge so all containers can use it.
   Forwards ``.localchat`` queries to the local
-  authoritative server and everything else to Quad9 (``9.9.9.9``).
+  authoritative server and resolves everything else recursively.
 
 After the DNS container is up, ``lxc-start`` configures the Incus bridge
 to advertise its IP via DHCP and disables Incus's own DNS.
