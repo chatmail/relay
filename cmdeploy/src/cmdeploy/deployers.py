@@ -463,8 +463,9 @@ class ChatmailDeployer(Deployer):
         ("iroh", None, None),
     ]
 
-    def __init__(self, mail_domain):
-        self.mail_domain = mail_domain
+    def __init__(self, config):
+        self.config = config
+        self.mail_domain = config.mail_domain
 
     def install(self):
         files.put(
@@ -511,6 +512,15 @@ class ChatmailDeployer(Deployer):
             commands=[
                 f"echo {self.mail_domain} >/etc/mailname; chmod 644 /etc/mailname"
             ],
+        )
+
+        files.directory(
+            name=f"Ensure mailboxes directory {self.config.mailboxes_dir} exists",
+            path=str(self.config.mailboxes_dir),
+            user="vmail",
+            group="vmail",
+            mode="700",
+            present=True,
         )
 
 
@@ -631,7 +641,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool, website_only: bool) -
     tls_deployer = get_tls_deployer(config, mail_domain)
 
     all_deployers = [
-        ChatmailDeployer(mail_domain),
+        ChatmailDeployer(config),
         LegacyRemoveDeployer(),
         FiltermailDeployer(),
         JournaldDeployer(),
