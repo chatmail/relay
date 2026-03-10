@@ -122,7 +122,7 @@ class Incus:
         to the terminal line-by-line while also being captured for
         later return via result.stdout.
         """
-        cmd = ["incus"] + list(args)
+        cmd = ["incus", "--quiet"] + list(args)
         sub = self.out.new_prefixed_out("  ")
 
         if not capture:
@@ -146,7 +146,7 @@ class Incus:
             text=True,
             stdin=subprocess.PIPE if input else subprocess.DEVNULL,
             stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
+            stderr=subprocess.PIPE,
         )
 
         stdout_lines = []
@@ -159,15 +159,17 @@ class Incus:
             if sub.verbosity >= 2:
                 sub.print(f"  > {line.rstrip()}")
 
+        stderr = proc.stderr.read()
         ret = proc.wait()
         stdout = "".join(stdout_lines)
         if check and ret != 0:
-            for line in stdout.splitlines():
+            full_output = stdout + stderr
+            for line in full_output.splitlines():
                 if sub.verbosity < 1:  # and we haven't printed it yet
                     sub.red(line)
-            raise subprocess.CalledProcessError(ret, cmd, output=stdout)
+            raise subprocess.CalledProcessError(ret, cmd, output=stdout, stderr=stderr)
 
-        return subprocess.CompletedProcess(cmd, ret, stdout=stdout)
+        return subprocess.CompletedProcess(cmd, ret, stdout=stdout, stderr=stderr)
 
     def run_json(self, args, check=True):
         """Run an incus command with ``--format=json``.
