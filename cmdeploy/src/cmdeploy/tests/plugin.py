@@ -516,6 +516,7 @@ class Remote:
             command,
             stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
         )
         self._procs.append(popen)
         while 1:
