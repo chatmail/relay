@@ -437,7 +437,7 @@ def main(args=None):
     if args.func is None:
         return parser.parse_args(["-h"])
 
-    out = Out(sepchar="\u2501", verbosity=args.verbose)
+    out = Out(verbosity=args.verbose)
     kwargs = {}
 
     if args.inipath is not None and args.func.__name__ not in ("init_cmd", "fmt_cmd"):
