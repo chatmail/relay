@@ -456,11 +456,14 @@ class RelayContainer(Container):
         self.bash("""
             sysctl -w net.ipv6.conf.all.disable_ipv6=1
             sysctl -w net.ipv6.conf.default.disable_ipv6=1
-            mkdir -p /etc/sysctl.d
-            printf 'net.ipv6.conf.all.disable_ipv6=1\\n
-            net.ipv6.conf.default.disable_ipv6=1\\n'
-            > /etc/sysctl.d/99-disable-ipv6.conf
         """)
+        self.push_file_content(
+            "/etc/sysctl.d/99-disable-ipv6.conf",
+            """
+            net.ipv6.conf.all.disable_ipv6=1
+            net.ipv6.conf.default.disable_ipv6=1
+            """,
+        )
 
     def configure_hosts(self, ip):
         """Set hostname and /etc/hosts inside the container."""
@@ -508,14 +511,21 @@ class RelayContainer(Container):
         self.bash(f"""
             systemctl disable --now systemd-resolved 2>/dev/null || true
             rm -f /etc/resolv.conf
-            printf 'nameserver {dns_ip}\n' >/etc/resolv.conf
+            printf 'nameserver {dns_ip}\\n' >/etc/resolv.conf
             mkdir -p /etc/unbound/unbound.conf.d
-            printf 'server:\\n  domain-insecure: "localchat"\\n\\n
-            forward-zone:\\n  name: "localchat"\\n
-              forward-addr: {dns_ip}\\n'
-            > /etc/unbound/unbound.conf.d/localchat-forward.conf
-            systemctl restart unbound 2>/dev/null || true
         """)
+        self.push_file_content(
+            "/etc/unbound/unbound.conf.d/localchat-forward.conf",
+            f"""
+            server:
+              domain-insecure: "localchat"
+
+            forward-zone:
+              name: "localchat"
+              forward-addr: {dns_ip}
+            """,
+        )
+        self.bash("systemctl restart unbound 2>/dev/null || true")
         self._wait_dns_reachable(dns_ip)
 
     def _wait_dns_reachable(self, dns_ip, timeout=10):
