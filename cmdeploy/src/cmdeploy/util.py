@@ -15,10 +15,10 @@ from termcolor import colored
 class Out:
     """Convenience output printer providing coloring and section formatting."""
 
-    def __init__(self, sepchar="\u2501", prefix="", verbosity=0):
+    def __init__(self, prefix="", verbosity=0):
         self.section_timings = []
         self.prefix = prefix
-        self.sepchar = sepchar
+        self.sepchar = "\u2501"
         self.verbosity = verbosity
         env_width = os.environ.get("_CMDEPLOY_WIDTH")
         if env_width:
@@ -31,7 +31,6 @@ class Out:
         sharing section_timings with the parent.
         """
         out = Out(
-            sepchar=self.sepchar,
             prefix=self.prefix + newprefix,
             verbosity=self.verbosity,
         )
