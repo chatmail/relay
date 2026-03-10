@@ -493,6 +493,17 @@ class ChatmailDeployer(Deployer):
         )
 
     def configure(self):
+        # Ensure the per-domain mailbox directory exists before
+        # chatmail-metadata starts (it crashes without it).
+        files.directory(
+            name="Ensure vmail mailbox directory exists",
+            path=f"/home/vmail/mail/{self.mail_domain}",
+            user="vmail",
+            group="vmail",
+            mode="700",
+            present=True,
+        )
+
         # This file is used by auth proxy.
         # https://wiki.debian.org/EtcMailName
         server.shell(

@@ -99,6 +99,22 @@ class Incus:
         target = f"include {self.ssh_config_path}".lower()
         return any(line.strip().lower() == target for line in lines)
 
+    def get_host_nameservers(self):
+        """Return upstream nameservers found on the host."""
+        ns = []
+        for path in ["/run/systemd/resolve/resolv.conf", "/etc/resolv.conf"]:
+            p = Path(path)
+            if p.exists():
+                for line in p.read_text().splitlines():
+                    if line.strip().startswith("nameserver "):
+                        addr = line.split()[1]
+                        if addr not in ("127.0.0.1", "127.0.0.53", "::1"):
+                            if addr not in ns:
+                                ns.append(addr)
+                if ns:
+                    break
+        return ns
+
     def run(self, args, check=True, capture=True, input=None):
         """Run an incus command.
 
@@ -241,8 +257,10 @@ class Incus:
 
         key_path = self.ssh_key_path
         pub_key = key_path.with_suffix(".pub").read_text().strip()
+        host_ns = self.get_host_nameservers()
+        ns_lines = "\n".join(f"nameserver {n}" for n in host_ns)
         ct.bash(f"""
-            echo 'nameserver 9.9.9.9' > /etc/resolv.conf
+            printf '{ns_lines}\n' > /etc/resolv.conf
             apt-get -o DPkg::Lock::Timeout=60 update
             DEBIAN_FRONTEND=noninteractive apt-get install -y openssh-server python3
             systemctl enable ssh
@@ -491,7 +509,7 @@ class RelayContainer(Container):
         self.bash(f"""
             systemctl disable --now systemd-resolved 2>/dev/null || true
             rm -f /etc/resolv.conf
-            printf 'nameserver {dns_ip}\noptions use-vc\n' >/etc/resolv.conf
+            printf 'nameserver {dns_ip}\n' >/etc/resolv.conf
             mkdir -p /etc/unbound/unbound.conf.d
             printf 'server:\\n  domain-insecure: "localchat"\\n\\n
             forward-zone:\\n  name: "localchat"\\n
@@ -604,10 +622,13 @@ class DNSContainer(Container):
         if self.run_cmd("which", "pdns_server", check=False) is not None:
             return
 
-        self.bash("""
+        host_ns = self.incus.get_host_nameservers()
+        ns_lines = "\n".join(f"nameserver {n}" for n in host_ns)
+
+        self.bash(f"""
             systemctl disable --now systemd-resolved 2>/dev/null || true
             rm -f /etc/resolv.conf
-            echo 'nameserver 9.9.9.9' > /etc/resolv.conf
+            printf '{ns_lines}\n' > /etc/resolv.conf
 
             # Block automatic service startup during package installation
             printf '#!/bin/sh\\nexit 101\\n' > /usr/sbin/policy-rc.d
@@ -643,7 +664,6 @@ class DNSContainer(Container):
             local-address=0.0.0.0
             local-port=53
             forward-zones=localchat=127.0.0.1:5353
-            forward-zones-recurse=.=9.9.9.9;149.112.112.112
             allow-from=0.0.0.0/0
             dont-query=
             dnssec=off
