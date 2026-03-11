@@ -12,4 +12,5 @@ filtermail <config> (incoming|outgoing)
 
 Code licensed under [MIT](LICENSE).
 
-Binaries distributed under [GPL-3.0-or-later](LICENSE-GPL).
+Binary releases of `filtermail` link with `viadkim` 
+and are thus subject to the [GPL-3.0-or-later](LICENSE-GPL).
