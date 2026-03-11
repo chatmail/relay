@@ -12,4 +12,4 @@ filtermail <config> (incoming|outgoing)
 
 Code licensed under [MIT](LICENSE).
 
-Binaries distributed under [GPL-3.0-or-later](LICENSE).
+Binaries distributed under [GPL-3.0-or-later](LICENSE-GPL).
