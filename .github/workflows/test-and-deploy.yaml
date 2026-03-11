@@ -34,5 +34,5 @@ jobs:
 
       - run: pip install hetzner-relay/
 
-      - run: python3 hetzner-relay/main.py -i $HOME/.ssh/staging.testrun.org --dns --test --rebuild --run-id $GITHUB_RUN_ID --domain2 ci-chatmail.testrun.org --hetzner-api-token ${{ secrets.HETZNER_API_TOKEN }} relay/
+      - run: python3 hetzner-relay/main.py -i ~/.ssh/staging.testrun.org --dns --test --rebuild --run-id $GITHUB_RUN_ID --domain2 ci-chatmail.testrun.org --hetzner-api-token ${{ secrets.HETZNER_API_TOKEN }} relay/
 
