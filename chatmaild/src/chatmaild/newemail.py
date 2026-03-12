@@ -2,7 +2,6 @@
 
 """CGI script for creating new accounts."""
 
-import ipaddress
 import json
 import secrets
 import string
@@ -15,16 +14,6 @@ ALPHANUMERIC = string.ascii_lowercase + string.digits
 ALPHANUMERIC_PUNCT = string.ascii_letters + string.digits + string.punctuation
 
 
-def wrap_ip(host):
-    if host.startswith("[") and host.endswith("]"):
-        return host
-    try:
-        ipaddress.ip_address(host)
-        return f"[{host}]"
-    except ValueError:
-        return host
-
-
 def create_newemail_dict(config: Config):
     user = "".join(
         secrets.choice(ALPHANUMERIC) for _ in range(config.username_max_length)
@@ -33,16 +22,24 @@ def create_newemail_dict(config: Config):
         secrets.choice(ALPHANUMERIC_PUNCT)
         for _ in range(config.password_min_length + 3)
     )
-    return dict(email=f"{user}@{wrap_ip(config.mail_domain)}", password=f"{password}")
+    return dict(
+        email=f"{user}@{config.mail_domain_deliverable}", password=f"{password}"
+    )
 
 
-def create_dclogin_url(email, password):
+def create_dclogin_url(config, email, password):
     """Build a dclogin: URL with credentials and self-signed cert acceptance.
 
     Uses ic=3 (AcceptInvalidCertificates) so chatmail clients
     can connect to servers with self-signed TLS certificates.
     """
-    return f"dclogin:{quote(email, safe='@')}?p={quote(password, safe='')}&v=1&ic=3"
+    if config.mail_domain != config.mail_domain_deliverable:
+        imap_host = "&ih=" + config.mail_domain
+        smtp_host = "&sh=" + config.mail_domain
+    else:
+        imap_host = ""
+        smtp_host = ""
+    return f"dclogin:{quote(email, safe='@[]')}?p={quote(password, safe='')}&v=1{imap_host}{smtp_host}&ic=3"
 
 
 def print_new_account():
@@ -51,7 +48,9 @@ def print_new_account():
 
     result = dict(email=creds["email"], password=creds["password"])
     if config.tls_cert_mode == "self":
-        result["dclogin_url"] = create_dclogin_url(creds["email"], creds["password"])
+        result["dclogin_url"] = create_dclogin_url(
+            config, creds["email"], creds["password"]
+        )
 
     print("Content-Type: application/json")
     print("")

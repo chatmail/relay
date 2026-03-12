@@ -32,6 +32,11 @@ def example_config(make_config):
 
 
 @pytest.fixture
+def ipv4_config(make_config):
+    return make_config("1.3.3.7")
+
+
+@pytest.fixture
 def maildomain(example_config):
     return example_config.mail_domain
 
