@@ -13,7 +13,7 @@ import sys
 from pathlib import Path
 
 import pyinfra
-from chatmaild.config import read_config, write_initial_config
+from chatmaild.config import read_config, write_initial_config, is_valid_ipv4
 from packaging import version
 from termcolor import colored
 
@@ -91,7 +91,7 @@ def run_cmd(args, out):
     sshexec = get_sshexec(ssh_host)
     require_iroh = args.config.enable_iroh_relay
     strict_tls = args.config.tls_cert_mode == "acme"
-    if not args.dns_check_disabled:
+    if not args.dns_check_disabled and not is_valid_ipv4(args.config.mail_domain.strip("[").strip("]")):
         remote_data = dns.get_initial_remote_data(sshexec, args.config.mail_domain)
         if not dns.check_initial_remote_data(remote_data, strict_tls=strict_tls, print=out.red):
             return 1
@@ -101,7 +101,7 @@ def run_cmd(args, out):
     env["CHATMAIL_WEBSITE_ONLY"] = "True" if args.website_only else ""
     env["CHATMAIL_DISABLE_MAIL"] = "True" if args.disable_mail else ""
     env["CHATMAIL_REQUIRE_IROH"] = "True" if require_iroh else ""
-    if not args.dns_check_disabled:
+    if not args.dns_check_disabled and not is_valid_ipv4(args.config.mail_domain.strip("[").strip("]")):
         env["CHATMAIL_ADDR_V4"] = remote_data.get("A") or ""
         env["CHATMAIL_ADDR_V6"] = remote_data.get("AAAA") or ""
     deploy_path = importlib.resources.files(__package__).joinpath("run.py").resolve()
