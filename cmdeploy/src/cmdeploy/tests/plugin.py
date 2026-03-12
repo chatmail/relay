@@ -61,8 +61,13 @@ def maildomain(chatmail_config):
 
 
 @pytest.fixture(scope="session")
-def sshdomain(maildomain):
-    return os.environ.get("CHATMAIL_SSH", maildomain)
+def maildomain_sanitized(maildomain):
+    return maildomain.strip("[").strip("]")
+
+
+@pytest.fixture(scope="session")
+def sshdomain(maildomain_sanitized):
+    return os.environ.get("CHATMAIL_SSH", maildomain_sanitized)
 
 
 @pytest.fixture
@@ -75,7 +80,7 @@ def maildomain2():
 
 @pytest.fixture
 def sshdomain2(maildomain2):
-    return os.environ.get("CHATMAIL_SSH2", maildomain2)
+    return os.environ.get("CHATMAIL_SSH2", maildomain2.strip("[").strip("]"))
 
 
 def pytest_report_header():
@@ -176,14 +181,14 @@ def ssl_context(chatmail_config):
 
 
 @pytest.fixture
-def imap(maildomain, ssl_context):
-    return ImapConn(maildomain, ssl_context=ssl_context)
+def imap(maildomain_sanitized, ssl_context):
+    return ImapConn(maildomain_sanitized, ssl_context=ssl_context)
 
 
 @pytest.fixture
-def make_imap_connection(maildomain, ssl_context):
+def make_imap_connection(maildomain_sanitized, ssl_context):
     def make_imap_connection():
-        conn = ImapConn(maildomain, ssl_context=ssl_context)
+        conn = ImapConn(maildomain_sanitized, ssl_context=ssl_context)
         conn.connect()
         return conn
 
@@ -227,14 +232,14 @@ class ImapConn:
 
 
 @pytest.fixture
-def smtp(maildomain, ssl_context):
-    return SmtpConn(maildomain, ssl_context=ssl_context)
+def smtp(maildomain_sanitized, ssl_context):
+    return SmtpConn(maildomain_sanitized, ssl_context=ssl_context)
 
 
 @pytest.fixture
-def make_smtp_connection(maildomain, ssl_context):
+def make_smtp_connection(maildomain_sanitized, ssl_context):
     def make_smtp_connection():
-        conn = SmtpConn(maildomain, ssl_context=ssl_context)
+        conn = SmtpConn(maildomain_sanitized, ssl_context=ssl_context)
         conn.connect()
         return conn
 
@@ -321,8 +326,8 @@ class ChatmailACFactory:
             "password": password,
             # Setting server explicitly skips requesting autoconfig XML,
             # see https://datatracker.ietf.org/doc/draft-ietf-mailmaint-autoconfig/
-            "imapServer": domain,
-            "smtpServer": domain,
+            "imapServer": domain.strip("[").strip("]"),
+            "smtpServer": domain.strip("[").strip("]"),
         }
         if self.chatmail_config.tls_cert_mode == "self":
             transport["certificateChecks"] = "acceptInvalidCertificates"
@@ -454,7 +459,7 @@ class CMSetup:
 
 class CMUser:
     def __init__(self, maildomain, addr, password, ssl_context=None):
-        self.maildomain = maildomain
+        self.maildomain = maildomain.strip("[").strip("]")
         self.addr = addr
         self.password = password
         self.ssl_context = ssl_context

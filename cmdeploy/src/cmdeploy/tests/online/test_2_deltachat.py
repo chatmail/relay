@@ -15,7 +15,7 @@ def imap_mailbox(cmfactory, ssl_context):
     (ac1,) = cmfactory.get_online_accounts(1)
     user = ac1.get_config("addr")
     password = ac1.get_config("mail_pw")
-    host = user.split("@")[1]
+    host = user.split("@")[1].strip("[").strip("]")
     mailbox = imap_tools.MailBox(host, ssl_context=ssl_context)
     mailbox.login(user, password)
     mailbox.dc_ac = ac1
@@ -178,7 +178,7 @@ def test_hide_senders_ip_address(cmfactory, ssl_context):
     chat.send_text("testing submission header cleanup")
     user2.wait_for_incoming_msg()
     addr = user2.get_config("addr")
-    host = addr.split("@")[1]
+    host = addr.split("@")[1].strip("[").strip("]")
     pw = user2.get_config("mail_pw")
     mailbox = imap_tools.MailBox(host, ssl_context=ssl_context)
     mailbox.login(addr, pw)

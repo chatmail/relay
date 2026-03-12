@@ -21,6 +21,8 @@ class TestSSHExecutor:
         assert out == out2
 
     def test_perform_initial(self, sshexec, maildomain):
+        if "[" in maildomain:
+            pytest.skip("Relay doesn't have a domain")
         res = sshexec(
             remote.rdns.perform_initial_checks, kwargs=dict(mail_domain=maildomain)
         )
@@ -131,7 +133,7 @@ def test_authenticated_from(cmsetup, maildata):
 
 @pytest.mark.parametrize("from_addr", ["fake@example.org", "fake@testrun.org"])
 def test_reject_missing_dkim(cmsetup, maildata, from_addr):
-    domain = cmsetup.maildomain
+    domain = cmsetup.maildomain.strip("[").strip("]")
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.settimeout(10)
     try:
@@ -143,7 +145,7 @@ def test_reject_missing_dkim(cmsetup, maildata, from_addr):
     msg = maildata(
         "encrypted.eml", from_addr=from_addr, to_addr=recipient.addr
     ).as_string()
-    conn = smtplib.SMTP(cmsetup.maildomain, 25, timeout=10)
+    conn = smtplib.SMTP(cmsetup.maildomain.strip("[").strip("]"), 25, timeout=10)
     conn.starttls()
 
     with conn as s:

@@ -8,11 +8,11 @@ from chatmaild.config import read_config
 from cmdeploy.cmdeploy import main
 
 
-def test_init(tmp_path, maildomain):
+def test_init(tmp_path, maildomain_sanitized):
     inipath = tmp_path.joinpath("chatmail.ini")
-    main(["init", "--config", str(inipath), maildomain])
+    main(["init", "--config", str(inipath), maildomain_sanitized])
     config = read_config(inipath)
-    assert config.mail_domain == maildomain
+    assert config.mail_domain.strip("[").strip("]") == maildomain_sanitized
 
 
 def test_capabilities(imap):
@@ -92,7 +92,7 @@ def test_concurrent_logins_same_account(
 def test_no_vrfy(chatmail_config):
     domain = chatmail_config.mail_domain
 
-    s = smtplib.SMTP(domain)
+    s = smtplib.SMTP(domain.strip("[").strip("]"))
     s.starttls()
 
     s.putcmd("vrfy", f"wrongaddress@{chatmail_config.mail_domain}")
