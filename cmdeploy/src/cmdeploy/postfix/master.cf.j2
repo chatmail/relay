@@ -80,7 +80,9 @@ filter    unix -        n       n       -       -       lmtp
 127.0.0.1:{{ config.postfix_reinject_port }} inet  n       -       n       -       100      smtpd
   -o syslog_name=postfix/reinject
   -o milter_macro_daemon_name=ORIGINATING
+{% if config.mail_domain == config.mail_domain_deliverable %}
   -o smtpd_milters=unix:opendkim/opendkim.sock
+{% endif %}
   -o cleanup_service_name=authclean
 
 # Local SMTP server for reinjecting incoming filtered mail 
