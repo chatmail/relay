@@ -54,14 +54,15 @@ smtpd_tls_exclude_ciphers = aNULL, RC4, MD5, DES
 tls_preempt_cipherlist = yes
 
 smtpd_relay_restrictions = permit_mynetworks permit_sasl_authenticated defer_unauth_destination
-myhostname = {{ config.mail_domain }}
 alias_maps = hash:/etc/aliases
 alias_database = hash:/etc/aliases
 
 # Postfix does not deliver mail for any domain by itself.
 # Primary domain is listed in `virtual_mailbox_domains` instead
 # and handed over to Dovecot.
-mydestination =
+mydestination = {{ config.mail_domain }}
+local_transport = lmtp:unix:private/dovecot-lmtp
+local_recipient_maps =
 
 relayhost = 
 {% if disable_ipv6 %}
@@ -88,8 +89,6 @@ inet_protocols = ipv4
 inet_protocols = all
 {% endif %}
 
-virtual_transport = lmtp:unix:private/dovecot-lmtp
-virtual_mailbox_domains = {{ config.mail_domain }}
 lmtp_header_checks = regexp:/etc/postfix/lmtp_header_cleanup
 
 mua_client_restrictions = permit_sasl_authenticated, reject
