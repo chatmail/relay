@@ -22,6 +22,11 @@ class Config:
     def __init__(self, inipath, params):
         self._inipath = inipath
         self.mail_domain = params["mail_domain"]
+        self.mail_domain_hostname = format_arpa_address(params["mail_domain"])
+        if is_valid_ipv4(params["mail_domain"]):
+            self.mail_domain_deliverable = f"[{params['mail_domain']}]"
+        else:
+            self.mail_domain_deliverable = params["mail_domain"]
         self.max_user_send_per_minute = int(params.get("max_user_send_per_minute", 60))
         self.max_user_send_burst_size = int(params.get("max_user_send_burst_size", 10))
         self.max_mailbox_size = params["max_mailbox_size"]
@@ -170,3 +175,9 @@ def is_valid_ipv4(address: str) -> bool:
         return True
     except ValueError:
         return False
+
+
+def format_arpa_address(address: str) -> str:
+    if is_valid_ipv4(address):
+        return ipaddress.IPv4Address(address).reverse_pointer
+    return address
