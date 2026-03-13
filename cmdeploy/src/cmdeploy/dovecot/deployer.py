@@ -1,9 +1,8 @@
-import os
 import urllib.request
 
 from chatmaild.config import Config
 from pyinfra import host
-from pyinfra.facts.server import Arch, Sysctl
+from pyinfra.facts.server import Arch, Command, Sysctl
 from pyinfra.facts.systemd import SystemdEnabled
 from pyinfra.operations import apt, files, server, systemd
 
@@ -134,12 +133,18 @@ def _configure_dovecot(config: Config, debug: bool = False) -> (bool, bool):
 
     # as per https://doc.dovecot.org/2.3/configuration_manual/os/
     # it is recommended to set the following inotify limits
-    if not os.environ.get("CHATMAIL_NOSYSCTL"):
+    in_container = host.get_fact(Command, "systemd-detect-virt -c || true") != "none"
+    if in_container:
+        print(
+            "\n!!!! running in a shared-kernel container; skipping inotify sysctl check\n"
+            "!!!! ensure fs.inotify.max_user_{instances,watches} > 65535 on the host\n"
+            "!!!!"
+        )
+    else:
         for name in ("max_user_instances", "max_user_watches"):
             key = f"fs.inotify.{name}"
-            if host.get_fact(Sysctl)[key] > 65535:
-                # Skip updating limits if already sufficient
-                # (enables running in incus containers where sysctl readonly)
+            value = host.get_fact(Sysctl)[key]
+            if value > 65534:
                 continue
             server.sysctl(
                 name=f"Change {key}",
