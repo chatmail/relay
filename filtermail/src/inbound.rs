@@ -27,23 +27,16 @@ impl IncomingBeforeQueueHandler {
         })
     }
 
-    /// Verify the origin of the email either by performing DKIM verification or by matching the FROM
-    /// domain literal with the origin IP.
+    /// Verify the origin of the email by performing a DKIM verification on a regular domain.
+    ///
+    /// Currently a no-op for valid domain-literals.
     async fn verify_origin(&self, envelope: &Envelope, from_addr: &str) -> Result<(), String> {
         let from_domain = AddressDomain::from_str(from_addr).map_err(|e| e.smtp_response())?;
 
         match from_domain {
-            AddressDomain::Literal(ip) => {
-                if !envelope.origin_ip.eq_ignore_ascii_case(&ip) {
-                    log::warn!(
-                        "Received invalid origin address: {ip}, actual: {}",
-                        envelope.origin_ip
-                    );
-                    return Err(format!(
-                        "500 Invalid FROM domain literal: {ip} does not match origin IP {}",
-                        envelope.origin_ip
-                    ));
-                }
+            AddressDomain::Literal(_) => {
+                // Subject to change: we currently don't perform any additional authentication
+                // for domain-literals and rely purely on encryption.
             }
             AddressDomain::Name(domain) => {
                 if !self.skip_dkim
@@ -142,5 +135,37 @@ impl SmtpHandler for IncomingBeforeQueueHandler {
             })?;
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rstest::{fixture, rstest};
+    use testresult::TestResult;
+
+    #[fixture]
+    fn config() -> Config {
+        Config::default()
+    }
+
+    /// Test that domain-literals are not rejected by origin check.
+    #[rstest]
+    #[tokio::test]
+    #[case::ipv4(include_bytes!("../test_data/encrypted-ipv4.eml"), "one@[192.0.2.0]")]
+    #[case::ipv6(include_bytes!("../test_data/encrypted-ipv6.eml"), "one@[IPv6:2001:db8::1]")]
+    async fn test_domain_literals_allowed(
+        #[case] eml: &[u8],
+        #[case] address: &str,
+        config: Config,
+    ) -> TestResult {
+        let handler = IncomingBeforeQueueHandler::new(config, false)?;
+        let mut envelope = Envelope {
+            mail_from: address.to_string(),
+            origin_ip: "".to_string(), // Currently shouldn't be relevant.
+            data: eml.to_vec(),
+            rcpt_to: vec!["does.not.matter@example.org".to_string()],
+        };
+        Ok(handler.check_data(&mut envelope).await?)
     }
 }

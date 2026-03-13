@@ -37,8 +37,7 @@ depending on address type:
    - **domain** - performs a strict DKIM verification and domain alignment check
    (domain of address from `From` header must exactly match the DKIM signature domain),
    rejecting messages that fail.
-   - **domain-literal (IP address)** - rejects message if the IP in domain-literal of `From` header address
-   does not match the origin IP received by `XFORWARD` command.
+   - **domain-literal (IP address)** - currently no-op.
 5. In case of a DKIM failure,
 the message is saved to `/tmp/filtermail-rejected/dkim-verify` directory for later inspection.
 
@@ -104,9 +103,6 @@ with few considerations:
 
 - Filtermail expects to receive messages from a trusted server,
 and thus should not be exposed directly to the internet.
-- In incoming mode it expects to receive `XFORWARD` commands with the origin IP,
-if the other server doesn't support this, 
-it will lead to rejection of every email using domain-literals in it's `From` header address.
 - Issues outside of chatmail relay context are not necessarily considered bugs;
 PRs fixing them are not guaranteed to be accepted.
 (Trivial changes may still be considered, 

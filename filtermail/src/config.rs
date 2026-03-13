@@ -104,3 +104,25 @@ impl Config {
         NonZeroU32::new(10).expect("10 != 0")
     }
 }
+
+#[cfg(test)]
+impl Default for Config {
+    /// Creates a default configuration with example.org domain.
+    ///
+    /// Used for tests.
+    fn default() -> Self {
+        Self {
+            filtermail_smtp_port: Self::default_filtermail_smtp_port(),
+            filtermail_smtp_port_incoming: Self::default_filtermail_smtp_port_incoming(),
+            postfix_reinject_port: Self::default_postfix_reinject_port(),
+            postfix_reinject_port_incoming: Self::default_postfix_reinject_port_incoming(),
+            max_message_size: Self::default_max_message_size(),
+            max_user_send_per_minute: Self::default_max_user_send_per_minute(),
+            max_user_send_burst_size: Self::default_max_user_send_burst_size(),
+            passthrough_senders: Vec::new(),
+            passthrough_recipients: Vec::new(),
+            mail_domain: "example.org".to_string(),
+            mailboxes_dir: None,
+        }
+    }
+}
