@@ -1,20 +1,16 @@
 use crate::smtp_server::Envelope;
-use std::net::{IpAddr, SocketAddr};
+use std::net::SocketAddr;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufStream};
 use tokio::net::TcpSocket;
 
-const LOCALHOST: IpAddr = IpAddr::V4(std::net::Ipv4Addr::new(127, 0, 0, 1));
-
-/// Sends an email using an SMTP server at `localhost:<smtp_port>`.
-pub async fn send(smtp_port: u16, envelope: &Envelope) -> Result<(), crate::error::Error> {
+/// Sends an email using an SMTP server at `smtp_addr`.
+pub async fn send(smtp_addr: SocketAddr, envelope: &Envelope) -> Result<(), crate::error::Error> {
     let socket = TcpSocket::new_v4()?;
 
     // Disable Nagle's algorithm.
     socket.set_nodelay(true)?;
 
-    let stream = socket
-        .connect(SocketAddr::new(LOCALHOST, smtp_port))
-        .await?;
+    let stream = socket.connect(smtp_addr).await?;
 
     let mut buf_stream = BufStream::new(stream);
     let mut response = String::new();

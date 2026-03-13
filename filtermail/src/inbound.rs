@@ -9,6 +9,7 @@ use crate::smtp_server::SmtpHandler;
 use crate::utils::{AddressDomain, extract_address, log_eml};
 use async_trait::async_trait;
 use mailparse::{MailHeaderMap, parse_mail};
+use std::net::SocketAddr;
 use std::str::FromStr;
 
 /// Handler for incoming SMTP messages.
@@ -16,14 +17,18 @@ pub struct IncomingBeforeQueueHandler {
     config: Config,
     dkim_verifier: DkimVerifier,
     skip_dkim: bool,
+    reinject_addr: SocketAddr,
 }
 
 impl IncomingBeforeQueueHandler {
     pub fn new(config: Config, skip_dkim: bool) -> Result<Self, crate::error::Error> {
+        let reinject_addr =
+            crate::resolve_addr(&config.postfix_host, config.postfix_reinject_port_incoming)?;
         Ok(Self {
             config,
             dkim_verifier: DkimVerifier::new()?,
             skip_dkim,
+            reinject_addr,
         })
     }
 
@@ -127,7 +132,7 @@ impl SmtpHandler for IncomingBeforeQueueHandler {
     async fn reinject_mail(&self, envelope: &Envelope) -> Result<(), String> {
         log::debug!("Re-injecting the mail that passed checks");
 
-        crate::smtp_client::send(self.config.postfix_reinject_port_incoming, envelope)
+        crate::smtp_client::send(self.reinject_addr, envelope)
             .await
             .map_err(|e| {
                 log::warn!("Failed to re-inject mail: {}", e);

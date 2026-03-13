@@ -9,21 +9,26 @@ use crate::utils::extract_address;
 use async_trait::async_trait;
 use governor::{DefaultKeyedRateLimiter, Quota, RateLimiter};
 use mailparse::{MailHeaderMap, parse_mail};
+use std::net::SocketAddr;
 
 /// Handler for outgoing SMTP messages.
 pub struct OutgoingBeforeQueueHandler {
     config: Config,
+    reinject_addr: SocketAddr,
     send_rate_limiter: DefaultKeyedRateLimiter<String>,
 }
 
 impl OutgoingBeforeQueueHandler {
-    pub fn new(config: Config) -> Self {
+    pub fn new(config: Config) -> Result<Self, crate::error::Error> {
+        let reinject_addr =
+            crate::resolve_addr(&config.postfix_host, config.postfix_reinject_port)?;
         let quota = Quota::per_minute(config.max_user_send_per_minute)
             .allow_burst(config.max_user_send_burst_size);
-        Self {
+        Ok(Self {
             config,
+            reinject_addr,
             send_rate_limiter: RateLimiter::keyed(quota),
-        }
+        })
     }
 }
 
@@ -125,7 +130,7 @@ impl SmtpHandler for OutgoingBeforeQueueHandler {
     async fn reinject_mail(&self, envelope: &Envelope) -> Result<(), String> {
         log::debug!("Re-injecting the mail that passed checks");
 
-        crate::smtp_client::send(self.config.postfix_reinject_port, envelope)
+        crate::smtp_client::send(self.reinject_addr, envelope)
             .await
             .map_err(|e| {
                 log::warn!("Failed to re-inject mail: {}", e);
