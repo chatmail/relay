@@ -1,3 +1,22 @@
+## 0.6.0 - 2026-03-13
+
+### Documentation
+
+- *(readme)* Fix license link
+- *(readme)* Clarify licensing of the binaries
+- *(readme)* Improve README.md (#88)
+
+### Features
+
+- [**breaking**] Remove IP verification for domain-literals (#90)
+
+### Miscellaneous Tasks
+
+- *(ci)* Fix binary publish job (#79)
+
+### Refactor
+
+- Use enum for mode cli arg (#83)
 ## 0.5.2 - 2026-02-27
 
 ### Bug Fixes
