@@ -145,7 +145,7 @@ def _configure_dovecot(config: Config, debug: bool = False) -> (bool, bool):
         if not can_modify:
             print(
                 "\n!!!! refusing to attempt sysctl setting in shared-kernel containers\n"
-                f"!!!! dovecot: sysctl {key!r}={value}, should be >65535 for production setups\n"
+                f"!!!! dovecot: sysctl {key!r}={value}, should be >65534 for production setups\n"
                 "!!!!"
             )
             continue
