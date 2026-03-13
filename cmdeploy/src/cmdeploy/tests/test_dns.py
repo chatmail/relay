@@ -183,3 +183,59 @@ class TestZonefileChecks:
         assert not mockout.captured_red
         assert "correct" in mockout.captured_green[0]
         assert not mockout.captured_red
+
+
+class TestDigAuthoritative:
+    @pytest.fixture
+    def dig_auth(self):
+        """Helper that calls _dig_authoritative with a recording shell function."""
+        calls = []
+
+        def run(first_result, ipv4_result=None):
+            def shell(cmd, print=print):
+                calls.append(cmd)
+                if "-4" in cmd:
+                    return ipv4_result or ""
+                return first_result
+
+            result = remote.rdns._dig_authoritative(
+                "ns1.example.", "example.com", "A", shell_exec=shell
+            )
+            return result, calls
+
+        return run
+
+    def test_ipv4_fallback_on_error(self, dig_auth):
+        """Fallback to -4 when first query returns only error lines."""
+        result, calls = dig_auth(
+            first_result=(
+                ";; communications error to 2a01:4f8:10a:1044::80#53: timed out\n"
+                ";; communications error to 2a01:4f8:10a:1044::80#53: timed out\n"
+            ),
+            ipv4_result="1.2.3.4",
+        )
+        assert len(calls) == 2
+        assert "-4" not in calls[0]
+        assert "-4" in calls[1]
+        assert result == "1.2.3.4"
+
+    def test_no_fallback_on_success(self, dig_auth):
+        """No -4 fallback when first query returns a valid answer."""
+        result, calls = dig_auth(first_result="1.2.3.4")
+        assert result == "1.2.3.4"
+        assert len(calls) == 1
+
+    def test_fallback_with_mixed_error_lines(self, dig_auth):
+        """Fallback triggers when output has only error lines mixed with empty."""
+        result, calls = dig_auth(
+            first_result=(
+                ";; communications error to 2a01:4f8::80#53: timed out\n"
+                "\n"
+                ";; communications error to 2a01:4f8::80#53: timed out\n"
+            ),
+            ipv4_result=";; some warning\n1.2.3.4",
+        )
+        assert len(calls) == 2
+        assert result == "1.2.3.4"
+
+
