@@ -19,7 +19,6 @@ from pyinfra.operations import apt, files, pip, server, systemd
 
 from cmdeploy.cmdeploy import Out
 
-from .acmetool import AcmetoolDeployer
 from .basedeploy import (
     Deployer,
     Deployment,
@@ -29,13 +28,12 @@ from .basedeploy import (
     has_systemd,
 )
 from .dovecot.deployer import DovecotDeployer
-from .external.deployer import ExternalTlsDeployer
 from .filtermail.deployer import FiltermailDeployer
 from .mtail.deployer import MtailDeployer
 from .nginx.deployer import NginxDeployer
 from .opendkim.deployer import OpendkimDeployer
 from .postfix.deployer import PostfixDeployer
-from .selfsigned.deployer import SelfSignedTlsDeployer
+from .tls.deployer import get_tls_deployers
 from .www import build_webpages, find_merge_conflict, get_paths
 
 
@@ -145,8 +143,8 @@ def _configure_remote_venv_with_chatmaild(config) -> None:
 
 class UnboundDeployer(Deployer):
     def __init__(self, config):
+        super().__init__()
         self.config = config
-        self.need_restart = False
 
     def install(self):
         # Run local DNS resolver `unbound`.
@@ -162,12 +160,12 @@ class UnboundDeployer(Deployer):
         # For documentation about policy-rc.d, see:
         # https://people.debian.org/~hmh/invokerc.d-policyrc.d-specification.txt
         #
-        files.put(
-            src=get_resource("policy-rc.d"),
+        self.put_file(
+            src="policy-rc.d",
             dest="/usr/sbin/policy-rc.d",
-            user="root",
-            group="root",
-            mode="755",
+            owner="root",
+            executable=True,
+            track=False,
         )
 
         apt.packages(
@@ -175,7 +173,7 @@ class UnboundDeployer(Deployer):
             packages=["unbound", "unbound-anchor", "dnsutils"],
         )
 
-        files.file("/usr/sbin/policy-rc.d", present=False)
+        self.remove_file("/usr/sbin/policy-rc.d")
 
     def configure(self):
         server.shell(
@@ -185,26 +183,16 @@ class UnboundDeployer(Deployer):
             ],
         )
         if self.config.disable_ipv6:
-            files.directory(
+            self.ensure_directory(
                 path="/etc/unbound/unbound.conf.d",
-                present=True,
-                user="root",
-                group="root",
-                mode="755",
+                owner="root",
             )
-            conf = files.put(
-                src=get_resource("unbound/unbound.conf.j2"),
-                dest="/etc/unbound/unbound.conf.d/chatmail.conf",
-                user="root",
-                group="root",
-                mode="644",
+            self.put_template(
+                "unbound/unbound.conf.j2",
+                "/etc/unbound/unbound.conf.d/chatmail.conf",
             )
         else:
-            conf = files.file(
-                path="/etc/unbound/unbound.conf.d/chatmail.conf",
-                present=False,
-            )
-        self.need_restart |= conf.changed
+            self.remove_file("/etc/unbound/unbound.conf.d/chatmail.conf")
 
     def activate(self):
         server.shell(
@@ -214,44 +202,32 @@ class UnboundDeployer(Deployer):
             ],
         )
 
-        systemd.service(
-            name="Start and enable unbound",
-            service="unbound.service",
-            running=True,
-            enabled=True,
-            restarted=self.need_restart,
-        )
+        self.activate_service("unbound.service")
 
 
 class MtastsDeployer(Deployer):
     def configure(self):
         # Remove configuration.
-        files.file("/etc/mta-sts-daemon.yml", present=False)
-        files.directory("/usr/local/lib/postfix-mta-sts-resolver", present=False)
-        files.file("/etc/systemd/system/mta-sts-daemon.service", present=False)
+        self.remove_file("/etc/mta-sts-daemon.yml")
+        self.remove_directory("/usr/local/lib/postfix-mta-sts-resolver")
+        self.remove_file("/etc/systemd/system/mta-sts-daemon.service")
 
     def activate(self):
-        systemd.service(
-            name="Stop MTA-STS daemon",
-            service="mta-sts-daemon.service",
-            daemon_reload=True,
-            running=False,
-            enabled=False,
+        self.activate_service(
+            "mta-sts-daemon.service", running=False, enabled=False,
         )
 
 
 class WebsiteDeployer(Deployer):
     def __init__(self, config):
+        super().__init__()
         self.config = config
 
     def install(self):
-        files.directory(
+        self.ensure_directory(
             name="Ensure /var/www exists",
             path="/var/www",
-            user="root",
-            group="root",
-            mode="755",
-            present=True,
+            owner="root",
         )
 
     def configure(self):
@@ -282,15 +258,11 @@ class LegacyRemoveDeployer(Deployer):
 
         # remove historic expunge script
         # which is now implemented through a systemd timer (chatmail-expire)
-        files.file(
-            path="/etc/cron.d/expunge",
-            present=False,
-        )
+        self.remove_file("/etc/cron.d/expunge")
 
         # Remove OBS repository key that is no longer used.
-        files.file("/etc/apt/keyrings/obs-home-deltachat.gpg", present=False)
-        files.line(
-            name="Remove DeltaChat OBS home repository from sources.list",
+        self.remove_file("/etc/apt/keyrings/obs-home-deltachat.gpg")
+        self.ensure_line(
             path="/etc/apt/sources.list",
             line="deb [signed-by=/etc/apt/keyrings/obs-home-deltachat.gpg] https://download.opensuse.org/repositories/home:/deltachat/Debian_12/ ./",
             escape_regex_characters=True,
@@ -298,10 +270,9 @@ class LegacyRemoveDeployer(Deployer):
         )
 
         # prior relay versions used filelogging
-        files.directory(
+        self.remove_directory(
             name="Ensure old logs on disk are deleted",
             path="/var/log/journal/",
-            present=False,
         )
         # remove echobot if it is still running
         if has_systemd() and host.get_fact(SystemdEnabled).get("echobot.service"):
@@ -330,6 +301,7 @@ def check_config(config):
 
 class TurnDeployer(Deployer):
     def __init__(self, mail_domain):
+        super().__init__()
         self.mail_domain = mail_domain
         self.units = ["turnserver"]
 
@@ -356,14 +328,15 @@ class TurnDeployer(Deployer):
             )
 
     def configure(self):
-        configure_remote_units(self.mail_domain, self.units)
+        self.daemon_reload |= configure_remote_units(self.mail_domain, self.units)
 
     def activate(self):
-        activate_remote_units(self.units)
+        activate_remote_units(self.units, daemon_reload=self.daemon_reload)
 
 
 class IrohDeployer(Deployer):
     def __init__(self, enable_iroh_relay):
+        super().__init__()
         self.enable_iroh_relay = enable_iroh_relay
 
     def install(self):
@@ -391,62 +364,26 @@ class IrohDeployer(Deployer):
             self.need_restart = True
 
     def configure(self):
-        systemd_unit = files.put(
-            name="Upload iroh-relay systemd unit",
-            src=get_resource("iroh-relay.service"),
-            dest="/etc/systemd/system/iroh-relay.service",
-            user="root",
-            group="root",
-            mode="644",
-        )
-        self.need_restart |= systemd_unit.changed
-
-        iroh_config = files.put(
-            name="Upload iroh-relay config",
-            src=get_resource("iroh-relay.toml"),
-            dest="/etc/iroh-relay.toml",
-            user="root",
-            group="root",
-            mode="644",
-        )
-        self.need_restart |= iroh_config.changed
+        self.install_systemd_service("iroh-relay.service")
+        self.put_file("iroh-relay.toml", "/etc/iroh-relay.toml")
 
     def activate(self):
-        systemd.service(
-            name="Start and enable iroh-relay",
-            service="iroh-relay.service",
-            running=True,
-            enabled=self.enable_iroh_relay,
-            restarted=self.need_restart,
+        self.activate_service(
+            "iroh-relay.service", enabled=self.enable_iroh_relay,
         )
-        self.need_restart = False
 
 
 class JournaldDeployer(Deployer):
     def configure(self):
-        journald_conf = files.put(
-            name="Configure journald",
-            src=get_resource("journald.conf"),
-            dest="/etc/systemd/journald.conf",
-            user="root",
-            group="root",
-            mode="644",
-        )
-        self.need_restart = journald_conf.changed
+        self.put_file("journald.conf", "/etc/systemd/journald.conf")
 
     def activate(self):
-        systemd.service(
-            name="Start and enable journald",
-            service="systemd-journald.service",
-            running=True,
-            enabled=True,
-            restarted=self.need_restart,
-        )
-        self.need_restart = False
+        self.activate_service("systemd-journald.service")
 
 
 class ChatmailVenvDeployer(Deployer):
     def __init__(self, config):
+        super().__init__()
         self.config = config
         self.units = (
             "chatmail-metadata",
@@ -462,10 +399,10 @@ class ChatmailVenvDeployer(Deployer):
 
     def configure(self):
         _configure_remote_venv_with_chatmaild(self.config)
-        configure_remote_units(self.config.mail_domain, self.units)
+        self.daemon_reload |= configure_remote_units(self.config.mail_domain, self.units)
 
     def activate(self):
-        activate_remote_units(self.units)
+        activate_remote_units(self.units, daemon_reload=self.daemon_reload)
 
 
 class ChatmailDeployer(Deployer):
@@ -475,6 +412,7 @@ class ChatmailDeployer(Deployer):
     ]
 
     def __init__(self, mail_domain):
+        super().__init__()
         self.mail_domain = mail_domain
 
     def install(self):
@@ -522,12 +460,7 @@ class FcgiwrapDeployer(Deployer):
         )
 
     def activate(self):
-        systemd.service(
-            name="Start and enable fcgiwrap",
-            service="fcgiwrap.service",
-            running=True,
-            enabled=True,
-        )
+        self.activate_service("fcgiwrap.service")
 
 
 class GithashDeployer(Deployer):
@@ -540,26 +473,12 @@ class GithashDeployer(Deployer):
             git_diff = subprocess.check_output(["git", "diff"]).decode()
         except Exception:
             git_diff = ""
-        files.put(
-            name="Upload chatmail relay git commit hash",
+        self.put_file(
             src=StringIO(git_hash + git_diff),
             dest="/etc/chatmail-version",
-            mode="700",
+            owner="root",
+            track=False,
         )
-
-
-def get_tls_deployer(config, mail_domain):
-    """Select the appropriate TLS deployer based on config."""
-    tls_domains = [mail_domain, f"mta-sts.{mail_domain}", f"www.{mail_domain}"]
-
-    if config.tls_cert_mode == "acme":
-        return AcmetoolDeployer(config.acme_email, tls_domains)
-    elif config.tls_cert_mode == "self":
-        return SelfSignedTlsDeployer(mail_domain)
-    elif config.tls_cert_mode == "external":
-        return ExternalTlsDeployer(config.tls_cert_path, config.tls_key_path)
-    else:
-        raise ValueError(f"Unknown tls_cert_mode: {config.tls_cert_mode}")
 
 
 def deploy_chatmail(config_path: Path, disable_mail: bool, website_only: bool) -> None:
@@ -586,11 +505,17 @@ def deploy_chatmail(config_path: Path, disable_mail: bool, website_only: bool) -
         )
 
     # Check if mtail_address interface is available (if configured)
-    if config.mtail_address and config.mtail_address not in ('127.0.0.1', '::1', 'localhost'):
+    if config.mtail_address and config.mtail_address not in (
+        "127.0.0.1",
+        "::1",
+        "localhost",
+    ):
         ipv4_addrs = host.get_fact(hardware.Ipv4Addrs)
         all_addresses = [addr for addrs in ipv4_addrs.values() for addr in addrs]
         if config.mtail_address not in all_addresses:
-            Out().red(f"Deploy failed: mtail_address {config.mtail_address} is not available (VPN up?).\n")
+            Out().red(
+                f"Deploy failed: mtail_address {config.mtail_address} is not available (VPN up?).\n"
+            )
             exit(1)
 
     if not os.environ.get("CHATMAIL_NOPORTCHECK"):
@@ -630,7 +555,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool, website_only: bool) -
                     )
                     exit(1)
 
-    tls_deployer = get_tls_deployer(config, mail_domain)
+    tls_deployers = get_tls_deployers(config, mail_domain)
 
     all_deployers = [
         ChatmailDeployer(mail_domain),
@@ -640,7 +565,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool, website_only: bool) -
         UnboundDeployer(config),
         TurnDeployer(mail_domain),
         IrohDeployer(config.enable_iroh_relay),
-        tls_deployer,
+        *tls_deployers,
         WebsiteDeployer(config),
         ChatmailVenvDeployer(config),
         MtastsDeployer(),

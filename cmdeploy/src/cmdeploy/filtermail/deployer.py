@@ -1,16 +1,13 @@
 from pyinfra import facts, host
-from pyinfra.operations import files, systemd
+from pyinfra.operations import files
 
-from cmdeploy.basedeploy import Deployer, get_resource
+from cmdeploy.basedeploy import Deployer
 
 
 class FiltermailDeployer(Deployer):
     services = ["filtermail", "filtermail-incoming"]
     bin_path = "/usr/local/bin/filtermail"
     config_path = "/usr/local/lib/chatmaild/chatmail.ini"
-
-    def __init__(self):
-        self.need_restart = False
 
     def install(self):
         arch = host.get_fact(facts.server.Arch)
@@ -29,24 +26,12 @@ class FiltermailDeployer(Deployer):
 
     def configure(self):
         for service in self.services:
-            self.need_restart |= files.template(
-                src=get_resource(f"filtermail/{service}.service.j2"),
-                dest=f"/etc/systemd/system/{service}.service",
-                user="root",
-                group="root",
-                mode="644",
+            self.install_systemd_service(
+                f"filtermail/{service}.service.j2",
                 bin_path=self.bin_path,
                 config_path=self.config_path,
-            ).changed
+            )
 
     def activate(self):
         for service in self.services:
-            systemd.service(
-                name=f"Start and enable {service}",
-                service=f"{service}.service",
-                running=True,
-                enabled=True,
-                restarted=self.need_restart,
-                daemon_reload=True,
-            )
-        self.need_restart = False
+            self.activate_service(f"{service}.service")

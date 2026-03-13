@@ -1,25 +1,22 @@
 import os
 import urllib.request
 
-from chatmaild.config import Config
 from pyinfra import host
 from pyinfra.facts.server import Arch, Sysctl
 from pyinfra.facts.systemd import SystemdEnabled
-from pyinfra.operations import apt, files, server, systemd
+from pyinfra.operations import apt, files, server
 
 from cmdeploy.basedeploy import (
     Deployer,
     activate_remote_units,
     configure_remote_units,
-    get_resource,
     has_systemd,
 )
 
 
 class DovecotDeployer(Deployer):
-    daemon_reload = False
-
     def __init__(self, config, disable_mail):
+        super().__init__()
         self.config = config
         self.disable_mail = disable_mail
         self.units = ["doveauth"]
@@ -33,25 +30,46 @@ class DovecotDeployer(Deployer):
         _install_dovecot_package("lmtpd", arch)
 
     def configure(self):
-        configure_remote_units(self.config.mail_domain, self.units)
-        self.need_restart, self.daemon_reload = _configure_dovecot(self.config)
+        self.daemon_reload |= configure_remote_units(self.config.mail_domain, self.units)
+        self.put_template(
+            "dovecot/dovecot.conf.j2",
+            "/etc/dovecot/dovecot.conf",
+            config=self.config,
+            debug=False,
+            disable_ipv6=self.config.disable_ipv6,
+        )
+        self.put_file("dovecot/auth.conf", "/etc/dovecot/auth.conf")
+        self.put_file(
+            "dovecot/push_notification.lua", "/etc/dovecot/push_notification.lua"
+        )
+
+        _configure_inotify_limits()
+
+        self.ensure_line(
+            name="Set TZ environment variable",
+            path="/etc/environment",
+            line="TZ=:/etc/localtime",
+        )
+
+        self.put_file(
+            "service/10_restart_on_failure.conf",
+            "/etc/systemd/system/dovecot.service.d/10_restart.conf",
+        )
+
+        # Validate dovecot configuration before restart
+        if self.need_restart:
+            server.shell(
+                name="Validate dovecot configuration",
+                commands=["doveconf -n >/dev/null"],
+            )
 
     def activate(self):
-        activate_remote_units(self.units)
+        activate_remote_units(self.units, daemon_reload=self.daemon_reload)
 
-        restart = False if self.disable_mail else self.need_restart
-
-        systemd.service(
-            name="Disable dovecot for now"
-            if self.disable_mail
-            else "Start and enable Dovecot",
-            service="dovecot.service",
-            running=False if self.disable_mail else True,
-            enabled=False if self.disable_mail else True,
-            restarted=restart,
-            daemon_reload=self.daemon_reload,
+        active = not self.disable_mail
+        self.activate_service(
+            "dovecot.service", running=active, enabled=active,
         )
-        self.need_restart = False
 
 
 def _pick_url(primary, fallback):
@@ -63,13 +81,31 @@ def _pick_url(primary, fallback):
         return fallback
 
 
+def _configure_inotify_limits():
+    # as per https://doc.dovecot.org/2.3/configuration_manual/os/
+    # it is recommended to set the following inotify limits
+    if not os.environ.get("CHATMAIL_NOSYSCTL"):
+        for name in ("max_user_instances", "max_user_watches"):
+            key = f"fs.inotify.{name}"
+            if host.get_fact(Sysctl)[key] > 65535:
+                # Skip updating limits if already sufficient
+                # (enables running in incus containers where sysctl readonly)
+                continue
+            server.sysctl(
+                name=f"Change {key}",
+                key=key,
+                value=65535,
+                persist=True,
+            )
+
+
 def _install_dovecot_package(package: str, arch: str):
     arch = "amd64" if arch == "x86_64" else arch
     arch = "arm64" if arch == "aarch64" else arch
     primary_url = f"https://download.delta.chat/dovecot/dovecot-{package}_2.3.21%2Bdfsg1-3_{arch}.deb"
     fallback_url = f"https://github.com/chatmail/dovecot/releases/download/upstream%2F2.3.21%2Bdfsg1/dovecot-{package}_2.3.21%2Bdfsg1-3_{arch}.deb"
     url = _pick_url(primary_url, fallback_url)
-    deb_filename = "/root/" + url.split("/")[-1]
+    deb_filename = "/root/" + url.rsplit("/", maxsplit=1)[-1]
 
     match (package, arch):
         case ("core", "amd64"):
@@ -97,76 +133,3 @@ def _install_dovecot_package(package: str, arch: str):
     )
 
     apt.deb(name=f"Install dovecot-{package}", src=deb_filename)
-
-
-def _configure_dovecot(config: Config, debug: bool = False) -> (bool, bool):
-    """Configures Dovecot IMAP server."""
-    need_restart = False
-    daemon_reload = False
-
-    main_config = files.template(
-        src=get_resource("dovecot/dovecot.conf.j2"),
-        dest="/etc/dovecot/dovecot.conf",
-        user="root",
-        group="root",
-        mode="644",
-        config=config,
-        debug=debug,
-        disable_ipv6=config.disable_ipv6,
-    )
-    need_restart |= main_config.changed
-    auth_config = files.put(
-        src=get_resource("dovecot/auth.conf"),
-        dest="/etc/dovecot/auth.conf",
-        user="root",
-        group="root",
-        mode="644",
-    )
-    need_restart |= auth_config.changed
-    lua_push_notification_script = files.put(
-        src=get_resource("dovecot/push_notification.lua"),
-        dest="/etc/dovecot/push_notification.lua",
-        user="root",
-        group="root",
-        mode="644",
-    )
-    need_restart |= lua_push_notification_script.changed
-
-    # as per https://doc.dovecot.org/2.3/configuration_manual/os/
-    # it is recommended to set the following inotify limits
-    if not os.environ.get("CHATMAIL_NOSYSCTL"):
-        for name in ("max_user_instances", "max_user_watches"):
-            key = f"fs.inotify.{name}"
-            if host.get_fact(Sysctl)[key] > 65535:
-                # Skip updating limits if already sufficient
-                # (enables running in incus containers where sysctl readonly)
-                continue
-            server.sysctl(
-                name=f"Change {key}",
-                key=key,
-                value=65535,
-                persist=True,
-            )
-
-    timezone_env = files.line(
-        name="Set TZ environment variable",
-        path="/etc/environment",
-        line="TZ=:/etc/localtime",
-    )
-    need_restart |= timezone_env.changed
-
-    restart_conf = files.put(
-        name="dovecot: restart automatically on failure",
-        src=get_resource("service/10_restart.conf"),
-        dest="/etc/systemd/system/dovecot.service.d/10_restart.conf",
-    )
-    daemon_reload |= restart_conf.changed
-
-    # Validate dovecot configuration before restart
-    if need_restart:
-        server.shell(
-            name="Validate dovecot configuration",
-            commands=["doveconf -n >/dev/null"],
-        )
-
-    return need_restart, daemon_reload

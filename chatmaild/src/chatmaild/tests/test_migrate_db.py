@@ -48,6 +48,8 @@ def test_migration(tmp_path, example_config, caplog):
     assert passdb_path.stat().st_size > 10000
 
     example_config.passdb_path = passdb_path
+    # ensure logging.info records are captured regardless of global configuration
+    caplog.set_level("INFO")
 
     assert not caplog.records
 

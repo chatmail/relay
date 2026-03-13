@@ -62,17 +62,29 @@ def test_external_tls_no_dclogin_url(tmp_path, capsys, monkeypatch):
 
 
 def test_external_tls_selects_correct_deployer(tmp_path):
-    from cmdeploy.deployers import get_tls_deployer
-    from cmdeploy.external.deployer import ExternalTlsDeployer
-    from cmdeploy.selfsigned.deployer import SelfSignedTlsDeployer
+    from cmdeploy.tls.deployer import (
+        AcmetoolDeployer,
+        ExternalTlsDeployer,
+        SelfSignedTlsDeployer,
+        get_tls_deployers,
+    )
 
     inipath = make_external_config(
         tmp_path, cert_key="/certs/fullchain.pem /certs/privkey.pem"
     )
     config = read_config(inipath)
-    deployer = get_tls_deployer(config, "chat.example.org")
+    deployers = get_tls_deployers(config, "chat.example.org")
 
-    assert isinstance(deployer, ExternalTlsDeployer)
-    assert not isinstance(deployer, SelfSignedTlsDeployer)
-    assert deployer.cert_path == "/certs/fullchain.pem"
-    assert deployer.key_path == "/certs/privkey.pem"
+    # all deployers are present, but only ExternalTlsDeployer is enabled
+    external_deployer = [d for d in deployers if isinstance(d, ExternalTlsDeployer)][0]
+    selfsigned_deployer = [
+        d for d in deployers if isinstance(d, SelfSignedTlsDeployer)
+    ][0]
+    acme_deployer = [d for d in deployers if isinstance(d, AcmetoolDeployer)][0]
+
+    assert external_deployer.enabled
+    assert not selfsigned_deployer.enabled
+    assert not acme_deployer.enabled
+
+    assert external_deployer.cert_path == "/certs/fullchain.pem"
+    assert external_deployer.key_path == "/certs/privkey.pem"
