@@ -43,7 +43,7 @@ pub trait SmtpHandler: Send + Sync {
 
 /// Runs the SMTP server on the specified address with the given handler and maximum message size.
 pub async fn run_smtp_server<H>(
-    addr: &str,
+    addr: &impl tokio::net::ToSocketAddrs,
     handler: Arc<H>,
     max_size: usize,
 ) -> Result<(), Box<dyn std::error::Error>>

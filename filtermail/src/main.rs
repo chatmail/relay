@@ -41,6 +41,7 @@ use inbound::IncomingBeforeQueueHandler;
 use outbound::OutgoingBeforeQueueHandler;
 use smtp_server::run_smtp_server;
 use std::env;
+use std::net::{SocketAddr, ToSocketAddrs};
 use std::process;
 use std::sync::Arc;
 
@@ -107,10 +108,10 @@ async fn main() {
     };
 
     if mode == Mode::Outgoing {
-        let handler = Arc::new(OutgoingBeforeQueueHandler::new(config.clone()));
-        let addr = format!("127.0.0.1:{}", config.filtermail_smtp_port);
+        let addr = (config.filtermail_host, config.filtermail_smtp_port);
+        let handler = Arc::new(OutgoingBeforeQueueHandler::new(config.clone()).unwrap());
         let max_size = config.max_message_size;
-        log::debug!("Outgoing SMTP server listening on {addr}");
+        log::debug!("Outgoing SMTP server listening on {}:{}", addr.0, addr.1);
 
         if let Err(e) = run_smtp_server(&addr, handler, max_size).await {
             eprintln!("Server error: {}", e);
@@ -126,17 +127,25 @@ async fn main() {
             log::warn!("DKIM verification DISABLED! This should not be used in production.");
         }
 
+        let addr = (config.filtermail_host, config.filtermail_smtp_port_incoming);
         let handler = Arc::new(
             // We want to panic here if the handler cannot be created.
             IncomingBeforeQueueHandler::new(config.clone(), skip_dkim).unwrap(),
         );
-        let addr = format!("127.0.0.1:{}", config.filtermail_smtp_port_incoming);
         let max_size = config.max_message_size;
-        log::debug!("Incoming SMTP server listening on {addr}");
+        log::debug!("Incoming SMTP server listening on {}:{}", addr.0, addr.1);
 
         if let Err(e) = run_smtp_server(&addr, handler, max_size).await {
             eprintln!("Server error: {}", e);
             process::exit(1);
         }
     }
+}
+
+fn resolve_addr(host: &str, port: u16) -> Result<SocketAddr, error::Error> {
+    log::debug!("Resolving {host}");
+    Ok((host, port)
+        .to_socket_addrs()?
+        .next()
+        .ok_or(std::io::Error::other("Cannot resolve host"))?)
 }

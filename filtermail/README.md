@@ -85,6 +85,17 @@ item may start with `@` to whitelist whole recipient domains.
 - `mailboxes_dir` - path to mailboxes directory,
 defaults to `/home/vmail/mail/<mail_domain>`.
 
+The following options are Filtermail-specific,
+they are not read by other chatmail relay components
+and usually do not need to be set at all:
+
+- `filtermail_host` - IP address to listen on,
+defaults to `127.0.0.1`.
+- `postfix_host` - hostname or IP address where postfix is set up,
+a host is resolved only on Filtermail startup,
+useful in case MTA runs somewhere outside of localhost,
+defaults to `127.0.0.1`.
+
 ### Environment variables
 
 Additional options that can be set using environment variables:
