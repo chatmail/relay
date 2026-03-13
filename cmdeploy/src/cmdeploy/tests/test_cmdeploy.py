@@ -23,7 +23,10 @@ class TestCmdline:
         run = parser.parse_args(["run"])
         assert init and run
 
-    def test_init_not_overwrite(self, capsys):
+    def test_init_not_overwrite(self, tmp_path, capsys, monkeypatch):
+        monkeypatch.delenv("CHATMAIL_INI", raising=False)
+        monkeypatch.chdir(tmp_path)
+
         assert main(["init", "chat.example.org"]) == 0
         capsys.readouterr()
 

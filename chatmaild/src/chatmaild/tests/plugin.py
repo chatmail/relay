@@ -85,13 +85,13 @@ def mockout():
         captured_green = []
         captured_plain = []
 
-        def red(self, msg):
+        def red(self, msg, **kw):
             self.captured_red.append(msg)
 
-        def green(self, msg):
+        def green(self, msg, **kw):
             self.captured_green.append(msg)
 
-        def __call__(self, msg):
+        def print(self, msg="", **kw):
             self.captured_plain.append(msg)
 
     return MockOut()
