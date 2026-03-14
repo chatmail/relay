@@ -1,6 +1,7 @@
 import importlib.resources
 import io
 import os
+from contextlib import contextmanager
 
 from pyinfra.operations import files, server, systemd
 
@@ -8,6 +9,28 @@ from pyinfra.operations import files, server, systemd
 def has_systemd():
     """Returns False during Docker image builds or any other non-systemd environment."""
     return os.path.isdir("/run/systemd/system")
+
+
+@contextmanager
+def blocked_service_startup():
+    """Prevent services from auto-starting during package installation.
+
+    Installs a ``/usr/sbin/policy-rc.d`` that exits 101, blocking any
+    service from being started by the package manager.  This avoids bind
+    conflicts and CPU/RAM spikes during initial setup.  The file is removed
+    when the context exits.
+    """
+    # For documentation about policy-rc.d, see:
+    # https://people.debian.org/~hmh/invokerc.d-policyrc.d-specification.txt
+    files.put(
+        src=get_resource("policy-rc.d"),
+        dest="/usr/sbin/policy-rc.d",
+        user="root",
+        group="root",
+        mode="755",
+    )
+    yield
+    files.file("/usr/sbin/policy-rc.d", present=False)
 
 
 def get_resource(arg, pkg=__package__):

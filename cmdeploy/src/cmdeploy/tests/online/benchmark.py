@@ -1,4 +1,3 @@
-import time
 def test_tls_imap(benchmark, imap):
     def imap_connect():
         imap.connect()

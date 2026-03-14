@@ -3,12 +3,15 @@ import os
 from cmdeploy.cmdeploy import main
 
 
-def test_status_cmd(chatmail_config, capsys, request):
+def test_status_cmd(chatmail_config, capsys, request, pytestconfig):
     os.chdir(request.config.invocation_params.dir)
     command = ["status"]
-    if os.getenv("CHATMAIL_SSH"):
-        command.append("--ssh-host")
-        command.append(os.getenv("CHATMAIL_SSH"))
+    ssh_host = pytestconfig.getoption("ssh_host")
+    if ssh_host:
+        command.extend(["--ssh-host", ssh_host])
+    ssh_config = pytestconfig.getoption("ssh_config")
+    if ssh_config:
+        command.extend(["--ssh-config", ssh_config])
     assert main(command) == 0
     status_out = capsys.readouterr()
     print(status_out.out)

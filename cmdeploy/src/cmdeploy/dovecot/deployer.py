@@ -1,15 +1,15 @@
-import os
 import urllib.request
 
 from chatmaild.config import Config
 from pyinfra import host
-from pyinfra.facts.server import Arch, Sysctl
+from pyinfra.facts.server import Arch, Command, Sysctl
 from pyinfra.facts.systemd import SystemdEnabled
 from pyinfra.operations import apt, files, server, systemd
 
 from cmdeploy.basedeploy import (
     Deployer,
     activate_remote_units,
+    blocked_service_startup,
     configure_remote_units,
     get_resource,
     has_systemd,
@@ -28,9 +28,11 @@ class DovecotDeployer(Deployer):
         arch = host.get_fact(Arch)
         if has_systemd() and "dovecot.service" in host.get_fact(SystemdEnabled):
             return  # already installed and running
-        _install_dovecot_package("core", arch)
-        _install_dovecot_package("imapd", arch)
-        _install_dovecot_package("lmtpd", arch)
+
+        with blocked_service_startup():
+            _install_dovecot_package("core", arch)
+            _install_dovecot_package("imapd", arch)
+            _install_dovecot_package("lmtpd", arch)
 
     def configure(self):
         configure_remote_units(self.config.mail_domain, self.units)
@@ -134,19 +136,25 @@ def _configure_dovecot(config: Config, debug: bool = False) -> (bool, bool):
 
     # as per https://doc.dovecot.org/2.3/configuration_manual/os/
     # it is recommended to set the following inotify limits
-    if not os.environ.get("CHATMAIL_NOSYSCTL"):
-        for name in ("max_user_instances", "max_user_watches"):
-            key = f"fs.inotify.{name}"
-            if host.get_fact(Sysctl)[key] > 65535:
-                # Skip updating limits if already sufficient
-                # (enables running in incus containers where sysctl readonly)
-                continue
-            server.sysctl(
-                name=f"Change {key}",
-                key=key,
-                value=65535,
-                persist=True,
+    can_modify = host.get_fact(Command, "systemd-detect-virt -c || true") == "none"
+    for name in ("max_user_instances", "max_user_watches"):
+        key = f"fs.inotify.{name}"
+        value = host.get_fact(Sysctl)[key]
+        if value > 65534:
+            continue
+        if not can_modify:
+            print(
+                "\n!!!! refusing to attempt sysctl setting in shared-kernel containers\n"
+                f"!!!! dovecot: sysctl {key!r}={value}, should be >65534 for production setups\n"
+                "!!!!"
             )
+            continue
+        server.sysctl(
+            name=f"Change {key}",
+            key=key,
+            value=65535,
+            persist=True,
+        )
 
     timezone_env = files.line(
         name="Set TZ environment variable",

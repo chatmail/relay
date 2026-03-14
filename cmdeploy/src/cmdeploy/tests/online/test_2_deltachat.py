@@ -6,8 +6,8 @@ import imap_tools
 import pytest
 import requests
 
-from cmdeploy.remote import rshell
 from cmdeploy.cmdeploy import get_sshexec
+from cmdeploy.remote import rshell
 
 
 @pytest.fixture
@@ -67,7 +67,7 @@ class TestEndToEndDeltaChat:
         assert msg2.get_snapshot().text == "message0"
 
     def test_exceed_quota(
-        self, cmfactory, lp, tmpdir, remote, chatmail_config, sshdomain
+        self, cmfactory, lp, tmpdir, remote, chatmail_config, sshdomain, pytestconfig
     ):
         """This is a very slow test as it needs to upload >100MB of mail data
         before quota is exceeded, and thus depends on the speed of the upload.
@@ -92,7 +92,9 @@ class TestEndToEndDeltaChat:
         lp.sec(f"filling remote inbox for {user}")
         fn = f"7743102289.M843172P2484002.c20,S={quota},W=2398:2,"
         path = chatmail_config.mailboxes_dir.joinpath(user, "cur", fn)
-        sshexec = get_sshexec(sshdomain)
+        sshexec = get_sshexec(
+            sshdomain, ssh_config=pytestconfig.getoption("ssh_config")
+        )
         sshexec(call=rshell.write_numbytes, kwargs=dict(path=str(path), num=120))
         res = sshexec(call=rshell.dovecot_recalc_quota, kwargs=dict(user=user))
         assert res["percent"] >= 100
