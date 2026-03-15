@@ -1,3 +1,4 @@
+import ipaddress
 import os
 from pathlib import Path
 
@@ -20,7 +21,10 @@ def read_config(inipath):
 class Config:
     def __init__(self, inipath, params):
         self._inipath = inipath
-        self.mail_domain = params["mail_domain"]
+        if is_valid_ipv4(params["mail_domain"]):
+            self.mail_domain = f"[{params.get('mail_domain')}]"
+        else:
+            self.mail_domain = params["mail_domain"]
         self.max_user_send_per_minute = int(params.get("max_user_send_per_minute", 60))
         self.max_user_send_burst_size = int(params.get("max_user_send_burst_size", 10))
         self.max_mailbox_size = params["max_mailbox_size"]
@@ -76,7 +80,7 @@ class Config:
                 )
             self.tls_cert_mode = "external"
             self.tls_cert_path, self.tls_key_path = parts
-        elif self.mail_domain.startswith("_"):
+        elif self.mail_domain.startswith("_") or is_valid_ipv4(params["mail_domain"]):
             self.tls_cert_mode = "self"
             self.tls_cert_path = "/etc/ssl/certs/mailserver.pem"
             self.tls_key_path = "/etc/ssl/private/mailserver.key"
@@ -157,3 +161,12 @@ def get_default_config_content(mail_domain, **overrides):
                 lines.append(line)
         content = "\n".join(lines)
     return content
+
+
+def is_valid_ipv4(address: str) -> bool:
+    """Check if a mail_domain is an IPv4 address."""
+    try:
+        ipaddress.IPv4Address(address)
+        return True
+    except ValueError:
+        return False

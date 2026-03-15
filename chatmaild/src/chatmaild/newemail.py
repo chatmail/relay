@@ -7,7 +7,7 @@ import secrets
 import string
 from urllib.parse import quote
 
-from chatmaild.config import Config, read_config
+from chatmaild.config import Config, is_valid_ipv4, read_config
 
 CONFIG_PATH = "/usr/local/lib/chatmaild/chatmail.ini"
 ALPHANUMERIC = string.ascii_lowercase + string.digits
@@ -31,7 +31,15 @@ def create_dclogin_url(email, password):
     Uses ic=3 (AcceptInvalidCertificates) so chatmail clients
     can connect to servers with self-signed TLS certificates.
     """
-    return f"dclogin:{quote(email, safe='@')}?p={quote(password, safe='')}&v=1&ic=3"
+    domain = email.split("@")[-1]
+    domain_without_brackets = domain.strip("[").strip("]")
+    if is_valid_ipv4(domain_without_brackets):
+        imap_host = "&ih=" + domain_without_brackets
+        smtp_host = "&sh=" + domain_without_brackets
+    else:
+        imap_host = ""
+        smtp_host = ""
+    return f"dclogin:{quote(email, safe='@[]')}?p={quote(password, safe='')}&v=1{imap_host}{smtp_host}&ic=3"
 
 
 def print_new_account():
