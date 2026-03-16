@@ -109,7 +109,7 @@ defaults to `0`.
 ## Usage outside of chatmail relay
 
 **Filtermail development is focused on supporting it as a systemd service used by chatmail relay.**
-Althrough unsupported, it may still work outside of this context or even without postfix,
+Although unsupported, it may still work outside of this context or even without postfix,
 with few considerations:
 
 - Filtermail expects to receive messages from a trusted server,
