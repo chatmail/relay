@@ -7,7 +7,7 @@ use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, BufWriter};
 use tokio::net::{TcpListener, TcpStream};
 
 /// Represents an SMTP envelope with sender, recipients, and raw message data.
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct Envelope {
     pub mail_from: String,
     pub origin_ip: String,
@@ -86,12 +86,7 @@ where
     writer.write_all(b"220 filtermail SMTP\r\n").await?;
     writer.flush().await?;
 
-    let mut envelope = Envelope {
-        mail_from: String::new(),
-        origin_ip: String::new(),
-        rcpt_to: Vec::new(),
-        data: Vec::new(),
-    };
+    let mut envelope = Envelope::default();
 
     'connection: loop {
         line.clear();
@@ -199,12 +194,7 @@ where
                 }
             }
 
-            envelope = Envelope {
-                mail_from: String::new(),
-                origin_ip: String::new(),
-                rcpt_to: Vec::new(),
-                data: Vec::new(),
-            };
+            envelope = Envelope::default();
         } else if cmd.to_uppercase().starts_with("XFORWARD") {
             // https://www.postfix.org/XFORWARD_README.html
             if let Some(addr_part) = cmd
@@ -222,12 +212,7 @@ where
             writer.flush().await?;
             break 'connection;
         } else if cmd.to_uppercase().starts_with("RSET") {
-            envelope = Envelope {
-                mail_from: String::new(),
-                origin_ip: String::new(),
-                rcpt_to: Vec::new(),
-                data: Vec::new(),
-            };
+            envelope = Envelope::default();
             writer.write_all(b"250 OK\r\n").await?;
             writer.flush().await?;
         } else if cmd.to_uppercase().starts_with("NOOP") {
