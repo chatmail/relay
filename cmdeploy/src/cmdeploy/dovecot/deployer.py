@@ -38,9 +38,21 @@ class DovecotDeployer(Deployer):
     def install(self):
         arch = host.get_fact(Arch)
         with blocked_service_startup():
-            _install_dovecot_package("core", arch)
-            _install_dovecot_package("imapd", arch)
-            _install_dovecot_package("lmtpd", arch)
+            debs = []
+            for pkg in ("core", "imapd", "lmtpd"):
+                deb = _download_dovecot_package(pkg, arch)
+                if deb:
+                    debs.append(deb)
+            if debs:
+                deb_list = " ".join(debs)
+                server.shell(
+                    name="Install dovecot packages",
+                    commands=[
+                        f"dpkg --force-confdef --force-confold -i {deb_list} 2> /dev/null || true",
+                        "DEBIAN_FRONTEND=noninteractive apt-get -y --fix-broken install",
+                        f"dpkg --force-confdef --force-confold -i {deb_list}",
+                    ],
+                )
 
     def configure(self):
         configure_remote_units(self.config.mail_domain, self.units)
@@ -73,7 +85,8 @@ def _pick_url(primary, fallback):
         return fallback
 
 
-def _install_dovecot_package(package: str, arch: str):
+def _download_dovecot_package(package: str, arch: str):
+    """Download a dovecot .deb if needed, return its path (or None)."""
     arch = "amd64" if arch == "x86_64" else arch
     arch = "arm64" if arch == "aarch64" else arch
 
@@ -81,11 +94,11 @@ def _install_dovecot_package(package: str, arch: str):
     sha256 = DOVECOT_SHA256.get((package, arch))
     if sha256 is None:
         apt.packages(packages=[pkg_name])
-        return
+        return None
 
     installed_versions = host.get_fact(DebPackages).get(pkg_name, [])
     if DOVECOT_VERSION in installed_versions:
-        return
+        return None
 
     url_version = DOVECOT_VERSION.replace("+", "%2B")
     deb_base = f"{pkg_name}_{url_version}_{arch}.deb"
@@ -102,7 +115,7 @@ def _install_dovecot_package(package: str, arch: str):
         cache_time=60 * 60 * 24 * 365 * 10,  # never redownload the package
     )
 
-    apt.deb(name=f"Install {pkg_name}", src=deb_filename)
+    return deb_filename
 
 
 def _configure_dovecot(config: Config, debug: bool = False) -> (bool, bool):
