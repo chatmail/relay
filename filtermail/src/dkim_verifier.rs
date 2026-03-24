@@ -40,7 +40,17 @@ impl CachedResolver {
     /// Creates a new [`CachedResolver`].
     pub fn new() -> Result<Self, crate::error::Error> {
         // Use resolv.conf
-        let dns_resolver = TokioResolver::builder(TokioConnectionProvider::default())?.build();
+        let dns_resolver = {
+            let mut builder = TokioResolver::builder(TokioConnectionProvider::default())?;
+            // https://github.com/hickory-dns/hickory-dns/issues/3519
+            builder.options_mut().validate = true;
+            builder.build()
+        };
+
+        assert!(
+            dns_resolver.options().validate,
+            "incorrect resolver config: DNSSEC disabled; exiting"
+        );
 
         let cache = Arc::new(parking_lot::Mutex::new(LruCache::new(LRU_CACHE_CAPACITY)));
 
