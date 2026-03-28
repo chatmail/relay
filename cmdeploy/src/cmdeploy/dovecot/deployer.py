@@ -17,8 +17,6 @@ from cmdeploy.basedeploy import (
 
 DOVECOT_ARCHIVE_VERSION = "2.3.21+dfsg1-3"
 DOVECOT_PACKAGE_VERSION = f"1:{DOVECOT_ARCHIVE_VERSION}"
-# Backward-compatible alias; keep archive semantics for existing references.
-DOVECOT_VERSION = DOVECOT_ARCHIVE_VERSION
 
 DOVECOT_SHA256 = {
     ("core", "amd64"): "dd060706f52a306fa863d874717210b9fe10536c824afe1790eec247ded5b27d",

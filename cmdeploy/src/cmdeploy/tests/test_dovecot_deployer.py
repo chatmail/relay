@@ -37,6 +37,41 @@ def test_download_dovecot_package_skips_epoch_matched_install(monkeypatch):
     assert downloads == []
 
 
+def test_download_dovecot_package_uses_archive_version_for_url_and_filename(monkeypatch):
+    downloads = []
+    monkeypatch.setattr(
+        dovecot_deployer,
+        "host",
+        SimpleNamespace(get_fact=lambda cls: {} if cls is dovecot_deployer.DebPackages else None),
+    )
+    monkeypatch.setattr(
+        dovecot_deployer,
+        "_pick_url",
+        lambda primary, fallback: primary,
+    )
+    monkeypatch.setattr(
+        dovecot_deployer.files,
+        "download",
+        lambda **kwargs: downloads.append(kwargs),
+    )
+
+    deb, changed = dovecot_deployer._download_dovecot_package("core", "amd64")
+
+    archive_version = dovecot_deployer.DOVECOT_ARCHIVE_VERSION.replace("+", "%2B")
+    assert deb == f"/root/dovecot-core_{archive_version}_amd64.deb"
+    assert changed is True
+    assert downloads == [
+        {
+            "name": "Download dovecot-core",
+            "src": f"https://download.delta.chat/dovecot/dovecot-core_{archive_version}_amd64.deb",
+            "dest": f"/root/dovecot-core_{archive_version}_amd64.deb",
+            "sha256sum": dovecot_deployer.DOVECOT_SHA256[("core", "amd64")],
+            "cache_time": 60 * 60 * 24 * 365 * 10,
+        }
+    ]
+    assert dovecot_deployer.DOVECOT_PACKAGE_VERSION not in deb
+
+
 def test_install_marks_package_changed_when_debs_present(monkeypatch):
     deployer = make_deployer()
     monkeypatch.setattr(dovecot_deployer, "blocked_service_startup", nullcontext)
@@ -100,6 +135,39 @@ def test_install_skips_dpkg_path_when_epoch_matched_packages_present(monkeypatch
     deployer.install()
 
     assert downloads == []
+    assert shell_calls == []
+    assert deployer.package_changed is False
+
+
+def test_download_dovecot_package_and_install_noop_on_unsupported_arch(monkeypatch):
+    deployer = make_deployer()
+    monkeypatch.setattr(dovecot_deployer, "blocked_service_startup", nullcontext)
+    monkeypatch.setattr(
+        dovecot_deployer,
+        "host",
+        SimpleNamespace(
+            get_fact=lambda cls: {} if cls is dovecot_deployer.DebPackages else "riscv64"
+        ),
+    )
+    apt_calls = []
+    monkeypatch.setattr(
+        dovecot_deployer.apt,
+        "packages",
+        lambda **kwargs: apt_calls.append(kwargs) or SimpleNamespace(changed=False),
+    )
+    shell_calls = []
+    monkeypatch.setattr(
+        dovecot_deployer.server,
+        "shell",
+        lambda **kwargs: shell_calls.append(kwargs),
+    )
+
+    deb, changed = dovecot_deployer._download_dovecot_package("core", "riscv64")
+    deployer.install()
+
+    assert deb is None
+    assert changed is False
+    assert apt_calls
     assert shell_calls == []
     assert deployer.package_changed is False
 
