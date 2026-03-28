@@ -71,6 +71,35 @@ class TestSSHExecutor:
         assert (now - since_date).total_seconds() < 60 * 60 * 51
 
 
+def test_dovecot_main_process_matches_installed_binary(sshdomain):
+    sshexec = get_sshexec(sshdomain)
+    main_pid = int(
+        sshexec(
+            call=remote.rshell.shell,
+            kwargs=dict(command="systemctl show -p MainPID --value dovecot.service"),
+        ).strip()
+    )
+    assert main_pid != 0
+
+    exe = sshexec(
+        call=remote.rshell.shell,
+        kwargs=dict(command=f"readlink /proc/{main_pid}/exe"),
+    ).strip()
+    status_text = sshexec(
+        call=remote.rshell.shell,
+        kwargs=dict(command="systemctl show -p StatusText --value dovecot.service"),
+    ).strip()
+    installed_version = sshexec(
+        call=remote.rshell.shell, kwargs=dict(command="dovecot --version")
+    ).strip()
+
+    assert not exe.endswith("(deleted)")
+    expected_status_text = f"v{installed_version}"
+    assert status_text == expected_status_text or status_text.startswith(
+        f"{expected_status_text} "
+    )
+
+
 def test_timezone_env(remote):
     for line in remote.iter_output("env"):
         print(line)

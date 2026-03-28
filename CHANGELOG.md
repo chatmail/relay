@@ -1,5 +1,11 @@
 # Changelog for chatmail deployment 
 
+## Unreleased
+
+### Bug Fixes
+
+- Dovecot: restart after package replacement even when `policy-rc.d` blocks package-triggered restarts, so the master process uses the installed binary again
+
 ## 1.9.0 2025-12-18
 
 ### Documentation
