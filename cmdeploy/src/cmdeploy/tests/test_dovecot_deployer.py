@@ -11,6 +11,32 @@ def make_deployer(disable_mail=False):
     )
 
 
+def test_download_dovecot_package_skips_epoch_matched_install(monkeypatch):
+    epoch_version = dovecot_deployer.DOVECOT_PACKAGE_VERSION
+    downloads = []
+    monkeypatch.setattr(
+        dovecot_deployer,
+        "host",
+        SimpleNamespace(get_fact=lambda cls: {"dovecot-core": [epoch_version]}),
+    )
+    monkeypatch.setattr(
+        dovecot_deployer,
+        "_pick_url",
+        lambda primary, fallback: primary,
+    )
+    monkeypatch.setattr(
+        dovecot_deployer.files,
+        "download",
+        lambda **kwargs: downloads.append(kwargs),
+    )
+
+    deb, changed = dovecot_deployer._download_dovecot_package("core", "amd64")
+
+    assert deb is None
+    assert changed is False
+    assert downloads == []
+
+
 def test_install_marks_package_changed_when_debs_present(monkeypatch):
     deployer = make_deployer()
     monkeypatch.setattr(dovecot_deployer, "blocked_service_startup", nullcontext)
@@ -35,6 +61,47 @@ def test_install_marks_package_changed_when_debs_present(monkeypatch):
 
     assert deployer.package_changed is True
     assert shell_calls
+
+
+def test_install_skips_dpkg_path_when_epoch_matched_packages_present(monkeypatch):
+    deployer = make_deployer()
+    monkeypatch.setattr(dovecot_deployer, "blocked_service_startup", nullcontext)
+    monkeypatch.setattr(
+        dovecot_deployer,
+        "host",
+        SimpleNamespace(
+            get_fact=lambda cls: {
+                "dovecot-core": [dovecot_deployer.DOVECOT_PACKAGE_VERSION],
+                "dovecot-imapd": [dovecot_deployer.DOVECOT_PACKAGE_VERSION],
+                "dovecot-lmtpd": [dovecot_deployer.DOVECOT_PACKAGE_VERSION],
+            }
+            if cls is dovecot_deployer.DebPackages
+            else "x86_64",
+        ),
+    )
+    monkeypatch.setattr(
+        dovecot_deployer,
+        "_pick_url",
+        lambda primary, fallback: primary,
+    )
+    downloads = []
+    monkeypatch.setattr(
+        dovecot_deployer.files,
+        "download",
+        lambda **kwargs: downloads.append(kwargs),
+    )
+    shell_calls = []
+    monkeypatch.setattr(
+        dovecot_deployer.server,
+        "shell",
+        lambda **kwargs: shell_calls.append(kwargs),
+    )
+
+    deployer.install()
+
+    assert downloads == []
+    assert shell_calls == []
+    assert deployer.package_changed is False
 
 
 def test_install_marks_package_changed_when_fallback_apt_installs(monkeypatch):

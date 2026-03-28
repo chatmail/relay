@@ -15,7 +15,10 @@ from cmdeploy.basedeploy import (
     get_resource,
 )
 
-DOVECOT_VERSION = "2.3.21+dfsg1-3"
+DOVECOT_ARCHIVE_VERSION = "2.3.21+dfsg1-3"
+DOVECOT_PACKAGE_VERSION = f"1:{DOVECOT_ARCHIVE_VERSION}"
+# Backward-compatible alias; keep archive semantics for existing references.
+DOVECOT_VERSION = DOVECOT_ARCHIVE_VERSION
 
 DOVECOT_SHA256 = {
     ("core", "amd64"): "dd060706f52a306fa863d874717210b9fe10536c824afe1790eec247ded5b27d",
@@ -103,10 +106,10 @@ def _download_dovecot_package(package: str, arch: str) -> tuple[str | None, bool
         return None, bool(getattr(op, "changed", False))
 
     installed_versions = host.get_fact(DebPackages).get(pkg_name, [])
-    if DOVECOT_VERSION in installed_versions:
+    if DOVECOT_PACKAGE_VERSION in installed_versions:
         return None, False
 
-    url_version = DOVECOT_VERSION.replace("+", "%2B")
+    url_version = DOVECOT_ARCHIVE_VERSION.replace("+", "%2B")
     deb_base = f"{pkg_name}_{url_version}_{arch}.deb"
     primary_url = f"https://download.delta.chat/dovecot/{deb_base}"
     fallback_url = f"https://github.com/chatmail/dovecot/releases/download/upstream%2F{url_version}/{deb_base}"
