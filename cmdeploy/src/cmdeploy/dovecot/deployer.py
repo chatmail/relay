@@ -34,13 +34,16 @@ class DovecotDeployer(Deployer):
         self.config = config
         self.disable_mail = disable_mail
         self.units = ["doveauth"]
+        self.package_changed = False
 
     def install(self):
         arch = host.get_fact(Arch)
         with blocked_service_startup():
             debs = []
+            package_changed = False
             for pkg in ("core", "imapd", "lmtpd"):
-                deb = _download_dovecot_package(pkg, arch)
+                deb, changed = _download_dovecot_package(pkg, arch)
+                package_changed |= changed
                 if deb:
                     debs.append(deb)
             if debs:
@@ -53,6 +56,8 @@ class DovecotDeployer(Deployer):
                         f"dpkg --force-confdef --force-confold -i {deb_list}",
                     ],
                 )
+                package_changed = True
+            self.package_changed = package_changed
 
     def configure(self):
         configure_remote_units(self.config.mail_domain, self.units)
@@ -61,7 +66,7 @@ class DovecotDeployer(Deployer):
     def activate(self):
         activate_remote_units(self.units)
 
-        restart = False if self.disable_mail else self.need_restart
+        restart = False if self.disable_mail else self.need_restart or self.package_changed
 
         systemd.service(
             name="Disable dovecot for now"
@@ -74,6 +79,7 @@ class DovecotDeployer(Deployer):
             daemon_reload=self.daemon_reload,
         )
         self.need_restart = False
+        self.package_changed = False
 
 
 def _pick_url(primary, fallback):
@@ -85,20 +91,20 @@ def _pick_url(primary, fallback):
         return fallback
 
 
-def _download_dovecot_package(package: str, arch: str):
-    """Download a dovecot .deb if needed, return its path (or None)."""
+def _download_dovecot_package(package: str, arch: str) -> tuple[str | None, bool]:
+    """Download a dovecot .deb if needed, return (path, changed)."""
     arch = "amd64" if arch == "x86_64" else arch
     arch = "arm64" if arch == "aarch64" else arch
 
     pkg_name = f"dovecot-{package}"
     sha256 = DOVECOT_SHA256.get((package, arch))
     if sha256 is None:
-        apt.packages(packages=[pkg_name])
-        return None
+        op = apt.packages(packages=[pkg_name])
+        return None, bool(getattr(op, "changed", False))
 
     installed_versions = host.get_fact(DebPackages).get(pkg_name, [])
     if DOVECOT_VERSION in installed_versions:
-        return None
+        return None, False
 
     url_version = DOVECOT_VERSION.replace("+", "%2B")
     deb_base = f"{pkg_name}_{url_version}_{arch}.deb"
@@ -115,7 +121,7 @@ def _download_dovecot_package(package: str, arch: str):
         cache_time=60 * 60 * 24 * 365 * 10,  # never redownload the package
     )
 
-    return deb_filename
+    return deb_filename, True
 
 
 def _configure_dovecot(config: Config, debug: bool = False) -> (bool, bool):
