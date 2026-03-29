@@ -20,6 +20,7 @@ dependencies = [
   "execnet",
   "imap_tools",
   "deltachat-rpc-client",
+  "deltachat-rpc-server",
 ]
 
 [project.scripts]
