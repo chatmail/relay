@@ -10,7 +10,6 @@ dependencies = [
   "pillow",
   "qrcode",
   "markdown",
-  "pytest",
   "setuptools>=68",
   "termcolor",
   "build",
