@@ -58,8 +58,8 @@ def get_dkim_entry(mail_domain, pre_command, dkim_selector):
     dkim_value = '" "'.join(re.findall(".{1,255}", dkim_value_raw))
     web_dkim_value = "".join(re.findall(".{1,255}", dkim_value_raw))
     return (
-        f'{dkim_selector}._domainkey.{mail_domain}. TXT "{dkim_value}"',
-        f'{dkim_selector}._domainkey.{mail_domain}. TXT "{web_dkim_value}"',
+        f'{dkim_selector}._domainkey.{mail_domain}.  3600  IN  TXT  "{dkim_value}"',
+        f'{dkim_selector}._domainkey.{mail_domain}.  3600  IN  TXT  "{web_dkim_value}"',
     )
 
 
@@ -94,9 +94,11 @@ def check_zonefile(zonefile, verbose=True):
         if not zf_line.strip() or zf_line.startswith(";"):
             continue
         print(f"dns-checking {zf_line!r}") if verbose else log_progress("")
-        zf_domain, zf_typ, zf_value = zf_line.split(maxsplit=2)
-        zf_domain = zf_domain.rstrip(".")
-        zf_value = zf_value.strip()
+        parts = zf_line.split(None, 4)
+        zf_domain = parts[0].rstrip(".")
+        # parts[1]=TTL, parts[2]=IN, parts[3]=type, parts[4]=rdata
+        zf_typ = parts[3]
+        zf_value = parts[4].strip()
         query_value = query_dns(zf_typ, zf_domain)
         if zf_value != query_value:
             assert zf_typ in ("A", "AAAA", "CNAME", "CAA", "SRV", "MX", "TXT"), zf_line
