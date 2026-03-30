@@ -17,13 +17,12 @@ from pyinfra.facts.files import Sha256File
 from pyinfra.facts.systemd import SystemdEnabled
 from pyinfra.operations import apt, files, pip, server, systemd
 
-from cmdeploy.cmdeploy import Out
-
 from .acmetool import AcmetoolDeployer
 from .basedeploy import (
     Deployer,
     Deployment,
     activate_remote_units,
+    blocked_service_startup,
     configure_remote_units,
     get_resource,
     has_systemd,
@@ -36,6 +35,7 @@ from .nginx.deployer import NginxDeployer
 from .opendkim.deployer import OpendkimDeployer
 from .postfix.deployer import PostfixDeployer
 from .selfsigned.deployer import SelfSignedTlsDeployer
+from .util import Out, get_version_string
 from .www import build_webpages, find_merge_conflict, get_paths
 
 
@@ -149,33 +149,16 @@ class UnboundDeployer(Deployer):
         self.need_restart = False
 
     def install(self):
-        # Run local DNS resolver `unbound`.
-        # `resolvconf` takes care of setting up /etc/resolv.conf
-        # to use 127.0.0.1 as the resolver.
+        # Run local DNS resolver `unbound`. `resolvconf` takes care of
+        # setting up /etc/resolv.conf to use 127.0.0.1 as the resolver.
 
-        #
-        # On an IPv4-only system, if unbound is started but not
-        # configured, it causes subsequent steps to fail to resolve hosts.
-        # Here, we use policy-rc.d to prevent unbound from starting up
-        # on initial install.  Later, we will configure it and start it.
-        #
-        # For documentation about policy-rc.d, see:
-        # https://people.debian.org/~hmh/invokerc.d-policyrc.d-specification.txt
-        #
-        files.put(
-            src=get_resource("policy-rc.d"),
-            dest="/usr/sbin/policy-rc.d",
-            user="root",
-            group="root",
-            mode="755",
-        )
-
-        apt.packages(
-            name="Install unbound",
-            packages=["unbound", "unbound-anchor", "dnsutils"],
-        )
-
-        files.file("/usr/sbin/policy-rc.d", present=False)
+        # On an IPv4-only system, if unbound is started but not configured,
+        # it causes subsequent steps to fail to resolve hosts.
+        with blocked_service_startup():
+            apt.packages(
+                name="Install unbound",
+                packages=["unbound", "unbound-anchor", "dnsutils"],
+            )
 
     def configure(self):
         server.shell(
@@ -271,8 +254,14 @@ class WebsiteDeployer(Deployer):
                     logger.warning("Web page build failed, skipping website deployment")
                     return
             # if it is not a hugo page, upload it as is
-            files.rsync(
-                f"{www_path}/", "/var/www/html", flags=["-avz", "--chown=www-data"]
+            # pyinfra files.rsync (experimental) causes problems with ssh-config configuration
+            # the stable files.sync should do
+            files.sync(
+                src=str(www_path),
+                dest="/var/www/html",
+                user="www-data",
+                group="www-data",
+                delete=True,
             )
 
 
@@ -336,12 +325,12 @@ class TurnDeployer(Deployer):
     def install(self):
         (url, sha256sum) = {
             "x86_64": (
-                "https://github.com/chatmail/chatmail-turn/releases/download/v0.3/chatmail-turn-x86_64-linux",
-                "841e527c15fdc2940b0469e206188ea8f0af48533be12ecb8098520f813d41e4",
+                "https://github.com/chatmail/chatmail-turn/releases/download/v0.4/chatmail-turn-x86_64-linux",
+                "1ec1f5c50122165e858a5a91bcba9037a28aa8cb8b64b8db570aa457c6141a8a",
             ),
             "aarch64": (
-                "https://github.com/chatmail/chatmail-turn/releases/download/v0.3/chatmail-turn-aarch64-linux",
-                "a5fc2d06d937b56a34e098d2cd72a82d3e89967518d159bf246dc69b65e81b42",
+                "https://github.com/chatmail/chatmail-turn/releases/download/v0.4/chatmail-turn-aarch64-linux",
+                "0fb3e792419494e21ecad536464929dba706bb2c88884ed8f1788141d26fc756",
             ),
         }[host.get_fact(facts.server.Arch)]
 
@@ -474,8 +463,9 @@ class ChatmailDeployer(Deployer):
         ("iroh", None, None),
     ]
 
-    def __init__(self, mail_domain):
-        self.mail_domain = mail_domain
+    def __init__(self, config):
+        self.config = config
+        self.mail_domain = config.mail_domain
 
     def install(self):
         files.put(
@@ -500,6 +490,17 @@ class ChatmailDeployer(Deployer):
         )
 
     def configure(self):
+        # Ensure the per-domain mailbox directory exists before
+        # chatmail-metadata starts (it crashes without it).
+        files.directory(
+            name="Ensure vmail mailbox directory exists",
+            path=f"/home/vmail/mail/{self.mail_domain}",
+            user="vmail",
+            group="vmail",
+            mode="700",
+            present=True,
+        )
+
         # This file is used by auth proxy.
         # https://wiki.debian.org/EtcMailName
         server.shell(
@@ -507,6 +508,15 @@ class ChatmailDeployer(Deployer):
             commands=[
                 f"echo {self.mail_domain} >/etc/mailname; chmod 644 /etc/mailname"
             ],
+        )
+
+        files.directory(
+            name=f"Ensure mailboxes directory {self.config.mailboxes_dir} exists",
+            path=str(self.config.mailboxes_dir),
+            user="vmail",
+            group="vmail",
+            mode="700",
+            present=True,
         )
 
 
@@ -528,17 +538,9 @@ class FcgiwrapDeployer(Deployer):
 
 class GithashDeployer(Deployer):
     def activate(self):
-        try:
-            git_hash = subprocess.check_output(["git", "rev-parse", "HEAD"]).decode()
-        except Exception:
-            git_hash = "unknown\n"
-        try:
-            git_diff = subprocess.check_output(["git", "diff"]).decode()
-        except Exception:
-            git_diff = ""
         files.put(
             name="Upload chatmail relay git commit hash",
-            src=StringIO(git_hash + git_diff),
+            src=StringIO(get_version_string()),
             dest="/etc/chatmail-version",
             mode="700",
         )
@@ -582,11 +584,17 @@ def deploy_chatmail(config_path: Path, disable_mail: bool, website_only: bool) -
         )
 
     # Check if mtail_address interface is available (if configured)
-    if config.mtail_address and config.mtail_address not in ('127.0.0.1', '::1', 'localhost'):
+    if config.mtail_address and config.mtail_address not in (
+        "127.0.0.1",
+        "::1",
+        "localhost",
+    ):
         ipv4_addrs = host.get_fact(hardware.Ipv4Addrs)
         all_addresses = [addr for addrs in ipv4_addrs.values() for addr in addrs]
         if config.mtail_address not in all_addresses:
-            Out().red(f"Deploy failed: mtail_address {config.mtail_address} is not available (VPN up?).\n")
+            Out().red(
+                f"Deploy failed: mtail_address {config.mtail_address} is not available (VPN up?).\n"
+            )
             exit(1)
 
     if not os.environ.get("CHATMAIL_NOPORTCHECK"):
@@ -629,7 +637,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool, website_only: bool) -
     tls_deployer = get_tls_deployer(config, mail_domain)
 
     all_deployers = [
-        ChatmailDeployer(mail_domain),
+        ChatmailDeployer(config),
         LegacyRemoveDeployer(),
         FiltermailDeployer(),
         JournaldDeployer(),
