@@ -49,8 +49,13 @@ class SSHExec:
     RemoteError = execnet.RemoteError
     FuncError = FuncError
 
-    def __init__(self, host, verbose=False, python="python3", timeout=60):
-        self.gateway = execnet.makegateway(f"ssh=root@{host}//python={python}")
+    def __init__(
+        self, host, verbose=False, python="python3", timeout=60, ssh_config=None
+    ):
+        spec = f"ssh=root@{host}//python={python}"
+        if ssh_config:
+            spec += f"//ssh_config={ssh_config}"
+        self.gateway = execnet.makegateway(spec)
         self._remote_cmdloop_channel = bootstrap_remote(self.gateway, remote)
         self.timeout = timeout
         self.verbose = verbose
@@ -113,3 +118,46 @@ class LocalExec:
             res = self(call, kwargs, log_callback=remote.rshell.log_progress)
             print_stderr()
             return res
+
+
+# pyinfra exposes a ``ssh_config_file`` data key that *should* let
+# paramiko parse an SSH config file directly.  In practice it silently
+# fails to connect (zero hosts / zero operations), so we resolve the
+# hostname and identity-file ourselves and pass them via
+# ``--data ssh_hostname`` / ``--data ssh_key`` instead.
+# Execnet uses ssh natively (and not paramiko) and doesn't have this problem.
+
+
+def _get_from_ssh_config(host, ssh_config_path, key):
+    """Internal helper to parse a value for a specific key from ssh-config."""
+    current_hosts = []
+    found_value = None
+    with open(ssh_config_path) as f:
+        for raw_line in f:
+            line = raw_line.strip()
+            if not line or line.startswith("#"):
+                continue
+            parts = line.split(None, 1)
+            if not parts:
+                continue
+            directive = parts[0].lower()
+            if directive == "host":
+                if host in current_hosts and found_value:
+                    return found_value
+                current_hosts = parts[1].split()
+                found_value = None
+            elif directive == key.lower():
+                found_value = parts[1]
+    if host in current_hosts and found_value:
+        return found_value
+    return None
+
+
+def resolve_host_from_ssh_config(host, ssh_config_path):
+    """Resolve a host alias to its IP from an ssh-config file."""
+    return _get_from_ssh_config(host, ssh_config_path, "Hostname") or host
+
+
+def resolve_key_from_ssh_config(host, ssh_config_path):
+    """Resolve a host alias to its IdentityFile from an ssh-config file."""
+    return _get_from_ssh_config(host, ssh_config_path, "IdentityFile")
