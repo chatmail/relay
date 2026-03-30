@@ -24,7 +24,7 @@ jobs:
           toolchain: nightly
           components: rustfmt
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2
-      - uses: taiki-e/install-action@a7e592b24782184db1613493a5e65d2e12199f80 # v2
+      - uses: taiki-e/install-action@704f92c11daa75bff5b4e01fcb083350c16c47b9 # v2
         with:
           tool: taplo-cli
       - run: taplo format --check && cargo fmt --check
