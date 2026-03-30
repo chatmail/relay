@@ -1,18 +1,18 @@
 ; Required DNS entries
-zftest.testrun.org.  3600  IN  A  135.181.204.127
-zftest.testrun.org.  3600  IN  AAAA  2a01:4f9:c012:52f4::1
-zftest.testrun.org.  3600  IN  MX  10 zftest.testrun.org.
-_mta-sts.zftest.testrun.org.  3600  IN  TXT  "v=STSv1; id=202403211706"
-mta-sts.zftest.testrun.org.  3600  IN  CNAME  zftest.testrun.org.
-www.zftest.testrun.org.  3600  IN  CNAME  zftest.testrun.org.
-opendkim._domainkey.zftest.testrun.org.  3600  IN  TXT  "v=DKIM1;k=rsa;p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAoYt82CVUyz2ouaqjX2kB+5J80knAyoOU3MGU5aWppmwUwwTvj/oSTSpkc5JMtVTRmKKr8NUDWAL1Yw7dfGqqPHdHfwwjS3BIvDzYx+hzgtz62RnfNgV+/2MAoNpfX7cAFIHdRzEHNtwugc3RDLquqPoupAE3Y2YRw2T5zG5fILh4vwIcJZL5Uq6B92j8wwJqOex" "33n+vm1NKQ9rxo/UsHAmZlJzpooXcG/4igTBxJyJlamVSRR6N7Nul1v//YJb7J6v2o0iPHW6uE0StzKaPPNC2IVosSRFbD9H2oqppltptFSNPlI0E+t0JBWHem6YK7xcugiO3ImMCaaU8g6Jt/wIDAQAB;s=email;t=s"
+zftest.testrun.org.                      3600   IN  A      135.181.204.127
+zftest.testrun.org.                      3600   IN  AAAA   2a01:4f9:c012:52f4::1
+zftest.testrun.org.                      3600   IN  MX     10 zftest.testrun.org.
+_mta-sts.zftest.testrun.org.             3600   IN  TXT    "v=STSv1; id=202403211706"
+mta-sts.zftest.testrun.org.              3600   IN  CNAME  zftest.testrun.org.
+www.zftest.testrun.org.                  3600   IN  CNAME  zftest.testrun.org.
+opendkim._domainkey.zftest.testrun.org.  3600   IN  TXT    "v=DKIM1;k=rsa;p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAoYt82CVUyz2ouaqjX2kB+5J80knAyoOU3MGU5aWppmwUwwTvj/oSTSpkc5JMtVTRmKKr8NUDWAL1Yw7dfGqqPHdHfwwjS3BIvDzYx+hzgtz62RnfNgV+/2MAoNpfX7cAFIHdRzEHNtwugc3RDLquqPoupAE3Y2YRw2T5zG5fILh4vwIcJZL5Uq6B92j8wwJqOex" "33n+vm1NKQ9rxo/UsHAmZlJzpooXcG/4igTBxJyJlamVSRR6N7Nul1v//YJb7J6v2o0iPHW6uE0StzKaPPNC2IVosSRFbD9H2oqppltptFSNPlI0E+t0JBWHem6YK7xcugiO3ImMCaaU8g6Jt/wIDAQAB;s=email;t=s"
 
 ; Recommended DNS entries
-zftest.testrun.org.  3600  IN  TXT  "v=spf1 a ~all"
-_dmarc.zftest.testrun.org.  3600  IN  TXT  "v=DMARC1;p=reject;adkim=s;aspf=s"
-zftest.testrun.org.  3600  IN  CAA  0 issue "letsencrypt.org;accounturi=https://acme-v02.api.letsencrypt.org/acme/acct/1371472956"
-_adsp._domainkey.zftest.testrun.org.  3600  IN  TXT  "dkim=discardable"
-_submission._tcp.zftest.testrun.org.  3600  IN  SRV  0 1 587 zftest.testrun.org.
-_submissions._tcp.zftest.testrun.org.  3600  IN  SRV  0 1 465 zftest.testrun.org.
-_imap._tcp.zftest.testrun.org.  3600  IN  SRV  0 1 143 zftest.testrun.org.
-_imaps._tcp.zftest.testrun.org.  3600  IN  SRV  0 1 993 zftest.testrun.org.
+zftest.testrun.org.                      3600   IN  TXT    "v=spf1 a ~all"
+_dmarc.zftest.testrun.org.               3600   IN  TXT    "v=DMARC1;p=reject;adkim=s;aspf=s"
+zftest.testrun.org.                      3600   IN  CAA    0 issue "letsencrypt.org;accounturi=https://acme-v02.api.letsencrypt.org/acme/acct/1371472956"
+_adsp._domainkey.zftest.testrun.org.     3600   IN  TXT    "dkim=discardable"
+_submission._tcp.zftest.testrun.org.     3600   IN  SRV    0 1 587 zftest.testrun.org.
+_submissions._tcp.zftest.testrun.org.    3600   IN  SRV    0 1 465 zftest.testrun.org.
+_imap._tcp.zftest.testrun.org.           3600   IN  SRV    0 1 143 zftest.testrun.org.
+_imaps._tcp.zftest.testrun.org.          3600   IN  SRV    0 1 993 zftest.testrun.org.

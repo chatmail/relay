@@ -15,6 +15,10 @@ as they would on a real Debian server or cloud VPS.
 Prerequisites
 -------------
 
+- Around 4-5 GiB free disk space
+- `systemd-networkd` for the automagic hostname resolution
+- No other service occupying Port 53
+
 Install `Incus <https://linuxcontainers.org/incus/>`_
 (LXC container manager).
 See the `official installation guide

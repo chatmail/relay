@@ -57,9 +57,10 @@ def get_dkim_entry(mail_domain, pre_command, dkim_selector):
     dkim_value_raw = f"v=DKIM1;k=rsa;p={dkim_pubkey};s=email;t=s"
     dkim_value = '" "'.join(re.findall(".{1,255}", dkim_value_raw))
     web_dkim_value = "".join(re.findall(".{1,255}", dkim_value_raw))
+    name = f"{dkim_selector}._domainkey.{mail_domain}."
     return (
-        f'{dkim_selector}._domainkey.{mail_domain}.  3600  IN  TXT  "{dkim_value}"',
-        f'{dkim_selector}._domainkey.{mail_domain}.  3600  IN  TXT  "{web_dkim_value}"',
+        f'{name:<40} 3600   IN  TXT    "{dkim_value}"',
+        f'{name:<40} 3600   IN  TXT    "{web_dkim_value}"',
     )
 
 

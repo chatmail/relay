@@ -47,33 +47,40 @@ def get_filled_zone_file(remote_data):
         remote_data["sts_id"] = datetime.datetime.now().strftime("%Y%m%d%H%M")
 
     d = remote_data["mail_domain"]
+
+    def rec(name, rtype, rdata, ttl=3600):
+        return f"{name:<40} {ttl:<6} IN  {rtype:<5}  {rdata}"
+
     lines = ["; Required DNS entries"]
     if remote_data.get("A"):
-        lines.append(f"{d}.  3600  IN  A  {remote_data['A']}")
+        lines.append(rec(f"{d}.", "A", remote_data["A"]))
     if remote_data.get("AAAA"):
-        lines.append(f"{d}.  3600  IN  AAAA  {remote_data['AAAA']}")
-    lines.append(f"{d}.  3600  IN  MX  10 {d}.")
+        lines.append(rec(f"{d}.", "AAAA", remote_data["AAAA"]))
+    lines.append(rec(f"{d}.", "MX", f"10 {d}."))
     if remote_data.get("strict_tls"):
         lines.append(
-            f'_mta-sts.{d}.  3600  IN  TXT  "v=STSv1; id={remote_data["sts_id"]}"'
+            rec(f"_mta-sts.{d}.", "TXT", f'"v=STSv1; id={remote_data["sts_id"]}"')
         )
-        lines.append(f"mta-sts.{d}.  3600  IN  CNAME  {d}.")
-    lines.append(f"www.{d}.  3600  IN  CNAME  {d}.")
+        lines.append(rec(f"mta-sts.{d}.", "CNAME", f"{d}."))
+    lines.append(rec(f"www.{d}.", "CNAME", f"{d}."))
     lines.append(remote_data["dkim_entry"])
     lines.append("")
     lines.append("; Recommended DNS entries")
-    lines.append(f'{d}.  3600  IN  TXT  "v=spf1 a ~all"')
-    lines.append(f'_dmarc.{d}.  3600  IN  TXT  "v=DMARC1;p=reject;adkim=s;aspf=s"')
+    lines.append(rec(f"{d}.", "TXT", '"v=spf1 a ~all"'))
+    lines.append(rec(f"_dmarc.{d}.", "TXT", '"v=DMARC1;p=reject;adkim=s;aspf=s"'))
     if remote_data.get("acme_account_url"):
         lines.append(
-            f"{d}.  3600  IN  CAA  0 issue"
-            f' "letsencrypt.org;accounturi={remote_data["acme_account_url"]}"'
+            rec(
+                f"{d}.",
+                "CAA",
+                f'0 issue "letsencrypt.org;accounturi={remote_data["acme_account_url"]}"',
+            )
         )
-    lines.append(f'_adsp._domainkey.{d}.  3600  IN  TXT  "dkim=discardable"')
-    lines.append(f"_submission._tcp.{d}.  3600  IN  SRV  0 1 587 {d}.")
-    lines.append(f"_submissions._tcp.{d}.  3600  IN  SRV  0 1 465 {d}.")
-    lines.append(f"_imap._tcp.{d}.  3600  IN  SRV  0 1 143 {d}.")
-    lines.append(f"_imaps._tcp.{d}.  3600  IN  SRV  0 1 993 {d}.")
+    lines.append(rec(f"_adsp._domainkey.{d}.", "TXT", '"dkim=discardable"'))
+    lines.append(rec(f"_submission._tcp.{d}.", "SRV", f"0 1 587 {d}."))
+    lines.append(rec(f"_submissions._tcp.{d}.", "SRV", f"0 1 465 {d}."))
+    lines.append(rec(f"_imap._tcp.{d}.", "SRV", f"0 1 143 {d}."))
+    lines.append(rec(f"_imaps._tcp.{d}.", "SRV", f"0 1 993 {d}."))
     lines.append("")
     return "\n".join(lines)
 

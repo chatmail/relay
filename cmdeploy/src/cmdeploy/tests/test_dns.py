@@ -132,11 +132,28 @@ def test_parse_zone_records():
 
     ; Another comment
     www.some.domain. 3600 IN CNAME some.domain.
+
+    ; Multi-word rdata
+    some.domain. 3600 IN MX 10 mail.some.domain.
+
+    ; DKIM record (single line, multi-word TXT rdata)
+    dkim._domainkey.some.domain. 3600 IN TXT "v=DKIM1;k=rsa;p=MIIBIjANBgkqhkiG" "9w0BAQEFAAOCAQ8AMIIBCgKCAQEA"
+
+    ; Another TXT record
+    _dmarc.some.domain. 3600 IN TXT "v=DMARC1;p=reject"
     """
     records = list(parse_zone_records(text))
     assert records == [
         ("some.domain", "3600", "A", "1.1.1.1"),
         ("www.some.domain", "3600", "CNAME", "some.domain."),
+        ("some.domain", "3600", "MX", "10 mail.some.domain."),
+        (
+            "dkim._domainkey.some.domain",
+            "3600",
+            "TXT",
+            '"v=DKIM1;k=rsa;p=MIIBIjANBgkqhkiG" "9w0BAQEFAAOCAQ8AMIIBCgKCAQEA"',
+        ),
+        ("_dmarc.some.domain", "3600", "TXT", '"v=DMARC1;p=reject"'),
     ]
 
 
