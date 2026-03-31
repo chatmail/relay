@@ -1,3 +1,4 @@
+import io
 import os
 import urllib.request
 
@@ -53,6 +54,15 @@ class DovecotDeployer(Deployer):
                         f"dpkg --force-confdef --force-confold -i {deb_list}",
                     ],
                 )
+        files.put(
+            name="Pin dovecot packages to block Debian dist-upgrades",
+            src=io.StringIO(
+                "Package: dovecot-*\n"
+                "Pin: version *\n"
+                "Pin-Priority: -1\n"
+            ),
+            dest="/etc/apt/preferences.d/pin-dovecot",
+        )
 
     def configure(self):
         configure_remote_units(self.config.mail_domain, self.units)
