@@ -16,7 +16,7 @@ class FiltermailDeployer(Deployer):
         arch = host.get_fact(facts.server.Arch)
         url = f"https://kamiokan.de/bin/filtermail"
         sha256sum = {
-            "x86_64": "e8df4a9590a03af8433ff1098e041b0917a39db0487f302849eedcdcd08f1613",
+            "x86_64": "d64db7c295ba1c1c62ae592dd4ddbd179169ff7427382ce3f0d16ed2fb70d919",
             "aarch64": "c5d783eefa5332db3d97a0e6a23917d72849e3eb45da3d16ce908a9b4e5a797d",
         }[arch]
         self.need_restart |= files.download(
