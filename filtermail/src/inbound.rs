@@ -98,6 +98,13 @@ impl SmtpHandler for IncomingBeforeQueueHandler {
             envelope.mail_from = String::new();
         }
 
+        envelope.rcpt_to = envelope
+            .rcpt_to
+            .iter()
+            .filter(|s| !self.config.is_disabled(s))
+            .cloned()
+            .collect();
+
         let mail_encrypted = check_encrypted(&message, false);
         log::debug!("mail_encrypted: {mail_encrypted}");
         log::debug!("is_securejoin: {}", is_securejoin(&message));

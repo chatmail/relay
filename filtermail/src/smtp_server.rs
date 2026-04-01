@@ -33,6 +33,10 @@ pub trait SmtpHandler: Send + Sync {
     async fn handle_data(&self, envelope: &mut Envelope) -> Result<String, String> {
         log::debug!("handle_DATA before-queue");
         self.check_data(envelope).await?;
+        if envelope.rcpt_to.is_empty() {
+            log::warn!("Dropping mail; All recipients disabled.");
+            return Ok("250 OK".to_string());
+        }
         self.reinject_mail(envelope).await.map_err(|e| {
             log::warn!("Failed to reinject mail: {e}");
             e

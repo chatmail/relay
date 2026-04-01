@@ -78,6 +78,13 @@ impl SmtpHandler for OutgoingBeforeQueueHandler {
         let from_addr = extract_address(&from_header)
             .ok_or(format!("500 Invalid FROM header: {from_header}"))?;
 
+        envelope.rcpt_to = envelope
+            .rcpt_to
+            .iter()
+            .filter(|s| !self.config.is_disabled(s))
+            .cloned()
+            .collect();
+
         // MAIL FROM is our source of truth for outbound messages,
         // as this address is checked by postfix against the username before sending it
         // to filtermail.
@@ -138,5 +145,23 @@ impl SmtpHandler for OutgoingBeforeQueueHandler {
             })?;
 
         Ok(())
+    }
+
+    async fn handle_data(&self, envelope: &mut Envelope) -> Result<String, String> {
+        log::debug!("handle_DATA before-queue");
+        self.check_data(envelope).await?;
+        if self.config.is_disabled(&envelope.mail_from) {
+            log::warn!("Dropping mail; Sender {} is disabled.", envelope.mail_from);
+            return Ok("250 OK".to_string());
+        }
+        if envelope.rcpt_to.is_empty() {
+            log::warn!("Dropping mail; All recipients disabled.");
+            return Ok("250 OK".to_string());
+        }
+        self.reinject_mail(envelope).await.map_err(|e| {
+            log::warn!("Failed to reinject mail: {e}");
+            e
+        })?;
+        Ok("250 OK".to_string())
     }
 }

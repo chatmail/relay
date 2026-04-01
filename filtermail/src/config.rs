@@ -72,17 +72,29 @@ impl Config {
         }
     }
 
-    /// Check if not encrypted mail is allowed for the given address.
-    pub fn is_cleartext_ok(&self, addr: &str) -> bool {
+    /// Check if a specific flag file exists for the given address.
+    ///
+    /// Returns `default` if the address is invalid.
+    fn check_flag(&self, addr: &str, flag: &str, default: bool) -> bool {
         if addr.is_empty() || !addr.contains('@') || addr.contains('/') {
-            return false;
+            return default;
         }
 
-        let mut enforce_e2ee = self.mailboxes_dir();
-        enforce_e2ee.push(addr);
-        enforce_e2ee.push("enforceE2EEincoming");
+        let mut path = self.mailboxes_dir();
+        path.push(addr);
+        path.push(flag);
 
-        !enforce_e2ee.exists()
+        path.exists()
+    }
+
+    /// Check if not encrypted mail is allowed for the given address.
+    pub fn is_cleartext_ok(&self, addr: &str) -> bool {
+        !self.check_flag(addr, "enforceE2EEincoming", true)
+    }
+
+    /// Check if the given address is disabled.
+    pub fn is_disabled(&self, addr: &str) -> bool {
+        self.check_flag(addr, "DISABLED", false)
     }
 
     // Following are needed since serde does not support default literals.
