@@ -1,3 +1,18 @@
+## 0.6.1 - 2026-04-01
+
+### Documentation
+
+- *(readme)* Fix typo (#99)
+
+### Features
+
+- Configurable hosts for listen and reinject (#84)
+- *(resolver)* Enable DNSSEC (#94)
+- Add experimental option to disable mailboxes (#108)
+
+### Refactor
+
+- Derive Default for Envelope (#100)
 ## 0.6.0 - 2026-03-13
 
 ### Documentation
