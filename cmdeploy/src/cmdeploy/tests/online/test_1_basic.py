@@ -76,21 +76,21 @@ def test_dovecot_main_process_matches_installed_binary(sshdomain):
     main_pid = int(
         sshexec(
             call=remote.rshell.shell,
-            kwargs=dict(command="systemctl show -p MainPID --value dovecot.service"),
+            kwargs=dict(command="timeout 10 systemctl show -p MainPID --value dovecot.service"),
         ).strip()
     )
     assert main_pid != 0
 
     exe = sshexec(
         call=remote.rshell.shell,
-        kwargs=dict(command=f"readlink /proc/{main_pid}/exe"),
+        kwargs=dict(command=f"timeout 10 readlink /proc/{main_pid}/exe"),
     ).strip()
     status_text = sshexec(
         call=remote.rshell.shell,
-        kwargs=dict(command="systemctl show -p StatusText --value dovecot.service"),
+        kwargs=dict(command="timeout 10 systemctl show -p StatusText --value dovecot.service"),
     ).strip()
     installed_version = sshexec(
-        call=remote.rshell.shell, kwargs=dict(command="dovecot --version")
+        call=remote.rshell.shell, kwargs=dict(command="timeout 10 dovecot --version")
     ).strip()
 
     assert not exe.endswith("(deleted)")
