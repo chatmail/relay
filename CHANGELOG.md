@@ -4,7 +4,7 @@
 
 ### Bug Fixes
 
-- Dovecot: restart after package replacement even when `policy-rc.d` blocks package-triggered restarts, so the master process uses the installed binary again
+- Dovecot: restart after package replacement even when `policy-rc.d` blocks package-triggered restarts, avoid reinstalling already-correct packages, and add regressions for stale-binary and epoch-version handling so the master process uses the installed binary again
 
 ## 1.9.0 2025-12-18
 
