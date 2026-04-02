@@ -6,10 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "chatmaild"
 version = "0.3"
 dependencies = [
-  "aiosmtpd",
   "iniconfig",
-  "deltachat-rpc-server",
-  "deltachat-rpc-client",
   "filelock",
   "requests",
   "crypt-r >= 3.13.1 ; python_version >= '3.11'",
@@ -70,6 +67,7 @@ commands =
 deps = pytest 
        pdbpp 
        pytest-localserver
+       aiosmtpd
        execnet
 commands = pytest -v -rsXx {posargs}
 """

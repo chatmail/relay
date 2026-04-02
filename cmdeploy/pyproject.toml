@@ -10,7 +10,6 @@ dependencies = [
   "pillow",
   "qrcode",
   "markdown",
-  "pytest",
   "setuptools>=68",
   "termcolor",
   "build",
@@ -21,6 +20,7 @@ dependencies = [
   "execnet",
   "imap_tools",
   "deltachat-rpc-client",
+  "deltachat-rpc-server",
 ]
 
 [project.scripts]

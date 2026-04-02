@@ -11,6 +11,16 @@ def make_deployer(disable_mail=False):
     )
 
 
+def stub_dovecot_package_pin(monkeypatch):
+    put_calls = []
+    monkeypatch.setattr(
+        dovecot_deployer.files,
+        "put",
+        lambda **kwargs: put_calls.append(kwargs),
+    )
+    return put_calls
+
+
 def test_download_dovecot_package_skips_epoch_matched_install(monkeypatch):
     epoch_version = dovecot_deployer.DOVECOT_PACKAGE_VERSION
     downloads = []
@@ -75,6 +85,7 @@ def test_download_dovecot_package_uses_archive_version_for_url_and_filename(monk
 
 def test_install_marks_need_restart_when_debs_present(monkeypatch):
     deployer = make_deployer()
+    stub_dovecot_package_pin(monkeypatch)
     monkeypatch.setattr(dovecot_deployer, "blocked_service_startup", nullcontext)
     monkeypatch.setattr(
         dovecot_deployer,
@@ -99,8 +110,43 @@ def test_install_marks_need_restart_when_debs_present(monkeypatch):
     assert shell_calls
 
 
+def test_install_pins_dovecot_packages_even_when_package_set_is_already_correct(monkeypatch):
+    deployer = make_deployer()
+    put_calls = stub_dovecot_package_pin(monkeypatch)
+    monkeypatch.setattr(dovecot_deployer, "blocked_service_startup", nullcontext)
+    monkeypatch.setattr(
+        dovecot_deployer,
+        "host",
+        SimpleNamespace(get_fact=lambda cls: "x86_64"),
+    )
+    monkeypatch.setattr(
+        dovecot_deployer,
+        "_download_dovecot_package",
+        lambda package, arch: (None, False),
+    )
+    shell_calls = []
+    monkeypatch.setattr(
+        dovecot_deployer.server,
+        "shell",
+        lambda **kwargs: shell_calls.append(kwargs),
+    )
+    deployer.install()
+
+    assert shell_calls == []
+    assert len(put_calls) == 1
+    put_call = put_calls[0]
+    assert put_call["name"] == "Pin dovecot packages to block Debian dist-upgrades"
+    assert put_call["dest"] == "/etc/apt/preferences.d/pin-dovecot"
+    assert put_call["src"].getvalue() == (
+        "Package: dovecot-*\n"
+        "Pin: version *\n"
+        "Pin-Priority: -1\n"
+    )
+
+
 def test_install_skips_dpkg_path_when_epoch_matched_packages_present(monkeypatch):
     deployer = make_deployer()
+    stub_dovecot_package_pin(monkeypatch)
     monkeypatch.setattr(dovecot_deployer, "blocked_service_startup", nullcontext)
     monkeypatch.setattr(
         dovecot_deployer,
@@ -159,6 +205,7 @@ def test_download_dovecot_package_returns_no_change_when_apt_unchanged_on_unsupp
 
 def test_install_keeps_need_restart_false_when_fallback_apt_unchanged(monkeypatch):
     deployer = make_deployer()
+    stub_dovecot_package_pin(monkeypatch)
     monkeypatch.setattr(dovecot_deployer, "blocked_service_startup", nullcontext)
     monkeypatch.setattr(
         dovecot_deployer,
@@ -191,6 +238,7 @@ def test_install_keeps_need_restart_false_when_fallback_apt_unchanged(monkeypatc
 
 def test_install_marks_need_restart_when_fallback_apt_installs(monkeypatch):
     deployer = make_deployer()
+    stub_dovecot_package_pin(monkeypatch)
     monkeypatch.setattr(dovecot_deployer, "blocked_service_startup", nullcontext)
     monkeypatch.setattr(
         dovecot_deployer,
