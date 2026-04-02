@@ -62,6 +62,10 @@ def test_download_dovecot_package_uses_archive_version_for_url_and_filename(monk
     assert changed is True
     assert len(downloads) == 1
     download = downloads[0]
+    assert download["name"] == "Download dovecot-core"
+    assert download["dest"] == deb
+    assert download["sha256sum"] == dovecot_deployer.DOVECOT_SHA256[("core", "amd64")]
+    assert download["cache_time"] == 60 * 60 * 24 * 365 * 10
     assert archive_version in download["src"]
     assert archive_version in download["dest"]
     assert dovecot_deployer.DOVECOT_PACKAGE_VERSION not in download["src"]
@@ -145,24 +149,12 @@ def test_download_dovecot_package_returns_no_change_when_apt_unchanged_on_unsupp
         "packages",
         lambda **kwargs: apt_calls.append(kwargs) or SimpleNamespace(changed=False),
     )
-    monkeypatch.setattr(
-        dovecot_deployer,
-        "host",
-        SimpleNamespace(
-            get_fact=lambda cls: {} if cls is dovecot_deployer.DebPackages else "riscv64"
-        ),
-    )
-    monkeypatch.setattr(
-        dovecot_deployer,
-        "_pick_url",
-        lambda primary, fallback: primary,
-    )
 
     deb, changed = dovecot_deployer._download_dovecot_package("core", "riscv64")
 
     assert deb is None
     assert changed is False
-    assert apt_calls
+    assert apt_calls == [{"packages": ["dovecot-core"]}]
 
 
 def test_install_keeps_need_restart_false_when_fallback_apt_unchanged(monkeypatch):
@@ -188,7 +180,11 @@ def test_install_keeps_need_restart_false_when_fallback_apt_unchanged(monkeypatc
 
     deployer.install()
 
-    assert apt_calls
+    assert apt_calls == [
+        {"packages": ["dovecot-core"]},
+        {"packages": ["dovecot-imapd"]},
+        {"packages": ["dovecot-lmtpd"]},
+    ]
     assert shell_calls == []
     assert deployer.need_restart is False
 
