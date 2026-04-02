@@ -35,16 +35,14 @@ class DovecotDeployer(Deployer):
         self.config = config
         self.disable_mail = disable_mail
         self.units = ["doveauth"]
-        self.package_changed = False
 
     def install(self):
         arch = host.get_fact(Arch)
         with blocked_service_startup():
             debs = []
-            package_changed = False
             for pkg in ("core", "imapd", "lmtpd"):
                 deb, changed = _download_dovecot_package(pkg, arch)
-                package_changed |= changed
+                self.need_restart |= changed
                 if deb:
                     debs.append(deb)
             if debs:
@@ -57,17 +55,17 @@ class DovecotDeployer(Deployer):
                         f"dpkg --force-confdef --force-confold -i {deb_list}",
                     ],
                 )
-                package_changed = True
-            self.package_changed = package_changed
+                self.need_restart = True
 
     def configure(self):
         configure_remote_units(self.config.mail_domain, self.units)
-        self.need_restart, self.daemon_reload = _configure_dovecot(self.config)
+        nr, self.daemon_reload = _configure_dovecot(self.config)
+        self.need_restart |= nr
 
     def activate(self):
         activate_remote_units(self.units)
 
-        restart = False if self.disable_mail else self.need_restart or self.package_changed
+        restart = False if self.disable_mail else self.need_restart
 
         systemd.service(
             name="Disable dovecot for now"
@@ -80,7 +78,6 @@ class DovecotDeployer(Deployer):
             daemon_reload=self.daemon_reload,
         )
         self.need_restart = False
-        self.package_changed = False
 
 
 def _pick_url(primary, fallback):

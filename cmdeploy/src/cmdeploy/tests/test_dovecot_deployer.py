@@ -72,7 +72,7 @@ def test_download_dovecot_package_uses_archive_version_for_url_and_filename(monk
     assert dovecot_deployer.DOVECOT_PACKAGE_VERSION not in deb
 
 
-def test_install_marks_package_changed_when_debs_present(monkeypatch):
+def test_install_marks_need_restart_when_debs_present(monkeypatch):
     deployer = make_deployer()
     monkeypatch.setattr(dovecot_deployer, "blocked_service_startup", nullcontext)
     monkeypatch.setattr(
@@ -94,7 +94,7 @@ def test_install_marks_package_changed_when_debs_present(monkeypatch):
 
     deployer.install()
 
-    assert deployer.package_changed is True
+    assert deployer.need_restart is True
     assert shell_calls
 
 
@@ -136,7 +136,7 @@ def test_install_skips_dpkg_path_when_epoch_matched_packages_present(monkeypatch
 
     assert downloads == []
     assert shell_calls == []
-    assert deployer.package_changed is False
+    assert deployer.need_restart is False
 
 
 def test_download_dovecot_package_and_install_noop_on_unsupported_arch(monkeypatch):
@@ -169,10 +169,10 @@ def test_download_dovecot_package_and_install_noop_on_unsupported_arch(monkeypat
     assert changed is False
     assert apt_calls
     assert shell_calls == []
-    assert deployer.package_changed is False
+    assert deployer.need_restart is False
 
 
-def test_install_marks_package_changed_when_fallback_apt_installs(monkeypatch):
+def test_install_marks_need_restart_when_fallback_apt_installs(monkeypatch):
     deployer = make_deployer()
     monkeypatch.setattr(dovecot_deployer, "blocked_service_startup", nullcontext)
     monkeypatch.setattr(
@@ -197,13 +197,32 @@ def test_install_marks_package_changed_when_fallback_apt_installs(monkeypatch):
 
     assert apt_calls
     assert shell_calls == []
-    assert deployer.package_changed is True
+    assert deployer.need_restart is True
 
 
-def test_activate_restarts_on_package_change_without_config(monkeypatch):
+def test_configure_preserves_install_restart_intent(monkeypatch):
     deployer = make_deployer()
-    deployer.need_restart = False
-    deployer.package_changed = True
+    deployer.need_restart = True
+    monkeypatch.setattr(
+        dovecot_deployer,
+        "configure_remote_units",
+        lambda mail_domain, units: None,
+    )
+    monkeypatch.setattr(
+        dovecot_deployer,
+        "_configure_dovecot",
+        lambda config: (False, True),
+    )
+
+    deployer.configure()
+
+    assert deployer.need_restart is True
+    assert deployer.daemon_reload is True
+
+
+def test_activate_restarts_on_need_restart_without_config(monkeypatch):
+    deployer = make_deployer()
+    deployer.need_restart = True
     service_calls = []
     monkeypatch.setattr(dovecot_deployer, "activate_remote_units", lambda units: None)
     monkeypatch.setattr(
@@ -216,13 +235,11 @@ def test_activate_restarts_on_package_change_without_config(monkeypatch):
 
     assert service_calls[0]["restarted"] is True
     assert deployer.need_restart is False
-    assert deployer.package_changed is False
 
 
 def test_activate_does_not_restart_when_mail_disabled(monkeypatch):
     deployer = make_deployer(disable_mail=True)
-    deployer.need_restart = False
-    deployer.package_changed = True
+    deployer.need_restart = True
     service_calls = []
     monkeypatch.setattr(dovecot_deployer, "activate_remote_units", lambda units: None)
     monkeypatch.setattr(
@@ -237,4 +254,3 @@ def test_activate_does_not_restart_when_mail_disabled(monkeypatch):
     assert service_calls[0]["running"] is False
     assert service_calls[0]["enabled"] is False
     assert deployer.need_restart is False
-    assert deployer.package_changed is False
