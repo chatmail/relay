@@ -388,12 +388,15 @@ def cmfactory(rpc, gencreds, maildomain, chatmail_config):
 
 @pytest.fixture
 def remote(sshdomain):
-    return Remote(sshdomain)
+    r = Remote(sshdomain)
+    yield r
+    r.close()
 
 
 class Remote:
     def __init__(self, sshdomain):
         self.sshdomain = sshdomain
+        self._procs = []
 
     def iter_output(self, logcmd="", ready=None):
         getjournal = "journalctl -f" if not logcmd else logcmd
@@ -403,19 +406,32 @@ class Remote:
             case "localhost": command = []
             case _: command = ["ssh", f"root@{self.sshdomain}"]
         [command.append(arg) for arg in getjournal.split()]
-        self.popen = subprocess.Popen(
+        popen = subprocess.Popen(
             command,
+            stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
         )
-        while 1:
-            line = self.popen.stdout.readline()
-            res = line.decode().strip().lower()
-            if not res:
-                break
-            if ready is not None:
-                ready()
-                ready = None
-            yield res
+        self._procs.append(popen)
+        try:
+            while 1:
+                line = popen.stdout.readline()
+                res = line.decode().strip().lower()
+                if not res:
+                    break
+                if ready is not None:
+                    ready()
+                    ready = None
+                yield res
+        finally:
+            popen.terminate()
+            popen.wait()
+
+    def close(self):
+        while self._procs:
+            proc = self._procs.pop()
+            proc.kill()
+            proc.wait()
 
 
 @pytest.fixture
