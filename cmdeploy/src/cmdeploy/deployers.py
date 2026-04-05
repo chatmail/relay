@@ -24,6 +24,7 @@ from .basedeploy import (
     Deployer,
     Deployment,
     activate_remote_units,
+    blocked_service_startup,
     configure_remote_units,
     get_resource,
     has_systemd,
@@ -149,33 +150,16 @@ class UnboundDeployer(Deployer):
         self.need_restart = False
 
     def install(self):
-        # Run local DNS resolver `unbound`.
-        # `resolvconf` takes care of setting up /etc/resolv.conf
-        # to use 127.0.0.1 as the resolver.
+        # Run local DNS resolver `unbound`. `resolvconf` takes care of
+        # setting up /etc/resolv.conf to use 127.0.0.1 as the resolver.
 
-        #
-        # On an IPv4-only system, if unbound is started but not
-        # configured, it causes subsequent steps to fail to resolve hosts.
-        # Here, we use policy-rc.d to prevent unbound from starting up
-        # on initial install.  Later, we will configure it and start it.
-        #
-        # For documentation about policy-rc.d, see:
-        # https://people.debian.org/~hmh/invokerc.d-policyrc.d-specification.txt
-        #
-        files.put(
-            src=get_resource("policy-rc.d"),
-            dest="/usr/sbin/policy-rc.d",
-            user="root",
-            group="root",
-            mode="755",
-        )
-
-        apt.packages(
-            name="Install unbound",
-            packages=["unbound", "unbound-anchor", "dnsutils"],
-        )
-
-        files.file("/usr/sbin/policy-rc.d", present=False)
+        # On an IPv4-only system, if unbound is started but not configured,
+        # it causes subsequent steps to fail to resolve hosts.
+        with blocked_service_startup():
+            apt.packages(
+                name="Install unbound",
+                packages=["unbound", "unbound-anchor", "dnsutils"],
+            )
 
     def configure(self):
         server.shell(
@@ -474,8 +458,9 @@ class ChatmailDeployer(Deployer):
         ("iroh", None, None),
     ]
 
-    def __init__(self, mail_domain):
-        self.mail_domain = mail_domain
+    def __init__(self, config):
+        self.config = config
+        self.mail_domain = config.mail_domain
 
     def install(self):
         files.put(
@@ -500,6 +485,16 @@ class ChatmailDeployer(Deployer):
         )
 
     def configure(self):
+        # metadata crashes if the mailboxes dir does not exist
+        files.directory(
+            name="Ensure vmail mailbox directory exists",
+            path=str(self.config.mailboxes_dir),
+            user="vmail",
+            group="vmail",
+            mode="700",
+            present=True,
+        )
+
         # This file is used by auth proxy.
         # https://wiki.debian.org/EtcMailName
         server.shell(
@@ -629,7 +624,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool, website_only: bool) -
     tls_deployer = get_tls_deployer(config, mail_domain)
 
     all_deployers = [
-        ChatmailDeployer(mail_domain),
+        ChatmailDeployer(config),
         LegacyRemoveDeployer(),
         FiltermailDeployer(),
         JournaldDeployer(),
