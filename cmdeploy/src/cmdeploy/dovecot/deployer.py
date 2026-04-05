@@ -1,11 +1,10 @@
 import io
-import os
 import urllib.request
 
 from chatmaild.config import Config
 from pyinfra import host
 from pyinfra.facts.deb import DebPackages
-from pyinfra.facts.server import Arch, Sysctl
+from pyinfra.facts.server import Arch, Command, Sysctl
 from pyinfra.operations import apt, files, server, systemd
 
 from cmdeploy.basedeploy import (
@@ -128,7 +127,18 @@ def _download_dovecot_package(package: str, arch: str):
     return deb_filename
 
 
-def _configure_dovecot(config: Config, debug: bool = False) -> (bool, bool):
+def _can_set_inotify_limits() -> bool:
+    is_container = (
+        host.get_fact(
+            Command,
+            "systemd-detect-virt --container --quiet 2>/dev/null && echo yes || true",
+        )
+        == "yes"
+    )
+    return not is_container
+
+
+def _configure_dovecot(config: Config, debug: bool = False) -> tuple[bool, bool]:
     """Configures Dovecot IMAP server."""
     need_restart = False
     daemon_reload = False
@@ -163,19 +173,25 @@ def _configure_dovecot(config: Config, debug: bool = False) -> (bool, bool):
 
     # as per https://doc.dovecot.org/2.3/configuration_manual/os/
     # it is recommended to set the following inotify limits
-    if not os.environ.get("CHATMAIL_NOSYSCTL"):
-        for name in ("max_user_instances", "max_user_watches"):
-            key = f"fs.inotify.{name}"
-            if host.get_fact(Sysctl)[key] > 65535:
-                # Skip updating limits if already sufficient
-                # (enables running in incus containers where sysctl readonly)
-                continue
-            server.sysctl(
-                name=f"Change {key}",
-                key=key,
-                value=65535,
-                persist=True,
+    can_modify = _can_set_inotify_limits()
+    for name in ("max_user_instances", "max_user_watches"):
+        key = f"fs.inotify.{name}"
+        value = host.get_fact(Sysctl)[key]
+        if value > 65534:
+            continue
+        if not can_modify:
+            print(
+                "\n!!!! refusing to attempt sysctl setting in containers\n"
+                f"!!!! dovecot: sysctl {key!r}={value}, should be >65534 for production setups\n"
+                "!!!!"
             )
+            continue
+        server.sysctl(
+            name=f"Change {key}",
+            key=key,
+            value=65535,
+            persist=True,
+        )
 
     timezone_env = files.line(
         name="Set TZ environment variable",
