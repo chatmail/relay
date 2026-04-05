@@ -1,9 +1,20 @@
 import datetime
-import importlib
-
-from jinja2 import Template
 
 from . import remote
+
+
+def parse_zone_records(text):
+    """Yield ``(name, ttl, rtype, rdata)`` from standard BIND-format text."""
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith(";"):
+            continue
+        try:
+            name, ttl, _in, rtype, rdata = line.split(None, 4)
+        except ValueError:
+            raise ValueError(f"Bad zone record line: {line!r}") from None
+        name = name.rstrip(".")
+        yield name, ttl, rtype.upper(), rdata
 
 
 def get_initial_remote_data(sshexec, mail_domain):
@@ -31,13 +42,39 @@ def get_filled_zone_file(remote_data):
     if not sts_id:
         remote_data["sts_id"] = datetime.datetime.now().strftime("%Y%m%d%H%M")
 
-    template = importlib.resources.files(__package__).joinpath("chatmail.zone.j2")
-    content = template.read_text()
-    zonefile = Template(content).render(**remote_data)
-    lines = [x.strip() for x in zonefile.split("\n") if x.strip()]
+    d = remote_data["mail_domain"]
+
+    def append_record(name, rtype, rdata, ttl=3600):
+        lines.append(f"{name:<40} {ttl:<6} IN  {rtype:<5}  {rdata}")
+
+    lines = ["; Required DNS entries"]
+    if remote_data.get("A"):
+        append_record(f"{d}.", "A", remote_data["A"])
+    if remote_data.get("AAAA"):
+        append_record(f"{d}.", "AAAA", remote_data["AAAA"])
+    append_record(f"{d}.", "MX", f"10 {d}.")
+    if remote_data.get("strict_tls"):
+        append_record(f"_mta-sts.{d}.", "TXT", f'"v=STSv1; id={remote_data["sts_id"]}"')
+        append_record(f"mta-sts.{d}.", "CNAME", f"{d}.")
+    append_record(f"www.{d}.", "CNAME", f"{d}.")
+    lines.append(remote_data["dkim_entry"])
     lines.append("")
-    zonefile = "\n".join(lines)
-    return zonefile
+    lines.append("; Recommended DNS entries")
+    append_record(f"{d}.", "TXT", '"v=spf1 a ~all"')
+    append_record(f"_dmarc.{d}.", "TXT", '"v=DMARC1;p=reject;adkim=s;aspf=s"')
+    if remote_data.get("acme_account_url"):
+        append_record(
+            f"{d}.",
+            "CAA",
+            f'0 issue "letsencrypt.org;accounturi={remote_data["acme_account_url"]}"',
+        )
+    append_record(f"_adsp._domainkey.{d}.", "TXT", '"dkim=discardable"')
+    append_record(f"_submission._tcp.{d}.", "SRV", f"0 1 587 {d}.")
+    append_record(f"_submissions._tcp.{d}.", "SRV", f"0 1 465 {d}.")
+    append_record(f"_imap._tcp.{d}.", "SRV", f"0 1 143 {d}.")
+    append_record(f"_imaps._tcp.{d}.", "SRV", f"0 1 993 {d}.")
+    lines.append("")
+    return "\n".join(lines)
 
 
 def check_full_zone(sshexec, remote_data, out, zonefile) -> int:
@@ -58,7 +95,8 @@ def check_full_zone(sshexec, remote_data, out, zonefile) -> int:
         returncode = 1
     if remote_data.get("dkim_entry") in required_diff:
         out(
-            "If the DKIM entry above does not work with your DNS provider, you can try this one:\n"
+            "If the DKIM entry above does not work with your DNS provider,"
+            " you can try this one:\n"
         )
         out(remote_data.get("web_dkim_entry") + "\n")
     if recommended_diff:

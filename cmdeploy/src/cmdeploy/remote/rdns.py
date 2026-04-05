@@ -57,9 +57,10 @@ def get_dkim_entry(mail_domain, pre_command, dkim_selector):
     dkim_value_raw = f"v=DKIM1;k=rsa;p={dkim_pubkey};s=email;t=s"
     dkim_value = '" "'.join(re.findall(".{1,255}", dkim_value_raw))
     web_dkim_value = "".join(re.findall(".{1,255}", dkim_value_raw))
+    name = f"{dkim_selector}._domainkey.{mail_domain}."
     return (
-        f'{dkim_selector}._domainkey.{mail_domain}. TXT "{dkim_value}"',
-        f'{dkim_selector}._domainkey.{mail_domain}. TXT "{web_dkim_value}"',
+        f'{name:<40} 3600   IN  TXT    "{dkim_value}"',
+        f'{name:<40} 3600   IN  TXT    "{web_dkim_value}"',
     )
 
 
@@ -94,7 +95,7 @@ def check_zonefile(zonefile, verbose=True):
         if not zf_line.strip() or zf_line.startswith(";"):
             continue
         print(f"dns-checking {zf_line!r}") if verbose else log_progress("")
-        zf_domain, zf_typ, zf_value = zf_line.split(maxsplit=2)
+        zf_domain, _ttl, _in, zf_typ, zf_value = zf_line.split(None, 4)
         zf_domain = zf_domain.rstrip(".")
         zf_value = zf_value.strip()
         query_value = query_dns(zf_typ, zf_domain)
