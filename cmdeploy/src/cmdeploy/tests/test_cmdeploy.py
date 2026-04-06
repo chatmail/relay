@@ -23,15 +23,19 @@ class TestCmdline:
         run = parser.parse_args(["run"])
         assert init and run
 
-    def test_init_not_overwrite(self, capsys):
-        assert main(["init", "chat.example.org"]) == 0
+    def test_init_not_overwrite(self, capsys, tmp_path, monkeypatch):
+        monkeypatch.delenv("CHATMAIL_INI", raising=False)
+        inipath = tmp_path / "chatmail.ini"
+        args = ["init", "--config", str(inipath), "chat.example.org"]
+        assert main(args) == 0
         capsys.readouterr()
 
-        assert main(["init", "chat.example.org"]) == 1
+        assert main(args) == 1
         out, err = capsys.readouterr()
         assert "path exists" in out.lower()
 
-        assert main(["init", "chat.example.org", "--force"]) == 0
+        args.insert(1, "--force")
+        assert main(args) == 0
         out, err = capsys.readouterr()
         assert "deleting config file" in out.lower()
 

@@ -209,6 +209,7 @@ def test_cmd(args, out):
     """Run local and online tests for chatmail deployment."""
 
     env = os.environ.copy()
+    env["CHATMAIL_INI"] = str(args.inipath.absolute())
     if args.ssh_host:
         env["CHATMAIL_SSH"] = args.ssh_host
 
