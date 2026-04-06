@@ -35,6 +35,11 @@ def pytest_runtest_setup(item):
 
 
 def _get_chatmail_config():
+    inipath = os.environ.get("CHATMAIL_INI")
+    if inipath:
+        path = Path(inipath).resolve()
+        return read_config(path), path
+
     current = Path().resolve()
     while 1:
         path = current.joinpath("chatmail.ini").resolve()
