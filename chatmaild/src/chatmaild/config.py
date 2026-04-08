@@ -38,6 +38,7 @@ class Config:
         self.filtermail_smtp_port_incoming = int(
             params.get("filtermail_smtp_port_incoming", "10081")
         )
+        self.filtermail_http_port = int(params.get("filtermail_http_port", "10082"))
         self.postfix_reinject_port = int(params.get("postfix_reinject_port", "10025"))
         self.postfix_reinject_port_incoming = int(
             params.get("postfix_reinject_port_incoming", "10026")
