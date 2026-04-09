@@ -61,6 +61,9 @@ class DovecotDeployer(Deployer):
                 "Pin-Priority: -1\n"
             ),
             dest="/etc/apt/preferences.d/pin-dovecot",
+            user="root",
+            group="root",
+            mode="644",
         )
 
     def configure(self):
