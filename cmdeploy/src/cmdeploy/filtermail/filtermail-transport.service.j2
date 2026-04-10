@@ -1,0 +1,11 @@
+[Unit]
+Description=Chatmail transport service
+
+[Service]
+ExecStart={{ bin_path }} {{ config_path }} transport
+Restart=always
+RestartSec=30
+User=vmail
+
+[Install]
+WantedBy=multi-user.target
