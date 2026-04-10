@@ -79,22 +79,6 @@ inet_protocols = ipv4
 inet_protocols = all
 {% endif %}
 
-# Postfix does not try IPv4 and IPv6 connections
-# concurrently as of version 3.7.11.
-#
-# When relay has both A (IPv4) and AAAA (IPv6) records,
-# but broken IPv6 connectivity,
-# every second message is delayed by the connection timeout
-# <https://www.postfix.org/postconf.5.html#smtp_connect_timeout>
-# which defaults to 30 seconds. Reducing timeouts is not a solution
-# as this will result in a failure to connect to slow servers.
-#
-# As a workaround we always prefer IPv4 when it is available.
-# 
-# The setting is documented at
-# <https://www.postfix.org/postconf.5.html#smtp_address_preference>
-smtp_address_preference=ipv4
-
 virtual_transport = lmtp:unix:private/dovecot-lmtp
 virtual_mailbox_domains = {{ config.mail_domain }}
 lmtp_header_checks = regexp:/etc/postfix/lmtp_header_cleanup
@@ -109,3 +93,10 @@ smtpd_sender_login_maps = regexp:/etc/postfix/login_map
 # Do not lookup SMTP client hostnames to reduce delays
 # and avoid unnecessary DNS requests.
 smtpd_peername_lookup = no
+
+# Use filtermail-transport to relay messages.
+# We can't force postfix to split messages per destination,
+# when specifying a custom next-hop,
+# so instead this is handled in filtermail.
+# We use LMTP instead SMTP so we can communicate per-recipient errors back to postfix.
+default_transport = lmtp-filtermail:inet:[127.0.0.1]:{{ config.filtermail_lmtp_port_transport }}

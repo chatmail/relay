@@ -153,6 +153,7 @@ Chatmail relay dependency diagram
         autoconfig.xml --- dovecot;
         postfix --- |10080|filtermail-outgoing;
         postfix --- |10081|filtermail-incoming;
+        postfix --- |10083|filtermail-transport;
         filtermail-outgoing --- |10025 reinject|postfix;
         filtermail-incoming --- |10026 reinject|postfix;
         dovecot --- |doveauth.socket|doveauth;
@@ -295,9 +296,7 @@ ensured by ``filtermail`` proxy.
 TLS requirements
 ~~~~~~~~~~~~~~~~
 
-Postfix is configured to require valid TLS by setting
-`smtp_tls_security_level <https://www.postfix.org/postconf.5.html#smtp_tls_security_level>`_
-to ``verify``.
+Filtermail (used for delivery) requires a valid TLS.
 
 You can test it by resolving ``MX`` records of your relay domain and
 then connecting to MX relays (e.g ``mx.example.org``) with

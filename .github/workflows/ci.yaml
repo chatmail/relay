@@ -29,7 +29,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
       - name: download filtermail
-        run: curl -L https://github.com/chatmail/filtermail/releases/download/v0.6.1/filtermail-x86_64 -o /usr/local/bin/filtermail && chmod +x /usr/local/bin/filtermail
+        run: curl -L https://github.com/chatmail/filtermail/releases/download/v0.6.2/filtermail-x86_64 -o /usr/local/bin/filtermail && chmod +x /usr/local/bin/filtermail
       - name: run chatmaild tests 
         working-directory: chatmaild
         run: pipx run tox
