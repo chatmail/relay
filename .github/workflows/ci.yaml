@@ -1,15 +1,26 @@
-name: CI
+name: Run unit-tests and container-based deploy+test verification
 
 on:
-  pull_request:
+  # Triggers when a PR is merged into main or a direct push occurs
   push:
+    branches: [ "main" ]
+    
+  # Triggers for any PR (and its subsequent commits) targeting the main branch
+  pull_request:
+    branches: [ "main" ]
+
+# Newest push wins: Prevents multiple runs from clashing and wasting runner efforts
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 
 jobs:
   tox:
     name: isolated chatmaild tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         # Checkout pull request HEAD commit instead of merge commit
         # Otherwise `test_deployed_state` will be unhappy.
         with:
@@ -24,7 +35,7 @@ jobs:
     name: deploy-chatmail tests 
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: initenv 
         run: scripts/initenv.sh
@@ -38,5 +49,14 @@ jobs:
       - name: run deploy-chatmail offline tests 
         run: pytest --pyargs cmdeploy 
 
-      # all other cmdeploy commands require a staging server 
-      # see https://github.com/deltachat/chatmail/issues/100
+  lxc-test:
+    name: LXC deploy and test
+    uses: chatmail/cmlxc/.github/workflows/lxc-test.yml@v0.8.1
+    with:
+      cmlxc_commands: |
+        cmlxc init 
+        cmlxc deploy-cmdeploy --source ./repo -vv cm0 
+        cmlxc test-mini cm0 
+        cmlxc test-cmdeploy -vv cm0 
+        cmlxc deploy-cmdeploy --source ./repo -vv --ipv4-only cm1
+        cmlxc test-cmdeploy -vv cm0 cm1
