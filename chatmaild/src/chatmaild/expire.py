@@ -145,6 +145,10 @@ class Expiry:
             changed = True
         if changed:
             self.remove_file(f"{mbox.basedir}/maildirsize")
+        for file in mbox.extrafiles:
+            if "dovecot.index.cache" in file.path.split("/")[-1]:
+                if file.size > 500 * 1024:
+                    self.remove_file(file.path)
 
     def get_summary(self):
         return (
