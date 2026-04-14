@@ -13,7 +13,7 @@ import sys
 from pathlib import Path
 
 import pyinfra
-from chatmaild.config import read_config, write_initial_config
+from chatmaild.config import read_config, write_initial_config, is_valid_ipv4
 from packaging import version
 from termcolor import colored
 
@@ -91,6 +91,8 @@ def run_cmd(args, out):
     sshexec = get_sshexec(ssh_host)
     require_iroh = args.config.enable_iroh_relay
     strict_tls = args.config.tls_cert_mode == "acme"
+    if is_valid_ipv4(args.config.mail_domain):
+        args.dns_check_disabled = True
     if not args.dns_check_disabled:
         remote_data = dns.get_initial_remote_data(sshexec, args.config.mail_domain)
         if not dns.check_initial_remote_data(remote_data, strict_tls=strict_tls, print=out.red):
@@ -119,6 +121,8 @@ def run_cmd(args, out):
         elif not args.dns_check_disabled and strict_tls and not remote_data["acme_account_url"]:
             out.red("Deploy completed but letsencrypt not configured")
             out.red("Run 'cmdeploy run' again")
+        elif is_valid_ipv4(args.config.mail_domain):
+            out.green("Deploy completed.")
         else:
             out.green("Deploy completed, call `cmdeploy dns` next.")
         return 0
