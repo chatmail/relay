@@ -71,6 +71,44 @@ class TestSSHExecutor:
         assert (now - since_date).total_seconds() < 60 * 60 * 51
 
 
+def test_dovecot_main_process_matches_installed_binary(sshdomain):
+    sshexec = get_sshexec(sshdomain)
+    main_pid = int(
+        sshexec(
+            call=remote.rshell.shell,
+            kwargs=dict(
+                command="timeout 10 systemctl show -p MainPID --value dovecot.service"
+            ),
+        ).strip()
+    )
+    assert main_pid != 0, "dovecot.service MainPID is 0 -- service not running?"
+
+    exe = sshexec(
+        call=remote.rshell.shell,
+        kwargs=dict(command=f"timeout 10 readlink /proc/{main_pid}/exe"),
+    ).strip()
+    status_text = sshexec(
+        call=remote.rshell.shell,
+        kwargs=dict(
+            command="timeout 10 systemctl show -p StatusText --value dovecot.service"
+        ),
+    ).strip()
+    installed_version = sshexec(
+        call=remote.rshell.shell, kwargs=dict(command="timeout 10 dovecot --version")
+    ).strip()
+
+    assert not exe.endswith("(deleted)"), (
+        f"running dovecot binary was deleted (stale after upgrade): {exe}"
+    )
+    expected_status_text = f"v{installed_version}"
+    assert status_text == expected_status_text or status_text.startswith(
+        f"{expected_status_text} "
+    ), (
+        f"dovecot status version mismatch: "
+        f"StatusText={status_text!r}, installed={installed_version!r}"
+    )
+
+
 def test_timezone_env(remote):
     for line in remote.iter_output("env"):
         print(line)
