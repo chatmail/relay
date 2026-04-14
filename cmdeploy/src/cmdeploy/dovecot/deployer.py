@@ -15,7 +15,8 @@ from cmdeploy.basedeploy import (
     get_resource,
 )
 
-DOVECOT_VERSION = "2.3.21+dfsg1-3"
+DOVECOT_ARCHIVE_VERSION = "2.3.21+dfsg1-3"
+DOVECOT_PACKAGE_VERSION = f"1:{DOVECOT_ARCHIVE_VERSION}"
 
 DOVECOT_SHA256 = {
     ("core", "amd64"): "dd060706f52a306fa863d874717210b9fe10536c824afe1790eec247ded5b27d",
@@ -40,11 +41,14 @@ class DovecotDeployer(Deployer):
         with blocked_service_startup():
             debs = []
             for pkg in ("core", "imapd", "lmtpd"):
-                deb = _download_dovecot_package(pkg, arch)
+                deb, changed = _download_dovecot_package(pkg, arch)
+                self.need_restart |= changed
                 if deb:
                     debs.append(deb)
             if debs:
                 deb_list = " ".join(debs)
+                # First dpkg may fail on missing dependencies (stderr suppressed);
+                # apt-get --fix-broken pulls them in, then dpkg retries cleanly.
                 server.shell(
                     name="Install dovecot packages",
                     commands=[
@@ -53,6 +57,7 @@ class DovecotDeployer(Deployer):
                         f"dpkg --force-confdef --force-confold -i {deb_list}",
                     ],
                 )
+                self.need_restart = True
         files.put(
             name="Pin dovecot packages to block Debian dist-upgrades",
             src=io.StringIO(
@@ -68,7 +73,8 @@ class DovecotDeployer(Deployer):
 
     def configure(self):
         configure_remote_units(self.config.mail_domain, self.units)
-        self.need_restart, self.daemon_reload = _configure_dovecot(self.config)
+        config_restart, self.daemon_reload = _configure_dovecot(self.config)
+        self.need_restart |= config_restart
 
     def activate(self):
         activate_remote_units(self.units)
@@ -97,22 +103,22 @@ def _pick_url(primary, fallback):
         return fallback
 
 
-def _download_dovecot_package(package: str, arch: str):
-    """Download a dovecot .deb if needed, return its path (or None)."""
+def _download_dovecot_package(package: str, arch: str) -> tuple[str | None, bool]:
+    """Download a dovecot .deb if needed, return (path, changed)."""
     arch = "amd64" if arch == "x86_64" else arch
     arch = "arm64" if arch == "aarch64" else arch
 
     pkg_name = f"dovecot-{package}"
     sha256 = DOVECOT_SHA256.get((package, arch))
     if sha256 is None:
-        apt.packages(packages=[pkg_name])
-        return None
+        op = apt.packages(packages=[pkg_name])
+        return None, bool(getattr(op, "changed", False))
 
     installed_versions = host.get_fact(DebPackages).get(pkg_name, [])
-    if DOVECOT_VERSION in installed_versions:
-        return None
+    if DOVECOT_PACKAGE_VERSION in installed_versions:
+        return None, False
 
-    url_version = DOVECOT_VERSION.replace("+", "%2B")
+    url_version = DOVECOT_ARCHIVE_VERSION.replace("+", "%2B")
     deb_base = f"{pkg_name}_{url_version}_{arch}.deb"
     primary_url = f"https://download.delta.chat/dovecot/{deb_base}"
     fallback_url = f"https://github.com/chatmail/dovecot/releases/download/upstream%2F{url_version}/{deb_base}"
@@ -127,7 +133,7 @@ def _download_dovecot_package(package: str, arch: str):
         cache_time=60 * 60 * 24 * 365 * 10,  # never redownload the package
     )
 
-    return deb_filename
+    return deb_filename, True
 
 
 def _can_set_inotify_limits() -> bool:
