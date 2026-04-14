@@ -1,0 +1,125 @@
+name: Docker deploy
+
+on:
+  workflow_call:
+    inputs:
+      staging_host:
+        required: true
+        type: string
+        description: 'SSH hostname (e.g. staging2.testrun.org)'
+      mail_domain:
+        required: true
+        type: string
+        description: 'MAIL_DOMAIN for docker compose'
+      zone_file:
+        required: true
+        type: string
+        description: 'Default zone file basename (e.g. staging.testrun.org-default.zone)'
+
+jobs:
+  deploy-docker:
+    name: Docker deploy on ${{ inputs.staging_host }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: ${{ inputs.staging_host }}
+      url: https://${{ inputs.staging_host }}/
+    concurrency: ${{ inputs.staging_host }}
+    env:
+      VPS: root@${{ inputs.staging_host }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Setup SSH
+        run: |
+          mkdir ~/.ssh
+          echo "${{ secrets.STAGING_SSH_KEY }}" >> ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan ${{ inputs.staging_host }} > ~/.ssh/known_hosts
+          # Reuse TCP connection for all subsequent ssh/scp calls
+          echo -e "Host ${{ inputs.staging_host }}\n  ControlMaster auto\n  ControlPath ~/.ssh/ctrl-%r@%h:%p\n  ControlPersist 10m" >> ~/.ssh/config
+
+      - name: stop bare services, install Docker, prepare mounts
+        run: |
+          ssh $VPS bash -s <<'EOF'
+          systemctl stop postfix dovecot nginx opendkim unbound filtermail doveauth chatmail-metadata iroh-relay mtail fcgiwrap acmetool 2>/dev/null || true
+          curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc && chmod a+r /etc/apt/keyrings/docker.asc
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian $(. /etc/os-release && echo $VERSION_CODENAME) stable" > /etc/apt/sources.list.d/docker.list
+          apt-get update
+          apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+          mkdir -p /srv/chatmail/certs /srv/chatmail/dkim
+          cp -a /var/lib/acme/. /srv/chatmail/certs/ || true
+          cp -a /etc/dkimkeys/. /srv/chatmail/dkim/ || true
+          cp /etc/chatmail/chatmail.ini /srv/chatmail/chatmail.ini
+          EOF
+
+      - name: deploy with Docker
+        run: |
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          GHCR_IMAGE="ghcr.io/chatmail/docker:sha-${SHORT_SHA}"
+          rsync -avz --exclude='.git' --exclude='venv' --exclude='__pycache__' ./ $VPS:/srv/chatmail/relay/
+          echo "${{ secrets.GITHUB_TOKEN }}" | ssh $VPS "docker login ghcr.io -u ${{ github.actor }} --password-stdin && \
+            docker pull ${GHCR_IMAGE} && \
+            cd /srv/chatmail/relay && CHATMAIL_IMAGE=${GHCR_IMAGE} MAIL_DOMAIN=${{ inputs.mail_domain }} docker compose -f docker/docker-compose.yaml -f docker/docker-compose.ci.yaml up -d"
+
+      - name: wait for container healthy
+        run: |
+          ssh $VPS 'docker exec chatmail journalctl -f --no-pager' &
+          LOG_PID=$!
+          trap "kill $LOG_PID 2>/dev/null || true" EXIT
+          for i in $(seq 1 60); do
+            status=$(ssh $VPS 'docker inspect --format={{.State.Health.Status}} chatmail 2>/dev/null' || echo "missing")
+            echo "  [$i/60] status=$status"
+            if [ "$status" = "healthy" ]; then
+              echo "Container is healthy."
+              exit 0
+            fi
+            if [ "$status" = "unhealthy" ]; then
+              echo "Container is unhealthy!"
+              break
+            fi
+            sleep 5
+          done
+          echo "Container did not become healthy."
+          kill $LOG_PID 2>/dev/null || true
+          ssh $VPS bash -s <<'EOF'
+          echo "--- failed units ---"
+          docker exec chatmail systemctl --failed --no-pager || true
+          echo "--- service logs ---"
+          docker exec chatmail journalctl -u dovecot -u postfix -u nginx -u unbound --no-pager -n 50 || true
+          echo "--- listening ports ---"
+          docker exec chatmail ss -tlnp || true
+          echo "--- chatmail.ini ---"
+          docker exec chatmail cat /etc/chatmail/chatmail.ini || true
+          EOF
+          exit 1
+
+      - name: show container state
+        run: |
+          ssh $VPS bash -s <<'EOF'
+          echo "--- listening ports ---"
+          docker exec chatmail ss -tlnp
+          echo "--- chatmail.ini ---"
+          docker exec chatmail cat /etc/chatmail/chatmail.ini
+          EOF
+
+      - name: Docker integration tests
+        run: ssh $VPS 'docker exec chatmail cmdeploy test --slow --ssh-host @local'
+
+      - name: Docker DNS
+        run: |
+          git checkout .github/workflows/${{ inputs.zone_file }}
+          ssh $VPS bash -s <<'EOF'
+          docker exec chatmail chown opendkim:opendkim -R /etc/dkimkeys
+          docker exec chatmail cmdeploy dns --ssh-host @local --zonefile /opt/chatmail/staging.zone --verbose
+          docker cp chatmail:/opt/chatmail/staging.zone /tmp/staging.zone
+          EOF
+          scp $VPS:/tmp/staging.zone staging-generated.zone
+          cat staging-generated.zone >> .github/workflows/${{ inputs.zone_file }}
+          cat .github/workflows/${{ inputs.zone_file }}
+          scp .github/workflows/${{ inputs.zone_file }} root@ns.testrun.org:/etc/nsd/${{ inputs.staging_host }}.zone
+          ssh root@ns.testrun.org "nsd-checkzone ${{ inputs.staging_host }} /etc/nsd/${{ inputs.staging_host }}.zone && systemctl reload nsd"
+
+      - name: Docker final DNS check
+        run: ssh $VPS 'docker exec chatmail cmdeploy dns -v --ssh-host @local'

@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - j4n/docker-pr
   pull_request:
     paths-ignore:
       - 'scripts/**'
@@ -12,6 +13,11 @@ on:
       - 'LICENSE'
 
 jobs:
+  trigger-docker-build:
+    if: github.event_name == 'push'
+    uses: ./.github/workflows/trigger-docker-build.yaml
+    secrets: inherit
+
   deploy:
     name: deploy on staging-ipv4.testrun.org, and run tests
     runs-on: ubuntu-latest
@@ -22,6 +28,8 @@ jobs:
     concurrency: staging-ipv4.testrun.org
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: prepare SSH
         run: |
@@ -63,13 +71,13 @@ jobs:
           # download acme & dkim state from ns.testrun.org
           rsync -e "ssh -o StrictHostKeyChecking=accept-new" -avz root@ns.testrun.org:/tmp/acme-ipv4/acme acme-restore || true
           rsync -avz root@ns.testrun.org:/tmp/dkimkeys-ipv4/dkimkeys dkimkeys-restore || true
-          # restore acme & dkim state to staging2.testrun.org
+          # restore acme & dkim state to staging-ipv4.testrun.org
           rsync -avz acme-restore/acme root@staging-ipv4.testrun.org:/var/lib/ || true
           rsync -avz dkimkeys-restore/dkimkeys root@staging-ipv4.testrun.org:/etc/ || true
           ssh -o StrictHostKeyChecking=accept-new -v root@staging-ipv4.testrun.org chown root:root -R /var/lib/acme || true
 
-      - name: run deploy-chatmail offline tests 
-        run: pytest --pyargs cmdeploy 
+      - name: run deploy-chatmail offline tests
+        run: pytest --pyargs cmdeploy
 
       - name: setup dependencies
         run: |
@@ -102,3 +110,12 @@ jobs:
       - name: cmdeploy dns
         run: ssh root@staging-ipv4.testrun.org "cd relay && scripts/cmdeploy dns -v --ssh-host localhost"
 
+  deploy-docker:
+    needs: [deploy, trigger-docker-build]
+    if: github.event_name == 'push'
+    uses: ./.github/workflows/docker-deploy.yaml
+    with:
+      staging_host: staging-ipv4.testrun.org
+      mail_domain: staging-ipv4.testrun.org
+      zone_file: staging-ipv4.testrun.org-default.zone
+    secrets: inherit

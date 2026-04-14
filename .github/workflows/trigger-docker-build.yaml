@@ -1,0 +1,24 @@
+name: Trigger Docker image build
+
+on:
+  workflow_call:
+
+jobs:
+  trigger-docker-build:
+    name: Trigger Docker image build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.CHATMAIL_DOCKER_DISPATCH_TOKEN }}
+          script: |
+            await github.rest.repos.createDispatchEvent({
+              owner: 'chatmail',
+              repo: 'docker',
+              event_type: 'relay-updated',
+              client_payload: {
+                relay_ref: context.ref,
+                relay_sha: context.sha,
+                relay_sha_short: context.sha.slice(0, 7)
+              }
+            })
