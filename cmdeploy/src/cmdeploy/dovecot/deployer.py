@@ -4,7 +4,7 @@ import urllib.request
 from chatmaild.config import Config
 from pyinfra import host
 from pyinfra.facts.deb import DebPackages
-from pyinfra.facts.server import Arch, Command, Sysctl
+from pyinfra.facts.server import Arch, Sysctl
 from pyinfra.operations import apt, files, server, systemd
 
 from cmdeploy.basedeploy import (
@@ -13,6 +13,7 @@ from cmdeploy.basedeploy import (
     blocked_service_startup,
     configure_remote_units,
     get_resource,
+    is_in_container,
 )
 
 DOVECOT_ARCHIVE_VERSION = "2.3.21+dfsg1-3"
@@ -136,17 +137,6 @@ def _download_dovecot_package(package: str, arch: str) -> tuple[str | None, bool
     return deb_filename, True
 
 
-def _can_set_inotify_limits() -> bool:
-    is_container = (
-        host.get_fact(
-            Command,
-            "systemd-detect-virt --container --quiet 2>/dev/null && echo yes || true",
-        )
-        == "yes"
-    )
-    return not is_container
-
-
 def _configure_dovecot(config: Config, debug: bool = False) -> tuple[bool, bool]:
     """Configures Dovecot IMAP server."""
     need_restart = False
@@ -182,7 +172,7 @@ def _configure_dovecot(config: Config, debug: bool = False) -> tuple[bool, bool]
 
     # as per https://doc.dovecot.org/2.3/configuration_manual/os/
     # it is recommended to set the following inotify limits
-    can_modify = _can_set_inotify_limits()
+    can_modify = not is_in_container()
     for name in ("max_user_instances", "max_user_watches"):
         key = f"fs.inotify.{name}"
         value = host.get_fact(Sysctl)[key]
