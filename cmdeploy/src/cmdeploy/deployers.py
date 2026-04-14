@@ -2,7 +2,6 @@
 Chat Mail pyinfra deploy.
 """
 
-import os
 import shutil
 import subprocess
 import sys
@@ -28,6 +27,7 @@ from .basedeploy import (
     configure_remote_units,
     get_resource,
     has_systemd,
+    is_in_container,
 )
 from .dovecot.deployer import DovecotDeployer
 from .external.deployer import ExternalTlsDeployer
@@ -584,7 +584,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool, website_only: bool) -
             Out().red(f"Deploy failed: mtail_address {config.mtail_address} is not available (VPN up?).\n")
             exit(1)
 
-    if not os.environ.get("CHATMAIL_NOPORTCHECK"):
+    if not is_in_container():
         port_services = [
             (["master", "smtpd"], 25),
             ("unbound", 53),

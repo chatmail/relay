@@ -3,12 +3,25 @@ import io
 import os
 from contextlib import contextmanager
 
+from pyinfra import host
+from pyinfra.facts.server import Command
 from pyinfra.operations import files, server, systemd
 
 
 def has_systemd():
     """Returns False during Docker image builds or any other non-systemd environment."""
     return os.path.isdir("/run/systemd/system")
+
+
+def is_in_container() -> bool:
+    """Return True if running inside a container (Docker, LXC, etc.)."""
+    return (
+        host.get_fact(
+            Command,
+            "systemd-detect-virt --container --quiet 2>/dev/null && echo yes || true",
+        )
+        == "yes"
+    )
 
 
 @contextmanager
