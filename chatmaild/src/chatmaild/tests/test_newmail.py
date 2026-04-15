@@ -56,7 +56,7 @@ def test_print_new_account(capsys, monkeypatch, maildomain, tmpdir, example_conf
     assert lines[0] == "Content-Type: application/json"
     assert not lines[1]
     dic = json.loads(lines[2])
-    assert dic["email"].endswith(f"@{example_config.mail_domain}")
+    assert dic["email"].endswith(f"@{example_config.mail_domain_deliverable}")
     assert len(dic["password"]) >= 10
     # default tls_cert=acme should not include dclogin_url
     assert "dclogin_url" not in dic

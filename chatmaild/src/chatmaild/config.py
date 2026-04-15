@@ -95,7 +95,9 @@ class Config:
             self.tls_key_path = f"/var/lib/acme/live/{self.mail_domain}/privkey"
 
         # deprecated option
-        mbdir = params.get("mailboxes_dir", f"/home/vmail/mail/{self.mail_domain}")
+        mbdir = params.get(
+            "mailboxes_dir", f"/home/vmail/mail/{self.mail_domain_deliverable}"
+        )
         self.mailboxes_dir = Path(mbdir.strip())
 
         # old unused option (except for first migration from sqlite to maildir store)
