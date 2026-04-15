@@ -384,7 +384,7 @@ class ChatmailDeployer(Deployer):
 
     def __init__(self, config):
         self.config = config
-        self.mail_domain = config.mail_domain
+        self.mail_domain_deliverable = config.mail_domain_deliverable
 
     def install(self):
         self.put_file(
@@ -417,7 +417,7 @@ class ChatmailDeployer(Deployer):
         server.shell(
             name="Setup /etc/mailname",
             commands=[
-                f"echo {self.mail_domain} >/etc/mailname; chmod 644 /etc/mailname"
+                f"echo {self.mail_domain_deliverable} >/etc/mailname; chmod 644 /etc/mailname"
             ],
         )
 
@@ -470,6 +470,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool, website_only: bool) -
     config = read_config(config_path)
     check_config(config)
     mail_domain = config.mail_domain
+    mail_domain_deliverable = config.mail_domain_deliverable
 
     if website_only:
         Deployment().perform_stages([WebsiteDeployer(config)])
@@ -540,7 +541,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool, website_only: bool) -
         WebsiteDeployer(config),
         ChatmailVenvDeployer(config),
         MtastsDeployer(),
-        OpendkimDeployer(mail_domain),
+        OpendkimDeployer(mail_domain_deliverable),
         # Dovecot should be started before Postfix
         # because it creates authentication socket
         # required by Postfix.

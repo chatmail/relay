@@ -44,12 +44,20 @@ def test_invalid_username_length(example_config):
     config.username_min_length = 6
     config.username_max_length = 10
     password = create_newemail_dict(config)["password"]
-    assert not is_allowed_to_create(config, f"a1234@{config.mail_domain}", password)
-    assert is_allowed_to_create(config, f"012345@{config.mail_domain}", password)
-    assert is_allowed_to_create(config, f"0123456@{config.mail_domain}", password)
-    assert is_allowed_to_create(config, f"0123456789@{config.mail_domain}", password)
     assert not is_allowed_to_create(
-        config, f"0123456789x@{config.mail_domain}", password
+        config, f"a1234@{config.mail_domain_deliverable}", password
+    )
+    assert is_allowed_to_create(
+        config, f"012345@{config.mail_domain_deliverable}", password
+    )
+    assert is_allowed_to_create(
+        config, f"0123456@{config.mail_domain_deliverable}", password
+    )
+    assert is_allowed_to_create(
+        config, f"0123456789@{config.mail_domain_deliverable}", password
+    )
+    assert not is_allowed_to_create(
+        config, f"0123456789x@{config.mail_domain_deliverable}", password
     )
 
 
@@ -124,7 +132,7 @@ def test_invalid_localpart_characters(make_config):
     """Test that is_allowed_to_create rejects localparts with invalid characters."""
     config = make_config("chat.example.org", {"username_min_length": "3"})
     password = "zequ0Aimuchoodaechik"
-    domain = config.mail_domain
+    domain = config.mail_domain_deliverable
 
     # valid localparts
     assert is_allowed_to_create(config, f"abc123@{domain}", password)

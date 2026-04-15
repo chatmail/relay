@@ -40,7 +40,7 @@ service imap {
   process_limit = 50000
 }
 
-mail_server_admin = mailto:root@{{ config.mail_domain }}
+mail_server_admin = mailto:root@{{ config.mail_domain_deliverable }}
 mail_server_comment = Chatmail server
 
 # `zlib` enables compressing messages stored in the maildir.

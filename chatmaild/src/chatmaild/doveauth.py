@@ -108,7 +108,7 @@ class AuthDictProxy(DictProxy):
         if namespace == "shared":
             if type == "userdb":
                 user = args[0]
-                if user.endswith(f"@{config.mail_domain}"):
+                if user.endswith(f"@{config.mail_domain_deliverable}"):
                     res = self.lookup_userdb(user)
                 if res:
                     reply_command = "O"
@@ -116,7 +116,7 @@ class AuthDictProxy(DictProxy):
                     reply_command = "N"
             elif type == "passdb":
                 user = args[1]
-                if user.endswith(f"@{config.mail_domain}"):
+                if user.endswith(f"@{config.mail_domain_deliverable}"):
                     res = self.lookup_passdb(user, cleartext_password=args[0])
                 if res:
                     reply_command = "O"
