@@ -13,6 +13,7 @@ def test_read_config_basic(example_config):
     example_config = read_config(inipath)
     assert example_config.max_user_send_per_minute == 37
     assert example_config.mail_domain == "chat.example.org"
+    assert example_config.mail_domain_deliverable == "chat.example.org"
 
 
 def test_read_config_basic_using_defaults(tmp_path, maildomain):
