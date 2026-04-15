@@ -101,7 +101,13 @@ impl SmtpHandler for IncomingBeforeQueueHandler {
         envelope.rcpt_to = envelope
             .rcpt_to
             .iter()
-            .filter(|s| !self.config.is_disabled(s))
+            .filter(|s| {
+                let disabled = self.config.is_disabled(s);
+                if disabled {
+                    log::warn!("Disabled recipient: {s}; removing from RCPT TO");
+                }
+                !disabled
+            })
             .cloned()
             .collect();
 
