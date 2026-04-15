@@ -50,7 +50,7 @@ pub async fn run_smtp_server<H>(
     addr: &impl tokio::net::ToSocketAddrs,
     handler: Arc<H>,
     max_size: usize,
-) -> Result<(), Box<dyn std::error::Error>>
+) -> Result<(), crate::error::Error>
 where
     H: SmtpHandler + 'static,
 {
@@ -112,7 +112,12 @@ where
         if cmd.to_uppercase().starts_with("HELO") {
             writer.write_all(b"250-filtermail\r\n250 OK\r\n").await?;
             writer.flush().await?;
-        } else if cmd.to_uppercase().starts_with("EHLO") {
+        } else if cmd.to_uppercase().starts_with("EHLO")
+            // We support LMTP, but it's not validated;
+            // service that expects LMTP will send LMTP responses no matter the greeting.
+            // Sufficient for our internal use case.
+            || cmd.to_uppercase().starts_with("LHLO")
+        {
             writer
                 .write_all(b"250-filtermail\r\n250-XFORWARD ADDR\r\n250 OK\r\n")
                 .await?;

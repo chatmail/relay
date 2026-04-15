@@ -1,4 +1,3 @@
-use hickory_resolver::name_server::TokioConnectionProvider;
 use hickory_resolver::{Name, TokioResolver};
 use lru::LruCache;
 use std::io;
@@ -29,7 +28,7 @@ fn normalize_rdata(txt_data: &str) -> String {
 /// DNS resolver for DKIM TXT records, that caches RDATA in memory.
 #[derive(Clone)]
 struct CachedResolver {
-    dns_resolver: TokioResolver,
+    dns_resolver: Arc<TokioResolver>,
     // Note: Arc is required despite we are holding the whole handler in an Arc,
     // because viadkim will internally clone the resolver (LookupTxt + Clone + 'static)
     // to parallelize lookups in case of multiple signatures...
@@ -38,26 +37,13 @@ struct CachedResolver {
 
 impl CachedResolver {
     /// Creates a new [`CachedResolver`].
-    pub fn new() -> Result<Self, crate::error::Error> {
-        // Use resolv.conf
-        let dns_resolver = {
-            let mut builder = TokioResolver::builder(TokioConnectionProvider::default())?;
-            // https://github.com/hickory-dns/hickory-dns/issues/3519
-            builder.options_mut().validate = true;
-            builder.build()
-        };
-
-        assert!(
-            dns_resolver.options().validate,
-            "incorrect resolver config: DNSSEC disabled; exiting"
-        );
-
+    pub fn new(dns_resolver: Arc<TokioResolver>) -> Self {
         let cache = Arc::new(parking_lot::Mutex::new(LruCache::new(LRU_CACHE_CAPACITY)));
 
-        Ok(Self {
+        Self {
             dns_resolver,
             cache,
-        })
+        }
     }
 
     /// Invalidates the cached RDATA for a given selector and domain.
@@ -148,7 +134,6 @@ impl LookupTxt for MockResolver {
 }
 
 /// Either a real resolver or a mock.
-#[allow(clippy::large_enum_variant)]
 #[derive(Clone)]
 enum Resolver {
     /// A [`CachedResolver`]
@@ -190,13 +175,13 @@ pub struct DkimVerifier {
 
 impl DkimVerifier {
     /// Creates a new [`DkimVerifier`] with the provided resolver.
-    pub fn new() -> Result<Self, crate::error::Error> {
-        let resolver = CachedResolver::new()?.into();
+    pub fn new(dns_resolver: Arc<TokioResolver>) -> Self {
+        let resolver = CachedResolver::new(dns_resolver).into();
         let config = viadkim::Config {
             lookup_timeout: Duration::from_secs(60),
             ..Default::default()
         };
-        Ok(Self { resolver, config })
+        Self { resolver, config }
     }
 
     /// Creates a new [`DkimVerifier`] with a mock resolver that always returns the provided TXT record.
