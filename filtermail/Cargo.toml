@@ -23,6 +23,13 @@ viadkim = { version = "0.2.0" }
 hickory-resolver = { version = "0.25.2", features = ["dnssec-ring"] }
 lru = "0.16.3"
 parking_lot = "0.12.5"
+tokio-rustls = { version = "0.26.4", default-features = false, features = [
+  "ring",
+  "logging",
+  "tls12",
+] }
+webpki-roots = "1.0.6"
+tokio-io-timeout = "1.2.1"
 
 [dev-dependencies]
 rstest = "0.26.1"

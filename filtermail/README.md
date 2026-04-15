@@ -11,16 +11,16 @@ and handles per-sender rate limiting.
 ## Usage
 
 ```plain
-filtermail <config> (incoming|outgoing)
+filtermail <config> (incoming|outgoing|transport)
 ```
 where `<config>` is a path to `chatmail.ini` configuration file.
 
-Filtermail can be used in `incoming` or `outgoing` mode that apply different settings
-to filter either incoming or outgoing emails.
+Filtermail can be used in `incoming`, `outgoing` or `transport` mode.
 
 ### Incoming mode
 
-Filtermail in incoming mode performs following steps:
+Filtermail in incoming mode acts as a proxy filter
+for messages received from remote MTAs and performs following steps:
 
 1. Rejects messages if `DATA` exceeds configured message size limit.
 2. Rejects messages that do not meet at least one of the following criteria:
@@ -43,7 +43,8 @@ Filtermail in incoming mode performs following steps:
 
 ### Outgoing mode
 
-Filtermail in outgoing mode performs following steps:
+Filtermail in outgoing mode acts as a proxy filter
+for messages received from clients and performs following steps:
 
 1. Rejects messages at `MAIL FROM` stage if the address exceeded rate limit.
 2. Rejects messages if `DATA` exceeds configured message size limit.
@@ -54,6 +55,15 @@ Filtermail in outgoing mode performs following steps:
     - sender is in `passthrough_senders`,
     - self-sent Autocrypt Setup Message,
     - all recipients match `passthrough_recipients`.
+
+### Transport mode
+
+Filtermail in transport mode is used for final delivery to remote MTAs.
+As opposed to incoming/outgoing, it accepts connections from postfix over LMTP instead of SMTP,
+to allow returning per-recipient status back to postfix.
+Received message is split per-domain and sent to recipients' MX servers over SMTP,
+enforcing TLS.
+As opposed to postfix, IPv4 and IPv6 connections are tried in parallel and first successful connection is used.
 
 ## Configuration
 
@@ -66,6 +76,8 @@ but implements a custom parser that only requires a small subset of configuratio
   defaults to `10080`.
 - `filtermail_smtp_port_incoming` - port to listen on in incoming mode,
   defaults to `10081`.
+- `filtermail_lmtp_port_transport` - port to listen on in transport mode,
+  defaults to `10083`.
 - `postfix_reinject_port` - port to reinject messages to postfix in outgoing mode,
   defaults to `10025`.
 - `postfix_reinject_port_incoming` - port to reinject messages to postfix in incoming mode,
@@ -113,7 +125,7 @@ Although unsupported, it may still work outside of this context or even without 
 with few considerations:
 
 - Filtermail expects to receive messages from a trusted server,
-  and thus should not be exposed directly to the internet.
+  and thus should not listen on ports exposed directly to the internet.
 - Issues outside of chatmail relay context are not necessarily considered bugs;
   PRs fixing them are not guaranteed to be accepted.
   (Trivial changes may still be considered,

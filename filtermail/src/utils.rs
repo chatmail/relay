@@ -1,3 +1,5 @@
+use hickory_resolver::TokioResolver;
+use hickory_resolver::name_server::TokioConnectionProvider;
 use mailparse::MailAddr;
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -30,7 +32,7 @@ pub fn extract_address(input: &str) -> Option<String> {
 
 /// Domain part of an email address, either a domain-literal (IP address in square brackets with
 /// optional protocol prefix) or a regular domain name.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, PartialOrd, Ord)]
 pub enum AddressDomain {
     /// Domain literal, e.g.
     /// - `192.0.2.0` in `test@[192.0.2.0]`,
@@ -76,6 +78,15 @@ impl FromStr for AddressDomain {
     }
 }
 
+impl AsRef<str> for AddressDomain {
+    fn as_ref(&self) -> &str {
+        match self {
+            AddressDomain::Literal(literal) => literal.as_ref(),
+            AddressDomain::Name(name) => name.as_ref(),
+        }
+    }
+}
+
 /// Logs email to `/tmp/filtermail-rejected/<reason>/<timestamp>.eml`
 /// and returns the file path.
 ///
@@ -91,6 +102,23 @@ pub async fn log_eml(reason: &str, data: &[u8]) -> Result<PathBuf, crate::error:
     path.push(filename);
     tokio::fs::write(&path, data).await?;
     Ok(path)
+}
+
+/// Creates a DNS resolver with DNSSEC enabled and system configuration (resolv.conf).
+pub fn build_resolver() -> Result<TokioResolver, crate::error::Error> {
+    let dns_resolver = {
+        let mut builder = TokioResolver::builder(TokioConnectionProvider::default())?;
+        // https://github.com/hickory-dns/hickory-dns/issues/3519
+        builder.options_mut().validate = true;
+        builder.build()
+    };
+
+    assert!(
+        dns_resolver.options().validate,
+        "incorrect resolver config: DNSSEC disabled; exiting"
+    );
+
+    Ok(dns_resolver)
 }
 
 #[cfg(test)]

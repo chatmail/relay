@@ -5,28 +5,28 @@ use crate::config::Config;
 use crate::message::{check_encrypted, is_securejoin, recipient_matches_passthrough};
 pub use crate::smtp_server::Envelope;
 use crate::smtp_server::SmtpHandler;
-use crate::utils::extract_address;
+use crate::utils::{build_resolver, extract_address};
 use async_trait::async_trait;
 use governor::{DefaultKeyedRateLimiter, Quota, RateLimiter};
+use hickory_resolver::TokioResolver;
 use mailparse::{MailHeaderMap, parse_mail};
-use std::net::SocketAddr;
+use std::sync::Arc;
 
 /// Handler for outgoing SMTP messages.
 pub struct OutgoingBeforeQueueHandler {
     config: Config,
-    reinject_addr: SocketAddr,
+    dns_resolver: Arc<TokioResolver>,
     send_rate_limiter: DefaultKeyedRateLimiter<String>,
 }
 
 impl OutgoingBeforeQueueHandler {
     pub fn new(config: Config) -> Result<Self, crate::error::Error> {
-        let reinject_addr =
-            crate::resolve_addr(&config.postfix_host, config.postfix_reinject_port)?;
         let quota = Quota::per_minute(config.max_user_send_per_minute)
             .allow_burst(config.max_user_send_burst_size);
+        let dns_resolver = Arc::new(build_resolver()?);
         Ok(Self {
             config,
-            reinject_addr,
+            dns_resolver,
             send_rate_limiter: RateLimiter::keyed(quota),
         })
     }
@@ -142,13 +142,20 @@ impl SmtpHandler for OutgoingBeforeQueueHandler {
 
     async fn reinject_mail(&self, envelope: &Envelope) -> Result<(), String> {
         log::debug!("Re-injecting the mail that passed checks");
-
-        crate::smtp_client::send(self.reinject_addr, envelope)
-            .await
-            .map_err(|e| {
-                log::warn!("Failed to re-inject mail: {}", e);
-                e.smtp_response()
-            })?;
+        let hostname = format!("[{}]", self.config.filtermail_host);
+        crate::smtp_client::send(
+            &self.config.postfix_host,
+            self.config.postfix_reinject_port,
+            envelope,
+            &hostname,
+            None,
+            self.dns_resolver.clone(),
+        )
+        .await
+        .map_err(|e| {
+            log::warn!("Failed to re-inject mail: {}", e);
+            e.smtp_response()
+        })?;
 
         Ok(())
     }

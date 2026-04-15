@@ -1,5 +1,7 @@
 //! Error types.
 
+use tokio_rustls::rustls;
+
 /// Error type for filtermail.
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
@@ -19,6 +21,12 @@ pub enum Error {
     },
     #[error("Invalid email address: {0}")]
     InvalidEmailAddress(String),
+    #[error("Failed to connect to any of the following addresses: {0:?}")]
+    ConnectionFailed(Vec<String>),
+    #[error(transparent)]
+    Tls(#[from] rustls::Error),
+    #[error(transparent)]
+    InvalidDnsName(#[from] rustls::pki_types::InvalidDnsNameError),
 }
 
 impl Error {
@@ -33,5 +41,14 @@ impl Error {
             Error::InvalidEmailAddress(address) => format!("500 Invalid email address: {address}"),
             _ => "451 Local error".to_string(),
         }
+    }
+
+    /// Same as [`smtp_response`](Self::smtp_response) but formats the same response
+    /// for each recipient, as expected by LMTP.
+    pub fn lmtp_response(&self, recipient_count: usize) -> String {
+        let response = self.smtp_response();
+        std::iter::repeat_n(response, recipient_count)
+            .collect::<Vec<_>>()
+            .join("\r\n")
     }
 }
