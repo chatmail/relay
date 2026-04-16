@@ -14,8 +14,6 @@ Minimal requirements and prerequisites
 
 You will need the following:
 
--  Control over a domain through a DNS provider of your choice.
-
 -  A Debian 12 **deployment server** with reachable SMTP/SUBMISSIONS/IMAPS/HTTPS ports.
    IPv6 is encouraged if available. Chatmail relay servers only require
    1GB RAM, one CPU, and perhaps 10GB storage for a few thousand active
@@ -28,6 +26,11 @@ You will need the following:
    (An ed25519 private key is required due to an `upstream bug in
    paramiko <https://github.com/paramiko/paramiko/issues/2191>`_)
 
+-  Control over a domain through a DNS provider of your choice
+   (there is experimental support for :ref:`DNS-less relays <iponly>`).
+
+
+.. _setup:
 
 Setup with ``scripts/cmdeploy``
 -------------------------------------

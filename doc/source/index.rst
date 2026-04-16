@@ -19,3 +19,4 @@ Contributions and feedback welcome through the https://github.com/chatmail/relay
     reverse_dns
     related
     faq
+    iponly
