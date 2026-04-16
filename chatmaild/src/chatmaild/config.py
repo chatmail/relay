@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 
 import iniconfig
+from domain_validator import DomainValidator
 
 from chatmaild.user import User
 
@@ -179,10 +180,12 @@ def is_valid_ipv4(address: str) -> bool:
 def format_arpa_address(address: str) -> str:
     if is_valid_ipv4(address):
         return ipaddress.IPv4Address(address).reverse_pointer
+    DomainValidator().validate_domain_re(address)
     return address
 
 
 def format_deliverable_domain(mail_domain: str) -> str:
     if is_valid_ipv4(mail_domain):
         return f"[{mail_domain}]"
+    DomainValidator().validate_domain_re(mail_domain)
     return mail_domain
