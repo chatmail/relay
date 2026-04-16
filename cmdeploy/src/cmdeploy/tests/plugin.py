@@ -297,7 +297,7 @@ def gencreds(chatmail_config):
             password = "".join(
                 random.choices(alphanumeric, k=chatmail_config.password_min_length)
             )
-            yield f"{user}@{addr_domain}", f"{password}"
+            yield f"{user}@{domain}", f"{password}"
 
     return lambda domain=None: next(gen(domain))
 
