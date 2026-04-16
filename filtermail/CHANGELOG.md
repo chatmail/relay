@@ -1,3 +1,17 @@
+## 0.6.2 - 2026-04-16
+
+### Documentation
+
+- *(readme)* Reformat README.md (#115)
+
+### Features
+
+- Log disabled recipients (#113)
+- *(transport)* Remote delivery over SMTP (#104)
+
+### Miscellaneous Tasks
+
+- *(dependabot)* Update configuration (#114)
 ## 0.6.1 - 2026-04-01
 
 ### Documentation
