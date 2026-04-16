@@ -4,7 +4,7 @@ import urllib.request
 from chatmaild.config import Config
 from pyinfra import host
 from pyinfra.facts.deb import DebPackages
-from pyinfra.facts.server import Arch, Sysctl
+from pyinfra.facts.server import Arch, Command, Sysctl
 from pyinfra.operations import apt, files, server, systemd
 
 from cmdeploy.basedeploy import (
@@ -79,6 +79,17 @@ class DovecotDeployer(Deployer):
 
     def activate(self):
         activate_remote_units(self.units)
+
+        # Detect stale binary: package installed but service still runs old (deleted) binary.
+        if not self.disable_mail and not self.need_restart:
+            stale = host.get_fact(
+                Command,
+                'pid=$(systemctl show -p MainPID --value dovecot.service 2>/dev/null);'
+                ' [ "${pid:-0}" != "0" ] && readlink "/proc/$pid/exe" 2>/dev/null | grep -q "(deleted)"'
+                " && echo STALE || true",
+            )
+            if stale == "STALE":
+                self.need_restart = True
 
         restart = False if self.disable_mail else self.need_restart
 
