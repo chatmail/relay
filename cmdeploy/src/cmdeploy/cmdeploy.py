@@ -147,6 +147,9 @@ def dns_cmd_options(parser):
 
 def dns_cmd(args, out):
     """Check DNS entries and optionally generate dns zone file."""
+    if is_valid_ipv4(args.config.mail_domain):
+        print(f"[WARNING] {args.config.mail_domain} is not a domain, skipping DNS checks.")
+        return 0
     ssh_host = args.ssh_host if args.ssh_host else args.config.mail_domain
     sshexec = get_sshexec(ssh_host, verbose=args.verbose)
     tls_cert_mode = args.config.tls_cert_mode
