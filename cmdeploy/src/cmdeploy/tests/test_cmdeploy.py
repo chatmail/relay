@@ -39,6 +39,14 @@ class TestCmdline:
         out, err = capsys.readouterr()
         assert "deleting config file" in out.lower()
 
+    def test_dns_skip_on_ip(self, capsys, tmp_path, monkeypatch):
+        monkeypatch.delenv("CHATMAIL_INI", raising=False)
+        inipath = tmp_path / "chatmail.ini"
+        assert main(["init", "--config", str(inipath), "1.3.3.7"]) == 0
+        assert main(["dns", "--config", str(inipath)]) == 0
+        out, err = capsys.readouterr()
+        assert out == "[WARNING] 1.3.3.7 is not a domain, skipping DNS checks.\n"
+
 
 def test_www_folder(example_config, tmp_path):
     reporoot = importlib.resources.files(__package__).joinpath("../../../../").resolve()
