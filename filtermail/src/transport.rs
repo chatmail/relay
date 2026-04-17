@@ -1,5 +1,5 @@
 use crate::config::Config;
-use crate::smtp_client::TlsConfig;
+use crate::smtp_client::{SmtpConnectionPool, TlsConfig};
 use crate::smtp_server::{Envelope, SmtpHandler};
 use crate::utils::{AddressDomain, build_resolver};
 use async_trait::async_trait;
@@ -14,6 +14,7 @@ pub struct TransportHandler {
     config: Config,
     dns_resolver: Arc<TokioResolver>,
     tls_resumption_store: Arc<rustls::client::ClientSessionMemoryCache>,
+    smtp_connection_pool: Arc<SmtpConnectionPool>,
 }
 
 impl TransportHandler {
@@ -24,12 +25,14 @@ impl TransportHandler {
             config,
             dns_resolver,
             tls_resumption_store,
+            smtp_connection_pool: SmtpConnectionPool::new(),
         })
     }
 
     /// Handles a single email transaction for a single recipient domain.
     async fn handle_single_domain(
         tls_resumption_store: Arc<rustls::client::ClientSessionMemoryCache>,
+        smtp_connection_pool: Arc<SmtpConnectionPool>,
         dns_resolver: Arc<TokioResolver>,
         domain: AddressDomain,
         envelope: Envelope,
@@ -97,6 +100,7 @@ impl TransportHandler {
                 &client_hostname,
                 tls_config.clone(),
                 dns_resolver.clone(),
+                smtp_connection_pool.clone(),
             )
             .await
             {
@@ -179,6 +183,7 @@ impl SmtpHandler for TransportHandler {
             let task_id = transactions
                 .spawn(Self::handle_single_domain(
                     self.tls_resumption_store.clone(),
+                    self.smtp_connection_pool.clone(),
                     self.dns_resolver.clone(),
                     rcpt_domain.clone(),
                     domain_envelope,

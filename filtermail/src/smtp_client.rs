@@ -7,13 +7,62 @@ use std::time::Duration;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufStream};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio::net::TcpStream;
-use tokio::task::JoinSet;
+use tokio::task::{JoinHandle, JoinSet};
 use tokio_io_timeout::TimeoutStream;
 use tokio_rustls::rustls::client::ClientSessionMemoryCache;
 
+/// A connection pool for SMTP connections, keyed by (address, port).
+///
+/// Connections are cached for up to 100 seconds of idle time.
+///
+/// Only a single connection is cached per address/port pair.
+pub struct SmtpConnectionPool {
+    pool: Arc<retainer::Cache<(String, u16), BufStream<SmtpStream>>>,
+    monitor_handle: JoinHandle<()>,
+}
+
+impl SmtpConnectionPool {
+    /// Creates a new connection pool and starts the cache monitoring task.
+    pub fn new() -> Arc<Self> {
+        let pool = Arc::new(retainer::Cache::new());
+        let pool_clone = pool.clone();
+
+        let monitor_handle =
+            tokio::spawn(async move { pool_clone.monitor(4, 0.25, Duration::from_secs(10)).await });
+
+        Arc::new(Self {
+            pool,
+            monitor_handle,
+        })
+    }
+
+    /// Takes a connection from the pool for the given address and port, if available.
+    pub async fn take(&self, address: &str, port: u16) -> Option<BufStream<SmtpStream>> {
+        self.pool.remove(&(address.to_string(), port)).await
+    }
+
+    /// Puts a connection into the pool for the given address and port, with a 100s timeout.
+    pub async fn put(&self, address: &str, port: u16, stream: BufStream<SmtpStream>) {
+        // similarly to postfix default -> 100s max idle time.
+        self.pool
+            .insert(
+                (address.to_string(), port),
+                stream,
+                Duration::from_secs(100),
+            )
+            .await;
+    }
+}
+
+impl Drop for SmtpConnectionPool {
+    fn drop(&mut self) {
+        self.monitor_handle.abort();
+    }
+}
+
 /// A [`TcpStream`] used for SMTP communication.
 #[expect(clippy::large_enum_variant)]
-enum SmtpStream {
+pub enum SmtpStream {
     /// A plain TCP stream.
     Plain(Pin<Box<TimeoutStream<TcpStream>>>),
     /// A TLS-encrypted stream.
@@ -144,6 +193,8 @@ async fn establish_tcp_connection(
 ///
 /// If `address` is a domain that resolves to multiple IP addresses,
 /// all will be tried in parallel and the first successful connection will be used.
+///
+/// `pool` is used to reuse existing connections to the same address and port, if available.
 pub async fn send(
     address: &str,
     port: u16,
@@ -151,23 +202,30 @@ pub async fn send(
     client_hostname: &str,
     tls_config: Option<TlsConfig>,
     dns_resolver: Arc<TokioResolver>,
+    pool: Arc<SmtpConnectionPool>,
 ) -> Result<(), crate::error::Error> {
-    let stream = establish_tcp_connection(address, port, dns_resolver).await?;
+    let (mut buf_stream, reused) = if let Some(stream) = pool.take(address, port).await {
+        log::debug!("Reusing existing connection to {address}:{port}",);
+        if tls_config.is_some() {
+            // This should never happen,
+            // assert to make sure we never accidentally use a plain connection while expecting TLS.
+            assert!(
+                matches!(stream.get_ref(), SmtpStream::Tls(_)),
+                "Expected TLS stream from pool, but got plain stream."
+            );
+        }
+        (stream, true)
+    } else {
+        let stream = establish_tcp_connection(address, port, dns_resolver).await?;
+        log::debug!("Successfully connected to {}", stream.peer_addr()?);
+        (BufStream::new(SmtpStream::plain(stream)), false)
+    };
 
-    log::debug!(
-        "SMTP client: successfully connected to {}",
-        stream.peer_addr()?
-    );
-
-    let mut buf_stream = BufStream::new(SmtpStream::plain(stream));
     let mut response = String::new();
 
     macro_rules! smtp_write {
         ($command: expr) => {
-            log::trace!(
-                "SMTP client: sending: {}",
-                String::from_utf8_lossy($command)
-            );
+            log::trace!("Sending: {}", String::from_utf8_lossy($command));
             buf_stream.write_all($command).await?;
             buf_stream.flush().await?;
         };
@@ -203,61 +261,65 @@ pub async fn send(
         };
     }
 
-    // Read initial greeting
-    smtp_read!("initial greeting", "220");
-
-    if tls_config.is_some() {
-        smtp_cmd!(
-            format!("EHLO {client_hostname}\r\n").as_bytes(),
-            "EHLO",
-            "250"
-        );
+    if reused {
+        smtp_cmd!(b"RSET\r\n", "RSET on reused connection", "250");
     } else {
-        smtp_cmd!(
-            format!("HELO {client_hostname}\r\n").as_bytes(),
-            "HELO",
-            "250"
-        );
-    };
+        // Read initial greeting
+        smtp_read!("initial greeting", "220");
 
-    // STARTTLS
-    if let Some(tls_config) = tls_config {
-        if !response.to_uppercase().contains("STARTTLS") {
-            // TLS was requested, but server doesn't support STARTTLS.
-            return Err(crate::error::Error::MailSend {
-                context: "STARTTLS".to_string(),
-                raw_smtp_answer: response.clone(),
-            });
-        }
-
-        log::trace!("Initiating STARTTLS...");
-        smtp_cmd!(b"STARTTLS\r\n", "STARTTLS", "220");
-
-        let stream = buf_stream.into_inner();
-        let raw_tcp = match stream {
-            SmtpStream::Plain(s) => s,
-            SmtpStream::Tls(_) => {
-                unreachable!("This is the first and only place we upgrade to TLS.")
-            }
+        if tls_config.is_some() {
+            smtp_cmd!(
+                format!("EHLO {client_hostname}\r\n").as_bytes(),
+                "EHLO",
+                "250"
+            );
+        } else {
+            smtp_cmd!(
+                format!("HELO {client_hostname}\r\n").as_bytes(),
+                "HELO",
+                "250"
+            );
         };
 
-        let tls_stream = crate::tls::wrap_rustls(
-            address,
-            raw_tcp,
-            tls_config.session_cache,
-            tls_config.allow_invalid_cert,
-        )
-        .await?;
+        // STARTTLS
+        if let Some(tls_config) = tls_config {
+            if !response.to_uppercase().contains("STARTTLS") {
+                // TLS was requested, but server doesn't support STARTTLS.
+                return Err(crate::error::Error::MailSend {
+                    context: "STARTTLS".to_string(),
+                    raw_smtp_answer: response.clone(),
+                });
+            }
 
-        let smtp_stream = SmtpStream::Tls(tls_stream);
+            log::trace!("Initiating STARTTLS...");
+            smtp_cmd!(b"STARTTLS\r\n", "STARTTLS", "220");
 
-        buf_stream = BufStream::new(smtp_stream);
+            let stream = buf_stream.into_inner();
+            let raw_tcp = match stream {
+                SmtpStream::Plain(s) => s,
+                SmtpStream::Tls(_) => {
+                    unreachable!("This is the first and only place we upgrade to TLS.")
+                }
+            };
 
-        smtp_cmd!(
-            format!("EHLO {client_hostname}\r\n").as_bytes(),
-            "EHLO after STARTTLS",
-            "250"
-        );
+            let tls_stream = crate::tls::wrap_rustls(
+                address,
+                raw_tcp,
+                tls_config.session_cache,
+                tls_config.allow_invalid_cert,
+            )
+            .await?;
+
+            let smtp_stream = SmtpStream::Tls(tls_stream);
+
+            buf_stream = BufStream::new(smtp_stream);
+
+            smtp_cmd!(
+                format!("EHLO {client_hostname}\r\n").as_bytes(),
+                "EHLO after STARTTLS",
+                "250"
+            );
+        }
     }
 
     // MAIL FROM
@@ -281,6 +343,8 @@ pub async fn send(
     smtp_write!(&envelope.data);
     smtp_write!(b".\r\n");
     smtp_read!("end of DATA", "250");
+
+    pool.put(address, port, buf_stream).await;
 
     Ok(())
 }
