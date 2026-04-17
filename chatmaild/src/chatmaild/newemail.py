@@ -2,6 +2,7 @@
 
 """CGI script for creating new accounts."""
 
+import ipaddress
 import json
 import secrets
 import string
@@ -14,6 +15,16 @@ ALPHANUMERIC = string.ascii_lowercase + string.digits
 ALPHANUMERIC_PUNCT = string.ascii_letters + string.digits + string.punctuation
 
 
+def wrap_ip(host):
+    if host.startswith("[") and host.endswith("]"):
+        return host
+    try:
+        ipaddress.ip_address(host)
+        return f"[{host}]"
+    except ValueError:
+        return host
+
+
 def create_newemail_dict(config: Config):
     user = "".join(
         secrets.choice(ALPHANUMERIC) for _ in range(config.username_max_length)
@@ -22,7 +33,7 @@ def create_newemail_dict(config: Config):
         secrets.choice(ALPHANUMERIC_PUNCT)
         for _ in range(config.password_min_length + 3)
     )
-    return dict(email=f"{user}@{config.mail_domain}", password=f"{password}")
+    return dict(email=f"{user}@{wrap_ip(config.mail_domain)}", password=f"{password}")
 
 
 def create_dclogin_url(email, password):
