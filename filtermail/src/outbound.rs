@@ -3,6 +3,7 @@
 use crate::ENCRYPTION_NEEDED_523;
 use crate::config::Config;
 use crate::message::{check_encrypted, is_securejoin, recipient_matches_passthrough};
+use crate::smtp_client::SmtpConnectionPool;
 pub use crate::smtp_server::Envelope;
 use crate::smtp_server::SmtpHandler;
 use crate::utils::{build_resolver, extract_address};
@@ -17,6 +18,7 @@ pub struct OutgoingBeforeQueueHandler {
     config: Config,
     dns_resolver: Arc<TokioResolver>,
     send_rate_limiter: DefaultKeyedRateLimiter<String>,
+    smtp_connection_pool: Arc<SmtpConnectionPool>,
 }
 
 impl OutgoingBeforeQueueHandler {
@@ -28,6 +30,7 @@ impl OutgoingBeforeQueueHandler {
             config,
             dns_resolver,
             send_rate_limiter: RateLimiter::keyed(quota),
+            smtp_connection_pool: SmtpConnectionPool::new(),
         })
     }
 }
@@ -150,6 +153,7 @@ impl SmtpHandler for OutgoingBeforeQueueHandler {
             &hostname,
             None,
             self.dns_resolver.clone(),
+            self.smtp_connection_pool.clone(),
         )
         .await
         .map_err(|e| {
