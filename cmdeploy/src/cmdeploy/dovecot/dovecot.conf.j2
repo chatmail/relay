@@ -133,6 +133,11 @@ protocol lmtp {
   # mail_lua and push_notification_lua are needed for Lua push notification handler.
   # <https://doc.dovecot.org/2.3/configuration_manual/push_notification/#configuration>
   mail_plugins = $mail_plugins mail_lua notify push_notification push_notification_lua
+
+  # Disable fsync for LMTP. May lose delivered message,
+  # but unlikely to cause problems with multiple relays.
+  # https://doc.dovecot.org/2.3/admin_manual/mailbox_formats/#fsyncing
+  mail_fsync = never
 }
 
 plugin {
@@ -252,6 +257,9 @@ protocol imap {
   # sort -sn <(sed 's/ / C: /' *.in) <(sed 's/ / S: /' cat *.out)
 
   rawlog_dir = %h 
+
+  # Disable fsync for IMAP. May lose IMAP changes like setting flags. 
+  mail_fsync = never
 } 
 {% endif %}
 
