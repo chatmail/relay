@@ -102,8 +102,14 @@ short overview of ``chatmaild`` services:
    Apple/Google/Huawei.
 
 -  `chatmail-expire <https://github.com/chatmail/relay/blob/main/chatmaild/src/chatmaild/expire.py>`_
-   deletes users if they have not logged in for a longer while.
-   The timeframe can be configured in ``chatmail.ini``.
+   deletes entire mailboxes of users who have not logged in
+   for longer than ``delete_inactive_users_after`` days.
+
+-  `chatmail-quota-expire <https://github.com/chatmail/relay/blob/main/chatmaild/src/chatmaild/quota_expire.py>`_
+   is called by Dovecot's ``quota_warning`` mechanism when a
+   user reaches 90% of their mailbox quota.
+   It removes the largest and oldest messages
+   until usage drops below 80% of the quota.
 
 -  `lastlogin <https://github.com/chatmail/relay/blob/main/chatmaild/src/chatmaild/lastlogin.py>`_
    is contacted by Dovecot when a user logs in and stores the date of
@@ -139,7 +145,7 @@ Chatmail relay dependency diagram
         certs-nginx[("`TLS certs
         /var/lib/acme`")] --> nginx-internal;
         systemd-timer --- acmetool;
-        systemd-timer --- chatmail-expire-daily;
+        systemd-timer --- chatmail-expire-inactive;
         systemd-timer --- chatmail-fsreport-daily;
         acmetool --> certs[("`TLS certs
         /var/lib/acme`")];
@@ -156,9 +162,11 @@ Chatmail relay dependency diagram
         /home/vmail/.../user"];
         dovecot --- |lastlogin.socket|lastlogin;
         dovecot --- chatmail-metadata;
+        dovecot --- |quota-warning|chatmail-quota-expire;
+        chatmail-quota-expire --- maildir;
         lastlogin --- maildir;
         doveauth --- maildir;
-        chatmail-expire-daily --- maildir;
+        chatmail-expire-inactive --- maildir;
         chatmail-fsreport-daily --- maildir;
         chatmail-metadata --- iroh-relay;
         chatmail-metadata --- |encrypted device token| notifications.delta.chat;

@@ -1,7 +1,6 @@
 import os
 import random
 from datetime import datetime
-from fnmatch import fnmatch
 from pathlib import Path
 
 import pytest
@@ -152,35 +151,6 @@ def test_report_mdir_filters_by_path(mbox1, example_config):
 def test_expiry_cli_basic(example_config, mbox1):
     args = (str(example_config._inipath),)
     expiry_main(args)
-
-
-def test_expiry_cli_old_files(capsys, example_config, mbox1):
-    relpaths_old = ["cur/msg_old1", "cur/msg_old1"]
-    cutoff_days = int(example_config.delete_mails_after) + 1
-    create_new_messages(mbox1.basedir, relpaths_old, size=1000, days=cutoff_days)
-
-    relpaths_large = ["cur/msg_old_large1", "new/msg_old_large2"]
-    cutoff_days = int(example_config.delete_large_after) + 1
-    create_new_messages(
-        mbox1.basedir, relpaths_large, size=1000 * 300, days=cutoff_days
-    )
-
-    create_new_messages(mbox1.basedir, ["cur/shouldstay"], size=1000 * 300, days=1)
-
-    args = str(example_config._inipath), "--remove", "-v"
-    expiry_main(args)
-    out, err = capsys.readouterr()
-
-    allpaths = relpaths_old + relpaths_large + ["maildirsize"]
-    for path in allpaths:
-        for line in err.split("\n"):
-            if fnmatch(line, f"removing*{path}"):
-                break
-        else:
-            if path != "new/msg_old_large2":
-                pytest.fail(f"failed to remove {path}\n{err}")
-
-    assert "shouldstay" not in err
 
 
 def test_get_file_entry(tmp_path):

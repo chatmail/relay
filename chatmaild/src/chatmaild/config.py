@@ -25,8 +25,6 @@ class Config:
         self.max_user_send_burst_size = int(params.get("max_user_send_burst_size", 10))
         self.max_mailbox_size = params["max_mailbox_size"]
         self.max_message_size = int(params.get("max_message_size", "31457280"))
-        self.delete_mails_after = params["delete_mails_after"]
-        self.delete_large_after = params["delete_large_after"]
         self.delete_inactive_users_after = int(params["delete_inactive_users_after"])
         self.username_min_length = int(params["username_min_length"])
         self.username_max_length = int(params["username_max_length"])
@@ -95,6 +93,11 @@ class Config:
         # old unused option (except for first migration from sqlite to maildir store)
         self.passdb_path = Path(params.get("passdb_path", "/home/vmail/passdb.sqlite"))
 
+    @property
+    def max_mailbox_size_mb(self):
+        """Return max_mailbox_size as an integer in megabytes."""
+        return parse_size_mb(self.max_mailbox_size)
+
     def _getbytefile(self):
         return open(self._inipath, "rb")
 
@@ -106,6 +109,16 @@ class Config:
         password_path = maildir.joinpath("password")
 
         return User(maildir, addr, password_path, uid="vmail", gid="vmail")
+
+
+def parse_size_mb(limit):
+    """Parse a size string like ``500M`` or ``2G`` and return megabytes."""
+    value = limit.strip().upper().rstrip("B")
+    if value.endswith("G"):
+        return int(value[:-1]) * 1024
+    if value.endswith("M"):
+        return int(value[:-1])
+    return int(value)
 
 
 def write_initial_config(inipath, mail_domain, overrides):

@@ -149,12 +149,22 @@ plugin {
 }
 
 plugin {
-  # for now we define static quota-rules for all users 
+  # for now we define static quota-rules for all users
   quota = maildir:User quota
   quota_rule = *:storage={{ config.max_mailbox_size }}
   quota_max_mail_size={{ config.max_message_size }}
   quota_grace = 0
-  # quota_over_flag_value = TRUE
+
+  # When a user reaches 90% quota, run chatmail-quota-expire
+  # to remove large/old messages until usage is below 80%.
+  quota_warning = storage=90%% quota-warning {{ config.max_mailbox_size_mb * 80 // 100 }} {{ config.mailboxes_dir }}/%u
+}
+
+service quota-warning {
+  executable = script /usr/local/lib/chatmaild/venv/bin/chatmail-quota-expire
+  user = vmail
+  unix_listener quota-warning {
+  }
 }
 
 # push_notification configuration

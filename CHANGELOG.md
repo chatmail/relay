@@ -1,5 +1,24 @@
 # Changelog for chatmail deployment 
 
+## Unreleased
+
+### Features
+
+- Automated per-user quota-keeping.
+  Replace daily timer-based message expire script
+  with Dovecot quota-warning-triggered cleanup (`chatmail-quota-expire`).
+  When a user reaches 90% of their mailbox quota
+  Dovecot calls the new script which removes the largest and oldest messages
+  until usage drops below 80%.
+  The daily `chatmail-expire` timer now only handles deletion
+  of inactive user mailboxes.
+
+  After upgrading, run the following once to clean up
+  mailboxes that are already over quota::
+
+      /usr/local/lib/chatmaild/venv/bin/chatmail-quota-expire \
+          400 /home/vmail/mail/YOURDOMAIN --sweep
+
 ## 1.9.0 2025-12-18
 
 ### Documentation

@@ -115,11 +115,8 @@ class Expiry:
         cutoff_without_login = (
             self.now - int(self.config.delete_inactive_users_after) * 86400
         )
-        cutoff_mails = self.now - int(self.config.delete_mails_after) * 86400
-        cutoff_large_mails = self.now - int(self.config.delete_large_after) * 86400
 
         self.all_mboxes += 1
-        changed = False
         if mbox.last_login and mbox.last_login < cutoff_without_login:
             self.remove_mailbox(mbox.basedir)
             return
@@ -131,25 +128,10 @@ class Expiry:
                 print_info(f"checking mailbox {date.strftime('%b %d')} {mboxname}")
             else:
                 print_info(f"checking mailbox (no last_login) {mboxname}")
-        self.all_files += len(mbox.messages)
-        for message in mbox.messages:
-            if message.mtime < cutoff_mails:
-                self.remove_file(message.path, mtime=message.mtime)
-            elif message.size > 200000 and message.mtime < cutoff_large_mails:
-                # we only remove noticed large files (not unnoticed ones in new/)
-                parts = message.path.split("/")
-                if len(parts) >= 2 and parts[-2] == "cur":
-                    self.remove_file(message.path, mtime=message.mtime)
-            else:
-                continue
-            changed = True
-        if changed:
-            self.remove_file(f"{mbox.basedir}/maildirsize")
 
     def get_summary(self):
         return (
             f"Removed {self.del_mboxes} out of {self.all_mboxes} mailboxes "
-            f"and {self.del_files} out of {self.all_files} files in existing mailboxes "
             f"in {time.time() - self.start:2.2f} seconds"
         )
 
