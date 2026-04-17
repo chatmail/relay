@@ -1,4 +1,5 @@
 import imaplib
+import ipaddress
 import itertools
 import os
 import random
@@ -12,6 +13,14 @@ import pytest
 from chatmaild.config import read_config
 
 conftestdir = Path(__file__).parent
+
+
+def _is_ip(domain):
+    try:
+        ipaddress.ip_address(domain)
+        return True
+    except ValueError:
+        return False
 
 
 def pytest_addoption(parser):
@@ -282,6 +291,7 @@ def gencreds(chatmail_config):
 
     def gen(domain=None):
         domain = domain if domain else chatmail_config.mail_domain
+        addr_domain = f"[{domain}]" if _is_ip(domain) else domain
         while 1:
             num = next(count)
             alphanumeric = "abcdefghijklmnopqrstuvwxyz1234567890"
@@ -295,7 +305,7 @@ def gencreds(chatmail_config):
             password = "".join(
                 random.choices(alphanumeric, k=chatmail_config.password_min_length)
             )
-            yield f"{user}@{domain}", f"{password}"
+            yield f"{user}@{addr_domain}", f"{password}"
 
     return lambda domain=None: next(gen(domain))
 
@@ -344,9 +354,22 @@ class ChatmailACFactory:
         accounts = []
         for _ in range(num):
             account = self.dc.add_account()
-            future = account.add_or_update_transport.future(
-                self._make_transport(domain)
-            )
+            addr, password = self.gencreds(domain)
+            if _is_ip(domain):
+                # Use DCLOGIN scheme with explicit server hosts,
+                # matching how madmail presents its addresses to users.
+                qr = (
+                    f"dclogin:{addr}"
+                    f"?p={password}&v=1"
+                    f"&ih={domain}&ip=993"
+                    f"&sh={domain}&sp=465"
+                    f"&ic=3&ss=default"
+                )
+                future = account.add_transport_from_qr.future(qr)
+            else:
+                future = account.add_or_update_transport.future(
+                    self._make_transport(domain)
+                )
             futures.append(future)
 
             # ensure messages stay in INBOX so that they can be

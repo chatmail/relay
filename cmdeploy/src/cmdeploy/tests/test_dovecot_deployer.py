@@ -2,9 +2,9 @@ from contextlib import nullcontext
 from types import SimpleNamespace
 
 import pytest
+from pyinfra.facts.deb import DebPackages
 
 from cmdeploy.dovecot import deployer as dovecot_deployer
-from pyinfra.facts.deb import DebPackages
 
 
 def make_host(*fact_pairs):

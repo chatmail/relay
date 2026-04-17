@@ -19,6 +19,12 @@ def test_create_newemail_dict(example_config):
     assert ac1["password"] != ac2["password"]
 
 
+def test_create_newemail_dict_ip(make_config):
+    config = make_config("1.2.3.4")
+    ac = create_newemail_dict(config)
+    assert ac["email"].endswith("@[1.2.3.4]")
+
+
 def test_create_dclogin_url():
     url = create_dclogin_url("user@example.org", "p@ss w+rd")
     assert url.startswith("dclogin:")
