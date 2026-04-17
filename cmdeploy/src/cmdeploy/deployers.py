@@ -158,7 +158,7 @@ class UnboundDeployer(Deployer):
         with blocked_service_startup():
             apt.packages(
                 name="Install unbound",
-                packages=["unbound", "unbound-anchor", "dnsutils"],
+                packages=["unbound", "unbound-anchor", "dnsutils", "resolvconf"],
             )
 
     def configure(self):
