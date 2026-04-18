@@ -78,3 +78,11 @@ counter rejected_unencrypted_mail_count
 /Rejected unencrypted mail/ {
   rejected_unencrypted_mail_count++
 }
+
+counter quota_expire_runs
+counter quota_expire_removed_files
+
+/quota-expire: removed (?P<count>\d+) message\(s\)/ {
+  quota_expire_runs++
+  quota_expire_removed_files += $count
+}

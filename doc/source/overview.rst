@@ -102,8 +102,12 @@ short overview of ``chatmaild`` services:
    Apple/Google/Huawei.
 
 -  `chatmail-expire <https://github.com/chatmail/relay/blob/main/chatmaild/src/chatmaild/expire.py>`_
-   deletes users if they have not logged in for a longer while.
-   The timeframe can be configured in ``chatmail.ini``.
+   deletes old messages, large messages, and entire mailboxes
+   of users who have not logged in for longer than
+   ``delete_inactive_users_after`` days.
+
+-  ``chatmail-quota-expire`` is called by Dovecot's ``quota_warning`` mechanism
+   and will automatically remove oldest messages to keep mailboxes well under ``max_mailbox_size``.
 
 -  `lastlogin <https://github.com/chatmail/relay/blob/main/chatmaild/src/chatmaild/lastlogin.py>`_
    is contacted by Dovecot when a user logs in and stores the date of
@@ -156,6 +160,8 @@ Chatmail relay dependency diagram
         /home/vmail/.../user"];
         dovecot --- |lastlogin.socket|lastlogin;
         dovecot --- chatmail-metadata;
+        dovecot --- |quota-warning|chatmail-quota-expire;
+        chatmail-quota-expire --- maildir;
         lastlogin --- maildir;
         doveauth --- maildir;
         chatmail-expire-daily --- maildir;

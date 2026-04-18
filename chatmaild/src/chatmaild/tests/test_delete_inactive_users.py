@@ -1,7 +1,7 @@
 import time
 
 from chatmaild.doveauth import AuthDictProxy
-from chatmaild.expire import main as main_expire
+from chatmaild.expire import daily_expire_main as main_expire
 
 
 def test_login_timestamps(example_config):

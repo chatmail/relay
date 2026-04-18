@@ -95,6 +95,11 @@ class Config:
         # old unused option (except for first migration from sqlite to maildir store)
         self.passdb_path = Path(params.get("passdb_path", "/home/vmail/passdb.sqlite"))
 
+    @property
+    def max_mailbox_size_mb(self):
+        """Return max_mailbox_size as an integer in megabytes."""
+        return parse_size_mb(self.max_mailbox_size)
+
     def _getbytefile(self):
         return open(self._inipath, "rb")
 
@@ -106,6 +111,16 @@ class Config:
         password_path = maildir.joinpath("password")
 
         return User(maildir, addr, password_path, uid="vmail", gid="vmail")
+
+
+def parse_size_mb(limit):
+    """Parse a size string like ``500M`` or ``2G`` and return megabytes."""
+    value = limit.strip().upper().removesuffix("B")
+    if value.endswith("G"):
+        return int(value[:-1]) * 1024
+    if value.endswith("M"):
+        return int(value[:-1])
+    return int(value)
 
 
 def write_initial_config(inipath, mail_domain, overrides):
