@@ -18,6 +18,7 @@ max_user_send_per_minute = 60
 max_user_send_burst_size = 10
 
 # maximum mailbox size of a chatmail address
+# Oldest messages will be removed automatically, so mailboxes never run full.
 max_mailbox_size = 500M
 
 # maximum message size for an e-mail in bytes
