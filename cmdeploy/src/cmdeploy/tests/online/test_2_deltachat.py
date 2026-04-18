@@ -88,9 +88,12 @@ class TestEndToEndDeltaChat:
             return int(float(number) * units[unit])
 
         quota = parse_size_limit(chatmail_config.max_mailbox_size)
+        # Dovecot quota is inflated to 140% of the configured limit
+        # so that quota-expire keeps users below the warning threshold.
+        dovecot_quota = quota * 140 // 100
 
         lp.sec(f"filling remote inbox for {user}")
-        fn = f"7743102289.M843172P2484002.c20,S={quota},W=2398:2,"
+        fn = f"7743102289.M843172P2484002.c20,S={dovecot_quota},W=2398:2,"
         path = chatmail_config.mailboxes_dir.joinpath(user, "cur", fn)
         sshexec = get_sshexec(sshdomain)
         sshexec(call=rshell.write_numbytes, kwargs=dict(path=str(path), num=120))

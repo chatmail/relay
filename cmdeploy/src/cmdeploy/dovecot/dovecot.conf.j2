@@ -149,12 +149,26 @@ plugin {
 }
 
 plugin {
-  # for now we define static quota-rules for all users 
   quota = maildir:User quota
-  quota_rule = *:storage={{ config.max_mailbox_size }}
   quota_max_mail_size={{ config.max_message_size }}
   quota_grace = 0
-  # quota_over_flag_value = TRUE
+
+  # Inflate the dovecot-visible quota so that Delta Chat clients
+  # (which warn at 80% of the IMAP-reported limit) never see
+  # quota warnings -- expire kicks in well before that point.
+  quota_rule = *:storage={{ config.max_mailbox_size_mb * 140 // 100 }}M
+
+  # Trigger when usage reaches the configured max_mailbox_size
+  # (72% of inflated = ~100% of configured), then expire oldest
+  # messages down to 80% of the configured max_mailbox_size.
+  quota_warning = storage=72%% quota-warning {{ config.max_mailbox_size_mb * 80 // 100 }} {{ config.mailboxes_dir }}/%u
+}
+
+service quota-warning {
+  executable = script /usr/local/lib/chatmaild/venv/bin/chatmail-quota-expire
+  user = vmail
+  unix_listener quota-warning {
+  }
 }
 
 # push_notification configuration

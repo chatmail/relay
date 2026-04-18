@@ -1,5 +1,20 @@
 # Changelog for chatmail deployment 
 
+## Unreleased
+
+### Features
+
+- Add per-user quota-triggered cleanup (`chatmail-quota-expire`).
+  When a mailbox exceeds the configured ``max_mailbox_size``,
+  Dovecot runs the new script which removes the oldest
+  messages until usage drops to a safe level.
+  No operator action is required after upgrading;
+  existing over-quota mailboxes start receiving mail
+  again immediately and are cleaned up automatically.
+  The daily `chatmail-expire` timer continues to handle
+  deletion of old messages, large messages,
+  and inactive user mailboxes.
+
 ## 1.9.0 2025-12-18
 
 ### Documentation

@@ -1,6 +1,6 @@
 import pytest
 
-from chatmaild.config import read_config
+from chatmaild.config import parse_size_mb, read_config
 
 
 def test_read_config_basic(example_config):
@@ -121,3 +121,17 @@ def test_config_tls_external_bad_format(make_config):
                 "tls_external_cert_and_key": "/only/one/path.pem",
             },
         )
+
+
+def test_parse_size_mb():
+    assert parse_size_mb("500M") == 500
+    assert parse_size_mb("2G") == 2048
+    assert parse_size_mb("  1g  ") == 1024
+    assert parse_size_mb("100MB") == 100
+    assert parse_size_mb("256") == 256
+
+
+def test_max_mailbox_size_mb(make_config):
+    config = make_config("chat.example.org")
+    assert config.max_mailbox_size == "500M"
+    assert config.max_mailbox_size_mb == 500

@@ -22,6 +22,7 @@ where = ['src']
 doveauth = "chatmaild.doveauth:main"
 chatmail-metadata = "chatmaild.metadata:main"
 chatmail-expire = "chatmaild.expire:main"
+chatmail-quota-expire = "chatmaild.quota_expire:main"
 chatmail-fsreport = "chatmaild.fsreport:main"
 lastlogin = "chatmaild.lastlogin:main"
 turnserver = "chatmaild.turnserver:main"
