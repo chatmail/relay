@@ -1,5 +1,6 @@
 import os
 import random
+import time
 from datetime import datetime
 from fnmatch import fnmatch
 from pathlib import Path
@@ -9,12 +10,18 @@ import pytest
 from chatmaild.expire import (
     FileEntry,
     MailboxStat,
+    expire_to_target,
     get_file_entry,
     iter_mailboxes,
     os_listdir_if_exists,
+    parse_dovecot_filename,
+    quota_expire_main,
+    scan_mailbox_messages,
 )
-from chatmaild.expire import main as expiry_main
+from chatmaild.expire import daily_expire_main as expiry_main
 from chatmaild.fsreport import main as report_main
+
+MB = 1024 * 1024
 
 
 def fill_mbox(folderdir):
@@ -196,3 +203,46 @@ def test_os_listdir_if_exists(tmp_path):
     tmp_path.joinpath("x").write_text("hello")
     assert len(os_listdir_if_exists(str(tmp_path))) == 1
     assert len(os_listdir_if_exists(str(tmp_path.joinpath("123123")))) == 0
+
+
+# --- quota expire tests ---
+
+
+def _create_message(basedir, sub, size, days_old=0, disk_size=None):
+    mtime = int(time.time() - days_old * 86400)
+    name = f"{mtime}.M1P1.host,S={size},W={size}:2,S"
+    path = basedir / sub / name
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(b"x" * (disk_size if disk_size is not None else size))
+    os.utime(path, (mtime, mtime))
+    return path
+
+
+def test_parse_dovecot_filename():
+    e = parse_dovecot_filename("cur/1775324677.M448978P3029757.nine,S=3235,W=3305:2,S")
+    assert e.path == "cur/1775324677.M448978P3029757.nine,S=3235,W=3305:2,S"
+    assert e.mtime == 1775324677
+    assert e.quota_size == 3235
+    assert parse_dovecot_filename("cur/msg_without_structure") is None
+
+
+def test_expire_to_target(tmp_path):
+    # scans cur, new, tmp
+    _create_message(tmp_path, "cur", MB, days_old=10, disk_size=100)
+    _create_message(tmp_path, "new", MB, days_old=5)
+    _create_message(tmp_path, "tmp", MB, days_old=1)
+    assert len(scan_mailbox_messages(tmp_path)) == 3
+    # removes oldest first, uses S= size not disk size
+    removed = expire_to_target(tmp_path, 2 * MB)
+    assert removed == 1
+    assert len(scan_mailbox_messages(tmp_path)) == 2
+
+
+def test_quota_expire_main(tmp_path, capsys):
+    mbox = tmp_path / "user@example.org"
+    _create_message(mbox, "cur", 2 * MB, days_old=5)
+    (mbox / "maildirsize").write_text("x")
+    quota_expire_main([str(1), str(mbox)])
+    _, err = capsys.readouterr()
+    assert "quota-expire: removed 1 message(s) from user@example.org" in err
+    assert not (mbox / "maildirsize").exists()

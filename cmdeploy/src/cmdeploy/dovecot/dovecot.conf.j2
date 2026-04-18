@@ -149,12 +149,26 @@ plugin {
 }
 
 plugin {
-  # for now we define static quota-rules for all users 
   quota = maildir:User quota
-  quota_rule = *:storage={{ config.max_mailbox_size }}
   quota_max_mail_size={{ config.max_message_size }}
   quota_grace = 0
-  # quota_over_flag_value = TRUE
+
+  quota_rule = *:storage={{ config.max_mailbox_size_mb }}M
+
+  # Trigger at 75%% of quota, expire oldest messages down to 70%%.
+  # The percentages are chosen to prevent current Delta Chat users
+  # from seeing "quota warnings" which trigger at 80% and 95%.
+
+  quota_warning = storage=75%% quota-warning {{ config.max_mailbox_size_mb * 70 // 100 }} {{ config.mailboxes_dir }}/%u
+}
+
+service quota-warning {
+  executable = script /usr/local/lib/chatmaild/venv/bin/chatmail-quota-expire
+  user = vmail
+  unix_listener quota-warning {
+     user = vmail
+     mode = 0600
+  }
 }
 
 # push_notification configuration

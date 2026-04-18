@@ -4,17 +4,26 @@ Expire old messages and addresses.
 """
 
 import os
+import re
 import shutil
 import sys
 import time
 from argparse import ArgumentParser
 from collections import namedtuple
 from datetime import datetime
+from pathlib import Path
 from stat import S_ISREG
 
 from chatmaild.config import read_config
 
 FileEntry = namedtuple("FileEntry", ("path", "mtime", "size"))
+QuotaFileEntry = namedtuple("QuotaFileEntry", ("mtime", "quota_size", "path"))
+
+# Quota cleanup factor of max_mailbox_size. The mailbox is reset to this size.
+QUOTA_CLEANUP_FACTOR = 0.7
+
+# e.g. "cur/1775324677.M448978P3029757.nine,S=3235,W=3305:2,S"
+_dovecot_fn_rex = re.compile(r".+/(\d+)\..+,S=(\d+)")
 
 
 def iter_mailboxes(basedir, maxnum):
@@ -72,6 +81,36 @@ class MailboxStat:
                     if name == "password":
                         self.last_login = entry.mtime
         self.extrafiles.sort(key=lambda x: -x.size)
+
+
+def parse_dovecot_filename(relpath):
+    m = _dovecot_fn_rex.match(relpath)
+    if not m:
+        return None
+    return QuotaFileEntry(int(m.group(1)), int(m.group(2)), relpath)
+
+
+def scan_mailbox_messages(mbox):
+    messages = []
+    for sub in ("cur", "new", "tmp"):
+        for name in os_listdir_if_exists(mbox / sub):
+            if entry := parse_dovecot_filename(f"{sub}/{name}"):
+                messages.append(entry)
+    return messages
+
+
+def expire_to_target(mbox, target_bytes):
+    messages = scan_mailbox_messages(mbox)
+    total_size = sum(m.quota_size for m in messages)
+    removed = 0
+    for entry in sorted(messages):
+        if total_size <= target_bytes:
+            break
+        (mbox / entry.path).unlink(missing_ok=True)
+        total_size -= entry.quota_size
+        removed += 1
+
+    return removed
 
 
 def print_info(msg):
@@ -143,6 +182,19 @@ class Expiry:
             else:
                 continue
             changed = True
+
+        target_bytes = (
+            self.config.max_mailbox_size_mb * 1024 * 1024 * QUOTA_CLEANUP_FACTOR
+        )
+        removed = expire_to_target(Path(mbox.basedir), target_bytes)
+        if removed:
+            changed = True
+            self.del_files += removed
+            if self.verbose:
+                print_info(
+                    f"quota-expire: removed {removed} message(s) from {mboxname}"
+                )
+
         if changed:
             self.remove_file(f"{mbox.basedir}/maildirsize")
 
@@ -154,9 +206,9 @@ class Expiry:
         )
 
 
-def main(args=None):
+def daily_expire_main(args=None):
     """Expire mailboxes and messages according to chatmail config"""
-    parser = ArgumentParser(description=main.__doc__)
+    parser = ArgumentParser(description=daily_expire_main.__doc__)
     ini = "/usr/local/lib/chatmaild/chatmail.ini"
     parser.add_argument(
         "chatmail_ini",
@@ -202,5 +254,33 @@ def main(args=None):
     print(exp.get_summary())
 
 
-if __name__ == "__main__":
-    main(sys.argv[1:])
+def quota_expire_main(args=None):
+    """Remove mailbox messages to stay within a megabyte target.
+
+    This entry point is called by dovecot when a quota threshold is passed.
+    """
+
+    parser = ArgumentParser(description=quota_expire_main.__doc__)
+    parser.add_argument(
+        "target_mb",
+        type=int,
+        help="target mailbox size in megabytes",
+    )
+    parser.add_argument(
+        "mailbox_path",
+        type=Path,
+        help="path to a user mailbox",
+    )
+    args = parser.parse_args(args)
+
+    target_bytes = args.target_mb * 1024 * 1024
+
+    removed_count = expire_to_target(args.mailbox_path, target_bytes)
+    if removed_count:
+        (args.mailbox_path / "maildirsize").unlink(missing_ok=True)
+        print(
+            f"quota-expire: removed {removed_count} message(s)"
+            f" from {args.mailbox_path.name}",
+            file=sys.stderr,
+        )
+    return 0
