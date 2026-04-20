@@ -186,7 +186,7 @@ def _configure_dovecot(config: Config, debug: bool = False) -> tuple[bool, bool]
     can_modify = not is_in_container()
     for name in ("max_user_instances", "max_user_watches"):
         key = f"fs.inotify.{name}"
-        value = host.get_fact(Sysctl)[key]
+        value = host.get_fact(Sysctl).get(key, 0)
         if value > 65534:
             continue
         if not can_modify:
