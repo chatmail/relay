@@ -150,18 +150,40 @@ class UnboundDeployer(Deployer):
         self.need_restart = False
 
     def install(self):
-        # Run local DNS resolver `unbound`. `resolvconf` takes care of
-        # setting up /etc/resolv.conf to use 127.0.0.1 as the resolver.
-
         # On an IPv4-only system, if unbound is started but not configured,
         # it causes subsequent steps to fail to resolve hosts.
         with blocked_service_startup():
             apt.packages(
                 name="Install unbound",
-                packages=["unbound", "unbound-anchor", "dnsutils", "resolvconf"],
+                packages=["unbound", "unbound-anchor", "dnsutils"],
             )
 
     def configure(self):
+        # Remove dynamic resolver managers that compete for /etc/resolv.conf.
+        apt.packages(
+            name="Purge resolvconf",
+            packages=["resolvconf"],
+            present=False,
+            extra_uninstall_args="--purge",
+        )
+        # systemd-resolved can't be purged due to dependencies; stop and mask.
+        server.shell(
+            name="Stop and mask systemd-resolved",
+            commands=[
+                "systemctl stop systemd-resolved.service || true",
+                "systemctl mask systemd-resolved.service",
+            ],
+        )
+        # Configure unbound resolver with Quad9 fallback and a trailing newline
+        # (SolusVM bug).
+        files.put(
+            name="Write static resolv.conf",
+            src=BytesIO(b"nameserver 127.0.0.1\nnameserver 9.9.9.9\n"),
+            dest="/etc/resolv.conf",
+            user="root",
+            group="root",
+            mode="644",
+        )
         server.shell(
             name="Generate root keys for validating DNSSEC",
             commands=[
@@ -567,14 +589,6 @@ def deploy_chatmail(config_path: Path, disable_mail: bool, website_only: bool) -
     if website_only:
         Deployment().perform_stages([WebsiteDeployer(config)])
         return
-
-    if host.get_fact(Port, port=53) != "unbound":
-        files.line(
-            name="Add 9.9.9.9 to resolv.conf",
-            path="/etc/resolv.conf",
-            # Guard against resolv.conf missing a trailing newline (SolusVM bug).
-            line="\nnameserver 9.9.9.9",
-        )
 
     # Check if mtail_address interface is available (if configured)
     if config.mtail_address and config.mtail_address not in ('127.0.0.1', '::1', 'localhost'):
