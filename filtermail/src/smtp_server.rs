@@ -1,6 +1,6 @@
 //! A simplified SMTP server implementation for internal communication.
 
-use crate::utils::extract_address;
+use crate::utils::{extract_address, log_eml};
 use async_trait::async_trait;
 use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, BufWriter};
@@ -103,7 +103,9 @@ where
         // Note: this will kill the connection if any line doesn't end with CRLF.
         // This is intentional as stray LF most likely means an attempt to exploit the server.
         let Some(cmd) = line.strip_suffix("\r\n") else {
-            log::warn!("Malformed command without CRLF ending! Closing connection.");
+            log::warn!(
+                "Malformed command without CRLF ending! Received: {line:?} Closing connection."
+            );
             break 'connection;
         };
 
@@ -171,6 +173,15 @@ where
 
                 if !data_line.ends_with("\r\n") {
                     log::warn!("Malformed DATA line without CRLF ending! Closing connection.");
+                    data.extend_from_slice(data_line.as_bytes());
+                    let eml_path = log_eml("malformed-data", &data)
+                        .await
+                        .map(|path| path.to_string_lossy().to_string())
+                        .unwrap_or_else(|e| {
+                            log::error!("Failed to save rejected message to file: {e}");
+                            "ERR".to_string()
+                        });
+                    log::info!("Rejected message stored at: {eml_path}");
                     break 'connection;
                 }
 
