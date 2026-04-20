@@ -26,10 +26,10 @@ class FiltermailDeployer(Deployer):
             return
 
         arch = host.get_fact(facts.server.Arch)
-        url = f"https://github.com/chatmail/filtermail/releases/download/v0.6.2/filtermail-{arch}"
+        url = f"https://github.com/chatmail/filtermail/releases/download/v0.6.3/filtermail-{arch}"
         sha256sum = {
-            "x86_64": "0c68456d0999da727914e937cfce97fce6d3612f997438f536f4224c839f0ace",
-            "aarch64": "5ac6f0be433b1c1ee907e1c1c47304473737a40fb5456d082a60f9dbb1688c36",
+            "x86_64": "87fac5715840d1bfb39742407d7911cce067a265dc47bda108acae58ce5f6086",
+            "aarch64": "496004c5d0da1e64a559a23400d0fcebbe0b92a0fd31b30e6851f4987c3c7984",
         }[arch]
         self.need_restart |= files.download(
             name="Download filtermail",
