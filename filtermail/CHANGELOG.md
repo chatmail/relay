@@ -1,3 +1,12 @@
+## 0.6.3 - 2026-04-20
+
+### Features
+
+- *(smtp-server)* Log malformed SMTP commands (#118)
+
+### Performance
+
+- *(smtp-client)* Cache connections (#117)
 ## 0.6.2 - 2026-04-16
 
 ### Documentation
