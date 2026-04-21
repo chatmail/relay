@@ -18,8 +18,15 @@ if command -v lsb_release 2>&1 >/dev/null; then
   esac
 fi
 
-python3 -m venv --upgrade-deps venv
-
-venv/bin/pip install -e chatmaild 
-venv/bin/pip install -e cmdeploy
-venv/bin/pip install sphinx sphinxcontrib-mermaid sphinx-autobuild furo  # for building the docs
+if command -v uv >/dev/null 2>&1; then
+  echo "Using uv for faster environment setup..."
+  uv venv venv
+  uv pip install --python venv/bin/python -e chatmaild
+  uv pip install --python venv/bin/python -e cmdeploy
+  uv pip install --python venv/bin/python sphinx sphinxcontrib-mermaid sphinx-autobuild furo
+else
+  python3 -m venv --upgrade-deps venv
+  venv/bin/pip install -e chatmaild
+  venv/bin/pip install -e cmdeploy
+  venv/bin/pip install sphinx sphinxcontrib-mermaid sphinx-autobuild furo
+fi
