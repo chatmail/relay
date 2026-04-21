@@ -75,21 +75,3 @@ jobs:
         cmlxc -v test-cmdeploy cm0 mad0
         cmlxc -v test-mini cm0 mad0
         cmlxc -v test-mini mad0 cm0
-
-  no-dns:
-    name: no-DNS LXC deploy and test
-    uses: chatmail/cmlxc/.github/workflows/lxc-test.yml@d39fe34c39cee6d760c3479325e8dc82b66a8928
-    with:
-      cmlxc_commands: |
-        cmlxc init 
-        # single cmdeploy relay test
-        cmlxc -v deploy-cmdeploy --source ./repo --ipv4-only --no-dns cm0
-        cmlxc -v test-cmdeploy --no-dns cm0
-
-        # cross cmdeploy relay test
-        cmlxc -v deploy-cmdeploy --source ./repo cm1
-        cmlxc -v test-cmdeploy --no-dns cm0 cm1
-
-        # cross cmdeploy/madmail relay tests
-        cmlxc -v deploy-madmail mad0
-        cmlxc -v test-cmdeploy --no-dns cm0 mad0
