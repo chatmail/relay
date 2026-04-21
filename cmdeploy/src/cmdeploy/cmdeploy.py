@@ -194,12 +194,6 @@ def status_cmd(args, out):
 
 
 def test_cmd_options(parser):
-    parser.add_argument(
-        "--slow",
-        dest="slow",
-        action="store_true",
-        help="also run slow tests",
-    )
     add_ssh_host_option(parser)
 
 
@@ -221,8 +215,6 @@ def test_cmd(args, out):
         "-v",
         "--durations=5",
     ]
-    if args.slow:
-        pytest_args.append("--slow")
     ret = out.run_ret(pytest_args, env=env)
     return ret
 
