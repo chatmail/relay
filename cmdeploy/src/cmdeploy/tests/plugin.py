@@ -23,24 +23,11 @@ def _is_ip(domain):
         return False
 
 
-def pytest_addoption(parser):
-    parser.addoption(
-        "--slow", action="store_true", default=False, help="also run slow tests"
-    )
-
-
 def pytest_configure(config):
     config._benchresults = {}
     config.addinivalue_line(
         "markers", "slow: mark test to require --slow option to run"
     )
-
-
-def pytest_runtest_setup(item):
-    markers = list(item.iter_markers(name="slow"))
-    if markers:
-        if not item.config.getoption("--slow"):
-            pytest.skip("skipping slow test, use --slow to run")
 
 
 def _get_chatmail_config():
