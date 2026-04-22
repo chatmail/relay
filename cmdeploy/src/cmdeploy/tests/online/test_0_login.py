@@ -92,12 +92,11 @@ def test_concurrent_logins_same_account(
 def test_no_vrfy(cmfactory, chatmail_config):
     ac = cmfactory.get_online_account()
     addr = ac.get_config("addr")
-    domain = chatmail_config.mail_domain
 
-    s = smtplib.SMTP(domain)
+    s = smtplib.SMTP(chatmail_config.mail_domain)
     s.starttls()
 
-    s.putcmd("vrfy", f"wrongaddress@{chatmail_config.mail_domain}")
+    s.putcmd("vrfy", f"wrongaddress@{chatmail_config.mail_domain_deliverable}")
     result = s.getreply()
     print(result)
     s.putcmd("vrfy", addr)

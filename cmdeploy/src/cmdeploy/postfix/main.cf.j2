@@ -1,4 +1,4 @@
-myorigin = {{ config.mail_domain }}
+myorigin = {{ config.mail_domain_deliverable }}
 
 smtpd_banner = $myhostname ESMTP $mail_name (Debian/GNU)
 biff = no
@@ -54,14 +54,16 @@ smtpd_tls_exclude_ciphers = aNULL, RC4, MD5, DES
 tls_preempt_cipherlist = yes
 
 smtpd_relay_restrictions = permit_mynetworks permit_sasl_authenticated defer_unauth_destination
-myhostname = {{ config.mail_domain }}
+myhostname = {{ config.mail_domain_hostname }}
 alias_maps = hash:/etc/aliases
 alias_database = hash:/etc/aliases
 
-# Postfix does not deliver mail for any domain by itself.
-# Primary domain is listed in `virtual_mailbox_domains` instead
-# and handed over to Dovecot.
-mydestination =
+# When postfix receives mail for $mydestination,
+# it hands it over to dovecot via $local_transport.
+mydestination = {{ config.mail_domain_deliverable }}
+local_transport = lmtp:unix:private/dovecot-lmtp
+# postfix doesn't check whether local users exist or not:
+local_recipient_maps =
 
 relayhost = 
 {% if disable_ipv6 %}
@@ -104,8 +106,6 @@ inet_protocols = all
 # <https://www.postfix.org/postconf.5.html#smtp_address_preference>
 smtp_address_preference=ipv4
 
-virtual_transport = lmtp:unix:private/dovecot-lmtp
-virtual_mailbox_domains = {{ config.mail_domain }}
 lmtp_header_checks = regexp:/etc/postfix/lmtp_header_cleanup
 
 mua_client_restrictions = permit_sasl_authenticated, reject

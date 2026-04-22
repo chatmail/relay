@@ -7,6 +7,7 @@ listen = 0.0.0.0
 protocols = imap lmtp
 
 auth_mechanisms = plain
+auth_username_chars = abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890.-_@[]
 
 {% if debug == true %}
 auth_verbose = yes
@@ -39,7 +40,7 @@ service imap {
   process_limit = 50000
 }
 
-mail_server_admin = mailto:root@{{ config.mail_domain }}
+mail_server_admin = mailto:root@{{ config.mail_domain_deliverable }}
 mail_server_comment = Chatmail server
 
 # `zlib` enables compressing messages stored in the maildir.

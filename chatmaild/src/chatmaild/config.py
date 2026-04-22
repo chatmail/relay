@@ -1,7 +1,9 @@
+import ipaddress
 import os
 from pathlib import Path
 
 import iniconfig
+from domain_validator import DomainValidator
 
 from chatmaild.user import User
 
@@ -21,6 +23,8 @@ class Config:
     def __init__(self, inipath, params):
         self._inipath = inipath
         self.mail_domain = params["mail_domain"]
+        self.mail_domain_hostname = format_arpa_address(params["mail_domain"])
+        self.mail_domain_deliverable = format_deliverable_domain(params["mail_domain"])
         self.max_user_send_per_minute = int(params.get("max_user_send_per_minute", 60))
         self.max_user_send_burst_size = int(params.get("max_user_send_burst_size", 10))
         self.max_mailbox_size = params["max_mailbox_size"]
@@ -79,7 +83,7 @@ class Config:
                 )
             self.tls_cert_mode = "external"
             self.tls_cert_path, self.tls_key_path = parts
-        elif self.mail_domain.startswith("_"):
+        elif self.mail_domain.startswith("_") or is_valid_ipv4(params["mail_domain"]):
             self.tls_cert_mode = "self"
             self.tls_cert_path = "/etc/ssl/certs/mailserver.pem"
             self.tls_key_path = "/etc/ssl/private/mailserver.key"
@@ -89,7 +93,9 @@ class Config:
             self.tls_key_path = f"/var/lib/acme/live/{self.mail_domain}/privkey"
 
         # deprecated option
-        mbdir = params.get("mailboxes_dir", f"/home/vmail/mail/{self.mail_domain}")
+        mbdir = params.get(
+            "mailboxes_dir", f"/home/vmail/mail/{self.mail_domain_deliverable}"
+        )
         self.mailboxes_dir = Path(mbdir.strip())
 
         # old unused option (except for first migration from sqlite to maildir store)
@@ -160,3 +166,26 @@ def get_default_config_content(mail_domain, **overrides):
                 lines.append(line)
         content = "\n".join(lines)
     return content
+
+
+def is_valid_ipv4(address: str) -> bool:
+    """Check if a mail_domain is an IPv4 address."""
+    try:
+        ipaddress.IPv4Address(address)
+        return True
+    except ValueError:
+        return False
+
+
+def format_arpa_address(address: str) -> str:
+    if is_valid_ipv4(address):
+        return ipaddress.IPv4Address(address).reverse_pointer
+    DomainValidator().validate_domain_re(address)
+    return address
+
+
+def format_deliverable_domain(mail_domain: str) -> str:
+    if is_valid_ipv4(mail_domain):
+        return f"[{mail_domain}]"
+    DomainValidator().validate_domain_re(mail_domain)
+    return mail_domain

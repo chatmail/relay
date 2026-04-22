@@ -8,6 +8,7 @@ import pytest
 
 from cmdeploy import remote
 from cmdeploy.cmdeploy import get_sshexec
+from chatmaild.config import is_valid_ipv4
 
 
 class TestSSHExecutor:
@@ -21,6 +22,8 @@ class TestSSHExecutor:
         assert out == out2
 
     def test_perform_initial(self, sshexec, maildomain):
+        if is_valid_ipv4(maildomain):
+            pytest.skip(f"{maildomain} is not a domain")
         res = sshexec(
             remote.rdns.perform_initial_checks, kwargs=dict(mail_domain=maildomain)
         )

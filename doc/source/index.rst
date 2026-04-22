@@ -18,3 +18,4 @@ Contributions and feedback welcome through the https://github.com/chatmail/relay
     overview
     related
     faq
+    iponly

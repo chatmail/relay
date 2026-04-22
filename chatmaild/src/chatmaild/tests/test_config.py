@@ -1,6 +1,13 @@
+from contextlib import nullcontext as does_not_raise
+
 import pytest
 
-from chatmaild.config import read_config
+from chatmaild.config import (
+    format_arpa_address,
+    format_deliverable_domain,
+    is_valid_ipv4,
+    read_config,
+)
 
 
 def test_read_config_basic(example_config):
@@ -13,6 +20,12 @@ def test_read_config_basic(example_config):
     example_config = read_config(inipath)
     assert example_config.max_user_send_per_minute == 37
     assert example_config.mail_domain == "chat.example.org"
+    assert example_config.mail_domain_deliverable == "chat.example.org"
+
+
+def test_read_config_deliverable(ipv4_config):
+    assert ipv4_config.mail_domain == "1.3.3.7"
+    assert ipv4_config.mail_domain_deliverable == "[1.3.3.7]"
 
 
 def test_read_config_basic_using_defaults(tmp_path, maildomain):
@@ -121,3 +134,45 @@ def test_config_tls_external_bad_format(make_config):
                 "tls_external_cert_and_key": "/only/one/path.pem",
             },
         )
+
+
+@pytest.mark.parametrize(
+    ["input", "result"],
+    [
+        ("example.org", False),
+        ("1.3.3.7", True),
+        ("fe::1", False),
+        ("ad.1e.dag.adf", False),
+        ("12394142", False),
+    ],
+)
+def test_is_valid_ipv4(input, result):
+    assert result == is_valid_ipv4(input)
+
+
+@pytest.mark.parametrize(
+    ["input", "result", "exception"],
+    [
+        ("example.org", "example.org", does_not_raise()),
+        ("1.3.3.7", "7.3.3.1.in-addr.arpa", does_not_raise()),
+        ("fe::1", None, pytest.raises(ValueError)),
+        ("12394142", None, pytest.raises(ValueError)),
+    ],
+)
+def test_format_arpa_address(input, result, exception):
+    with exception:
+        assert result == format_arpa_address(input)
+
+
+@pytest.mark.parametrize(
+    ["input", "result", "exception"],
+    [
+        ("example.org", "example.org", does_not_raise()),
+        ("1.3.3.7", "[1.3.3.7]", does_not_raise()),
+        ("fe::1", None, pytest.raises(ValueError)),
+        ("12394142", None, pytest.raises(ValueError)),
+    ],
+)
+def test_format_deliverable_domain(input, result, exception):
+    with exception:
+        assert result == format_deliverable_domain(input)

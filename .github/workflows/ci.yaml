@@ -1,4 +1,4 @@
-name: Run unit-tests and container-based deploy+test verification
+name: CI
 
 on:
   # Triggers when a PR is merged into main or a direct push occurs
@@ -53,7 +53,7 @@ jobs:
 
   lxc-test:
     name: LXC deploy and test
-    uses: chatmail/cmlxc/.github/workflows/lxc-test.yml@v0.10.0
+    uses: chatmail/cmlxc/.github/workflows/lxc-test.yml@d39fe34c39cee6d760c3479325e8dc82b66a8928
     with:
       cmlxc_commands: |
         cmlxc init 
