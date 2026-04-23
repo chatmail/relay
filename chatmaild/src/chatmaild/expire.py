@@ -22,7 +22,7 @@ QuotaFileEntry = namedtuple("QuotaFileEntry", ("mtime", "quota_size", "path"))
 # Quota cleanup factor of max_mailbox_size. The mailbox is reset to this size.
 QUOTA_CLEANUP_FACTOR = 0.7
 
-# e.g. "cur/1775324677.M448978P3029757.nine,S=3235,W=3305:2,S"
+# e.g. "cur/1775324677.M448978P3029757.exam,S=3235,W=3305:2,S"
 _dovecot_fn_rex = re.compile(r".+/(\d+)\..+,S=(\d+)")
 
 
@@ -92,7 +92,7 @@ def parse_dovecot_filename(relpath):
 
 def scan_mailbox_messages(mbox):
     messages = []
-    for sub in ("cur", "new", "tmp"):
+    for sub in ("cur", "new"):
         for name in os_listdir_if_exists(mbox / sub):
             if entry := parse_dovecot_filename(f"{sub}/{name}"):
                 messages.append(entry)

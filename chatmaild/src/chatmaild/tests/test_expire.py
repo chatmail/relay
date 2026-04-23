@@ -1,3 +1,4 @@
+import itertools
 import os
 import random
 import time
@@ -207,10 +208,13 @@ def test_os_listdir_if_exists(tmp_path):
 
 # --- quota expire tests ---
 
+_msg_counter = itertools.count(1)
+
 
 def _create_message(basedir, sub, size, days_old=0, disk_size=None):
+    seq = next(_msg_counter)
     mtime = int(time.time() - days_old * 86400)
-    name = f"{mtime}.M1P1.host,S={size},W={size}:2,S"
+    name = f"{mtime}.M1P1Q{seq}.hostname,S={size},W={size}:2,S"
     path = basedir / sub / name
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(b"x" * (disk_size if disk_size is not None else size))
@@ -219,23 +223,21 @@ def _create_message(basedir, sub, size, days_old=0, disk_size=None):
 
 
 def test_parse_dovecot_filename():
-    e = parse_dovecot_filename("cur/1775324677.M448978P3029757.nine,S=3235,W=3305:2,S")
-    assert e.path == "cur/1775324677.M448978P3029757.nine,S=3235,W=3305:2,S"
+    e = parse_dovecot_filename("cur/1775324677.M448978P3029757.exam,S=3235,W=3305:2,S")
+    assert e.path == "cur/1775324677.M448978P3029757.exam,S=3235,W=3305:2,S"
     assert e.mtime == 1775324677
     assert e.quota_size == 3235
     assert parse_dovecot_filename("cur/msg_without_structure") is None
 
 
 def test_expire_to_target(tmp_path):
-    # scans cur, new, tmp
     _create_message(tmp_path, "cur", MB, days_old=10, disk_size=100)
     _create_message(tmp_path, "new", MB, days_old=5)
-    _create_message(tmp_path, "tmp", MB, days_old=1)
-    assert len(scan_mailbox_messages(tmp_path)) == 3
-    # removes oldest first, uses S= size not disk size
-    removed = expire_to_target(tmp_path, 2 * MB)
-    assert removed == 1
     assert len(scan_mailbox_messages(tmp_path)) == 2
+    # removes oldest first, uses S= size not disk size
+    removed = expire_to_target(tmp_path, MB)
+    assert removed == 1
+    assert len(scan_mailbox_messages(tmp_path)) == 1
 
 
 def test_quota_expire_main(tmp_path, capsys):
