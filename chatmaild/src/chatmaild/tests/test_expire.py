@@ -1,6 +1,7 @@
 import itertools
 import os
 import random
+import shutil
 import time
 from datetime import datetime
 from fnmatch import fnmatch
@@ -238,6 +239,33 @@ def test_expire_to_target(tmp_path):
     removed = expire_to_target(tmp_path, MB)
     assert removed == 1
     assert len(scan_mailbox_messages(tmp_path)) == 1
+
+
+def test_expire_to_target_prioritization(tmp_path):
+    def create_messages():
+        for sub in ("cur", "new"):
+            if (tmp_path / sub).exists():
+                shutil.rmtree(tmp_path / sub)
+        # prio 0: older than 7 days
+        _create_message(tmp_path, "cur", 5 * MB, days_old=10)
+        # prio 1: last 7 days, large (>200KB)
+        _create_message(tmp_path, "cur", 5 * MB, days_old=1)
+        # prio 2: last 7 days, small
+        _create_message(tmp_path, "cur", 1000, days_old=2)
+
+    # Shrink to 6MB: only the old message (prio 0) is removed.
+    create_messages()
+    assert expire_to_target(tmp_path, 6 * MB) == 1
+    msgs = scan_mailbox_messages(tmp_path)
+    assert len(msgs) == 2
+    assert all(m.mtime > time.time() - 7 * 86400 for m in msgs)
+
+    # Shrink to 1KB: old and recent-large removed, small survives.
+    create_messages()
+    assert expire_to_target(tmp_path, 1024) == 2
+    msgs = scan_mailbox_messages(tmp_path)
+    assert len(msgs) == 1
+    assert msgs[0].quota_size == 1000
 
 
 def test_quota_expire_main(tmp_path, capsys):

@@ -99,11 +99,29 @@ def scan_mailbox_messages(mbox):
     return messages
 
 
+# Within this window, large messages are deleted before small ones.
+DELETE_LARGE_FIRST_DAYS = 7
+
+
 def expire_to_target(mbox, target_bytes):
+    cutoff = time.time() - DELETE_LARGE_FIRST_DAYS * 86400
     messages = scan_mailbox_messages(mbox)
+
+    def sort_key(msg):
+        # prio 0: Older than cutoff -> remove oldest first
+        if msg.mtime < cutoff:
+            return (0, msg.mtime)
+
+        # prio 1: more recent than cutoff, large -> remove largest first
+        if msg.quota_size > 200000:
+            return (1, -msg.quota_size, msg.mtime)
+
+        # prio 2: more recent than cutoff, small -> remove oldest first
+        return (2, msg.mtime)
+
     total_size = sum(m.quota_size for m in messages)
     removed = 0
-    for entry in sorted(messages):
+    for entry in sorted(messages, key=sort_key):
         if total_size <= target_bytes:
             break
         (mbox / entry.path).unlink(missing_ok=True)
