@@ -59,25 +59,33 @@ impl TransportHandler {
                     allow_invalid_cert = true;
                 }
                 let query = format!("{mx_domain}.");
-                let mx_records = dns_resolver.mx_lookup(query).await.map_err(|e| {
-                    if e.is_no_records_found() {
-                        format!("512 No MX records for {mx_domain}")
-                    } else if e.is_nx_domain() {
-                        format!("512 Domain {mx_domain} does not exist")
-                    } else {
-                        format!("421 DNS resolution failed for {mx_domain}")
-                    }
-                })?;
 
-                let mut hosts: Vec<(u16, String)> = mx_records
-                    .iter()
-                    .map(|mx| {
-                        let host = mx.exchange().to_string().trim_end_matches('.').to_string();
-                        (mx.preference(), host)
-                    })
-                    .collect();
-                hosts.sort();
-                hosts
+                match dns_resolver.mx_lookup(query).await {
+                    Ok(mx_records) => {
+                        let mut hosts: Vec<(u16, String)> = mx_records
+                            .iter()
+                            .map(|mx| {
+                                let host =
+                                    mx.exchange().to_string().trim_end_matches('.').to_string();
+                                (mx.preference(), host)
+                            })
+                            .collect();
+                        hosts.sort();
+                        hosts
+                    }
+                    Err(e) => {
+                        if e.is_no_records_found() {
+                            // "implicit MX" as described by section 5.1 of RFC5321
+                            // https://datatracker.ietf.org/doc/html/rfc5321#section-5.1
+                            log::debug!("No MX record found, using implicit MX: {mx_domain}");
+                            vec![(0, mx_domain)]
+                        } else if e.is_nx_domain() {
+                            return Err(format!("512 Domain {mx_domain} does not exist"));
+                        } else {
+                            return Err(format!("421 DNS resolution failed for {mx_domain}"));
+                        }
+                    }
+                }
             }
         };
 
