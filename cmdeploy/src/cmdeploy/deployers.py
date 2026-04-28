@@ -591,11 +591,17 @@ def deploy_chatmail(config_path: Path, disable_mail: bool, website_only: bool) -
         return
 
     # Check if mtail_address interface is available (if configured)
-    if config.mtail_address and config.mtail_address not in ('127.0.0.1', '::1', 'localhost'):
+    if config.mtail_address and config.mtail_address not in (
+        "127.0.0.1",
+        "::1",
+        "localhost",
+    ):
         ipv4_addrs = host.get_fact(hardware.Ipv4Addrs)
         all_addresses = [addr for addrs in ipv4_addrs.values() for addr in addrs]
         if config.mtail_address not in all_addresses:
-            Out().red(f"Deploy failed: mtail_address {config.mtail_address} is not available (VPN up?).\n")
+            Out().red(
+                f"Deploy failed: mtail_address {config.mtail_address} is not available (VPN up?).\n"
+            )
             exit(1)
 
     if not is_in_container():

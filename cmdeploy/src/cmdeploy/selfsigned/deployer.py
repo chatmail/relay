@@ -12,15 +12,27 @@ def openssl_selfsigned_args(domain, cert_path, key_path, days=36500):
     ``www.<domain>`` and ``mta-sts.<domain>``.
     """
     return [
-        "openssl", "req", "-x509",
-        "-newkey", "ec", "-pkeyopt", "ec_paramgen_curve:P-256",
-        "-noenc", "-days", str(days),
-        "-keyout", str(key_path),
-        "-out", str(cert_path),
-        "-subj", f"/CN={domain}",
+        "openssl",
+        "req",
+        "-x509",
+        "-newkey",
+        "ec",
+        "-pkeyopt",
+        "ec_paramgen_curve:P-256",
+        "-noenc",
+        "-days",
+        str(days),
+        "-keyout",
+        str(key_path),
+        "-out",
+        str(cert_path),
+        "-subj",
+        f"/CN={domain}",
         # Mark as end-entity cert so it cannot be used as a CA to sign others.
-        "-addext", "basicConstraints=critical,CA:FALSE",
-        "-addext", "extendedKeyUsage=serverAuth,clientAuth",
+        "-addext",
+        "basicConstraints=critical,CA:FALSE",
+        "-addext",
+        "extendedKeyUsage=serverAuth,clientAuth",
         "-addext",
         f"subjectAltName=DNS:{domain},DNS:www.{domain},DNS:mta-sts.{domain}",
     ]
@@ -42,7 +54,9 @@ class SelfSignedTlsDeployer(Deployer):
 
     def configure(self):
         args = openssl_selfsigned_args(
-            self.mail_domain, self.cert_path, self.key_path,
+            self.mail_domain,
+            self.cert_path,
+            self.key_path,
         )
         cmd = shlex.join(args)
         server.shell(

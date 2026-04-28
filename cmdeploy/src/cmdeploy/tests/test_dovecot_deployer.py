@@ -23,8 +23,7 @@ def make_host(*fact_pairs):
         if cls not in facts:
             registered = ", ".join(c.__name__ for c in facts)
             raise LookupError(
-                f"unexpected get_fact({cls.__name__}); "
-                f"only registered: {registered}"
+                f"unexpected get_fact({cls.__name__}); only registered: {registered}"
             )
         return facts[cls]
 

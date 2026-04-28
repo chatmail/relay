@@ -20,12 +20,30 @@ DOVECOT_ARCHIVE_VERSION = "2.3.21+dfsg1-3"
 DOVECOT_PACKAGE_VERSION = f"1:{DOVECOT_ARCHIVE_VERSION}"
 
 DOVECOT_SHA256 = {
-    ("core", "amd64"): "dd060706f52a306fa863d874717210b9fe10536c824afe1790eec247ded5b27d",
-    ("core", "arm64"): "e7548e8a82929722e973629ecc40fcfa886894cef3db88f23535149e7f730dc9",
-    ("imapd", "amd64"): "8d8dc6fc00bbb6cdb25d345844f41ce2f1c53f764b79a838eb2a03103eebfa86",
-    ("imapd", "arm64"): "178fa877ddd5df9930e8308b518f4b07df10e759050725f8217a0c1fb3fd707f",
-    ("lmtpd", "amd64"): "2f69ba5e35363de50962d42cccbfe4ed8495265044e244007d7ccddad77513ab",
-    ("lmtpd", "arm64"): "89f52fb36524f5877a177dff4a713ba771fd3f91f22ed0af7238d495e143b38f",
+    (
+        "core",
+        "amd64",
+    ): "dd060706f52a306fa863d874717210b9fe10536c824afe1790eec247ded5b27d",
+    (
+        "core",
+        "arm64",
+    ): "e7548e8a82929722e973629ecc40fcfa886894cef3db88f23535149e7f730dc9",
+    (
+        "imapd",
+        "amd64",
+    ): "8d8dc6fc00bbb6cdb25d345844f41ce2f1c53f764b79a838eb2a03103eebfa86",
+    (
+        "imapd",
+        "arm64",
+    ): "178fa877ddd5df9930e8308b518f4b07df10e759050725f8217a0c1fb3fd707f",
+    (
+        "lmtpd",
+        "amd64",
+    ): "2f69ba5e35363de50962d42cccbfe4ed8495265044e244007d7ccddad77513ab",
+    (
+        "lmtpd",
+        "arm64",
+    ): "89f52fb36524f5877a177dff4a713ba771fd3f91f22ed0af7238d495e143b38f",
 }
 
 
@@ -61,11 +79,7 @@ class DovecotDeployer(Deployer):
                 self.need_restart = True
         files.put(
             name="Pin dovecot packages to block Debian dist-upgrades",
-            src=io.StringIO(
-                "Package: dovecot-*\n"
-                "Pin: version *\n"
-                "Pin-Priority: -1\n"
-            ),
+            src=io.StringIO("Package: dovecot-*\nPin: version *\nPin-Priority: -1\n"),
             dest="/etc/apt/preferences.d/pin-dovecot",
             user="root",
             group="root",
@@ -84,7 +98,7 @@ class DovecotDeployer(Deployer):
         if not self.disable_mail and not self.need_restart:
             stale = host.get_fact(
                 Command,
-                'pid=$(systemctl show -p MainPID --value dovecot.service 2>/dev/null);'
+                "pid=$(systemctl show -p MainPID --value dovecot.service 2>/dev/null);"
                 ' [ "${pid:-0}" != "0" ] && readlink "/proc/$pid/exe" 2>/dev/null | grep -q "(deleted)"'
                 " && echo STALE || true",
             )
