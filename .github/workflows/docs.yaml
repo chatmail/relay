@@ -10,6 +10,8 @@ on:
       - 'scripts/build-docs.sh'
       - '.github/workflows/docs.yaml'
 
+permissions: {}
+
 jobs:
   scripts:
     name: build 
@@ -19,6 +21,8 @@ jobs:
       url: https://chatmail.at/doc/relay/
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: initenv 
         run: scripts/initenv.sh

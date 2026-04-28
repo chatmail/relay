@@ -1,0 +1,7 @@
+rules:
+  unpinned-uses:
+    config:
+      policies:
+        actions/*: ref-pin
+        dependabot/*: ref-pin
+        chatmail/*: ref-pin
