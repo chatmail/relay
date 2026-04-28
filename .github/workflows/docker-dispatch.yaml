@@ -1,0 +1,37 @@
+# Notify the docker repo to build and test a new image after relay CI passes.
+#
+# Sends a repository_dispatch event to chatmail/docker with the relay ref
+# and short SHA, which triggers docker-ci.yaml to build, push to GHCR,
+# and run integration tests via cmlxc.
+
+name: Trigger Docker build
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  dispatch:
+    name: Dispatch build to chatmail/docker
+    runs-on: ubuntu-latest
+    if: github.repository == 'chatmail/relay'
+    steps:
+      - name: Compute short SHA
+        id: sha
+        run: echo "short=$(echo '${{ github.sha }}' | cut -c1-7)" >> "$GITHUB_OUTPUT"
+
+      - name: Send repository_dispatch
+        uses: peter-evans/repository-dispatch@ff45666b9427631e3450c54a1bcbee4d9ff4d7c0 # v3
+        with:
+          token: ${{ secrets.CHATMAIL_DOCKER_DISPATCH_TOKEN }}
+          repository: chatmail/docker
+          event-type: relay-updated
+          client-payload: >-
+            {
+              "relay_ref": "${{ github.ref_name }}",
+              "relay_sha": "${{ github.sha }}",
+              "relay_sha_short": "${{ steps.sha.outputs.short }}"
+            }
