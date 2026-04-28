@@ -98,6 +98,17 @@ steps. Please substitute it with your own domain.
    configure at your DNS provider (it can take some time until they are
    public).
 
+
+
+Docker installation
+-------------------
+
+There is experimental support for running chatmail via Docker, a monolithic
+image based on the above cmdeploy method are available `here
+<https://github.com/chatmail/docker/pkgs/container/docker>`_. See the
+`chatmail/docker README <https://github.com/chatmail/docker>`_
+for full setup instructions.
+
 Other helpful commands
 ----------------------
 
