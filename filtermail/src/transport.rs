@@ -62,14 +62,23 @@ impl TransportHandler {
 
                 match dns_resolver.mx_lookup(query).await {
                     Ok(mx_records) => {
-                        let mut hosts: Vec<(u16, String)> = mx_records
-                            .iter()
-                            .map(|mx| {
-                                let host =
-                                    mx.exchange().to_string().trim_end_matches('.').to_string();
-                                (mx.preference(), host)
-                            })
-                            .collect();
+                        let mut hosts: Vec<(u16, String)> = Vec::new();
+                        for mx in mx_records {
+                            // Null MX / RFC7505
+                            if mx.exchange().is_root() {
+                                // From RFC7505 section 3:
+                                // > A domain that advertises a null MX MUST NOT
+                                // > advertise any other MX RR.
+                                // We assume this is the only record and exit early.
+                                return Err(
+                                    "556 5.1.10 Permanent failure: Recipient address has null MX"
+                                        .to_string(),
+                                );
+                            }
+
+                            let host = mx.exchange().to_string().trim_end_matches('.').to_string();
+                            hosts.push((mx.preference(), host))
+                        }
                         hosts.sort();
                         hosts
                     }
