@@ -56,8 +56,8 @@ def test_external_tls_no_dclogin_url(tmp_path, capsys, monkeypatch):
     monkeypatch.setattr(chatmaild.newemail, "CONFIG_PATH", str(inipath))
     chatmaild.newemail.print_new_account()
     out, _ = capsys.readouterr()
-    lines = out.split("\n")
-    dic = json.loads(lines[2])
+    lines = [line.strip() for line in out.splitlines() if line.strip()]
+    dic = json.loads(lines[-1])
     assert "dclogin_url" not in dic
 
 
