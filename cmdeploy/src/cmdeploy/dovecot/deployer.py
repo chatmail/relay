@@ -255,14 +255,16 @@ def _run_dovecot_maildir_healthcheck(config: Config) -> None:
     server.shell(
         name="Dovecot maildir write healthcheck",
         commands=[
-            "set -eu",
-            f"test -d {mailboxes_dir}",
-            f"broken=\"$(find {mailboxes_dir} -mindepth 1 -maxdepth 1 -type d ! -writable -print -quit || true)\"",
-            "if [ -n \"$broken\" ]; then",
-            "  echo \"ERROR: non-writable mailbox directory detected: $broken\" >&2",
-            "  echo \"Hint: run chown -R vmail:vmail and chmod 750/640 for maildir\" >&2",
-            "  exit 1",
-            "fi",
-            "doveadm service status imap >/dev/null",
+            (
+                "set -eu; "
+                f"test -d {mailboxes_dir}; "
+                f"broken=\"$(find {mailboxes_dir} -mindepth 1 -maxdepth 1 -type d ! -writable -print -quit || true)\"; "
+                "if [ -n \"$broken\" ]; then "
+                "echo \"ERROR: non-writable mailbox directory detected: $broken\" >&2; "
+                "echo \"Hint: run chown -R vmail:vmail and chmod 750/640 for maildir\" >&2; "
+                "exit 1; "
+                "fi; "
+                "doveadm service status imap >/dev/null"
+            )
         ],
     )
