@@ -7,7 +7,7 @@ from cmdeploy.basedeploy import Deployer, get_resource
 
 
 class FiltermailDeployer(Deployer):
-    services = ["filtermail", "filtermail-incoming"]
+    services = ["filtermail", "filtermail-incoming", "filtermail-transport"]
     bin_path = "/usr/local/bin/filtermail"
     config_path = "/usr/local/lib/chatmaild/chatmail.ini"
 
@@ -26,10 +26,10 @@ class FiltermailDeployer(Deployer):
             return
 
         arch = host.get_fact(facts.server.Arch)
-        url = f"https://github.com/chatmail/filtermail/releases/download/v0.6.1/filtermail-{arch}"
+        url = f"https://github.com/chatmail/filtermail/releases/download/v0.6.3/filtermail-{arch}"
         sha256sum = {
-            "x86_64": "48b3fb80c092d00b9b0a0ef77a8673496da3b9aed5ec1851e1df936d5589d62f",
-            "aarch64": "c65bd5f45df187d3d65d6965a285583a3be0f44a6916ff12909ff9a8d702c22e",
+            "x86_64": "87fac5715840d1bfb39742407d7911cce067a265dc47bda108acae58ce5f6086",
+            "aarch64": "496004c5d0da1e64a559a23400d0fcebbe0b92a0fd31b30e6851f4987c3c7984",
         }[arch]
         self.need_restart |= files.download(
             name="Download filtermail",

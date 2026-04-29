@@ -40,6 +40,9 @@ class Config:
         self.filtermail_http_port_incoming = int(
             params.get("filtermail_http_port_incoming", "10082")
         )
+        self.filtermail_lmtp_port_transport = int(
+            params.get("filtermail_lmtp_port_transport", "10083")
+        )
         self.postfix_reinject_port = int(params.get("postfix_reinject_port", "10025"))
         self.postfix_reinject_port_incoming = int(
             params.get("postfix_reinject_port_incoming", "10026")
