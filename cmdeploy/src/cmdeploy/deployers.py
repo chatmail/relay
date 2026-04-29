@@ -25,7 +25,6 @@ from .basedeploy import (
     activate_remote_units,
     blocked_service_startup,
     configure_remote_units,
-    get_resource,
     has_systemd,
     is_in_container,
 )
@@ -147,7 +146,6 @@ def _configure_remote_venv_with_chatmaild(config) -> None:
 class UnboundDeployer(Deployer):
     def __init__(self, config):
         self.config = config
-        self.need_restart = False
 
     def install(self):
         # On an IPv4-only system, if unbound is started but not configured,
@@ -191,26 +189,15 @@ class UnboundDeployer(Deployer):
             ],
         )
         if self.config.disable_ipv6:
-            files.directory(
+            self.ensure_directory(
                 path="/etc/unbound/unbound.conf.d",
-                present=True,
-                user="root",
-                group="root",
-                mode="755",
             )
-            conf = files.put(
-                src=get_resource("unbound/unbound.conf.j2"),
-                dest="/etc/unbound/unbound.conf.d/chatmail.conf",
-                user="root",
-                group="root",
-                mode="644",
+            self.put_template(
+                "unbound/unbound.conf.j2",
+                "/etc/unbound/unbound.conf.d/chatmail.conf",
             )
         else:
-            conf = files.file(
-                path="/etc/unbound/unbound.conf.d/chatmail.conf",
-                present=False,
-            )
-        self.need_restart |= conf.changed
+            self.remove_file("/etc/unbound/unbound.conf.d/chatmail.conf")
 
     def activate(self):
         server.shell(
@@ -220,27 +207,19 @@ class UnboundDeployer(Deployer):
             ],
         )
 
-        systemd.service(
-            name="Start and enable unbound",
-            service="unbound.service",
-            running=True,
-            enabled=True,
-            restarted=self.need_restart,
-        )
+        self.ensure_service("unbound.service")
 
 
 class MtastsDeployer(Deployer):
     def configure(self):
         # Remove configuration.
-        files.file("/etc/mta-sts-daemon.yml", present=False)
-        files.directory("/usr/local/lib/postfix-mta-sts-resolver", present=False)
-        files.file("/etc/systemd/system/mta-sts-daemon.service", present=False)
+        self.remove_file("/etc/mta-sts-daemon.yml")
+        self.remove_directory("/usr/local/lib/postfix-mta-sts-resolver")
+        self.remove_file("/etc/systemd/system/mta-sts-daemon.service")
 
     def activate(self):
-        systemd.service(
-            name="Stop MTA-STS daemon",
-            service="mta-sts-daemon.service",
-            daemon_reload=True,
+        self.ensure_service(
+            "mta-sts-daemon.service",
             running=False,
             enabled=False,
         )
@@ -251,14 +230,7 @@ class WebsiteDeployer(Deployer):
         self.config = config
 
     def install(self):
-        files.directory(
-            name="Ensure /var/www exists",
-            path="/var/www",
-            user="root",
-            group="root",
-            mode="755",
-            present=True,
-        )
+        self.ensure_directory("/var/www")
 
     def configure(self):
         www_path, src_dir, build_dir = get_paths(self.config)
@@ -288,15 +260,11 @@ class LegacyRemoveDeployer(Deployer):
 
         # remove historic expunge script
         # which is now implemented through a systemd timer (chatmail-expire)
-        files.file(
-            path="/etc/cron.d/expunge",
-            present=False,
-        )
+        self.remove_file("/etc/cron.d/expunge")
 
         # Remove OBS repository key that is no longer used.
-        files.file("/etc/apt/keyrings/obs-home-deltachat.gpg", present=False)
-        files.line(
-            name="Remove DeltaChat OBS home repository from sources.list",
+        self.remove_file("/etc/apt/keyrings/obs-home-deltachat.gpg")
+        self.ensure_line(
             path="/etc/apt/sources.list",
             line="deb [signed-by=/etc/apt/keyrings/obs-home-deltachat.gpg] https://download.opensuse.org/repositories/home:/deltachat/Debian_12/ ./",
             escape_regex_characters=True,
@@ -304,11 +272,7 @@ class LegacyRemoveDeployer(Deployer):
         )
 
         # prior relay versions used filelogging
-        files.directory(
-            name="Ensure old logs on disk are deleted",
-            path="/var/log/journal/",
-            present=False,
-        )
+        self.remove_directory("/var/log/journal/")
         # remove echobot if it is still running
         if has_systemd() and host.get_fact(SystemdEnabled).get("echobot.service"):
             systemd.service(
@@ -362,10 +326,10 @@ class TurnDeployer(Deployer):
             )
 
     def configure(self):
-        configure_remote_units(self.mail_domain, self.units)
+        self.daemon_reload |= configure_remote_units(self.mail_domain, self.units)
 
     def activate(self):
-        activate_remote_units(self.units)
+        activate_remote_units(self.units, daemon_reload=self.daemon_reload)
 
 
 class IrohDeployer(Deployer):
@@ -397,58 +361,22 @@ class IrohDeployer(Deployer):
             self.need_restart = True
 
     def configure(self):
-        systemd_unit = files.put(
-            name="Upload iroh-relay systemd unit",
-            src=get_resource("iroh-relay.service"),
-            dest="/etc/systemd/system/iroh-relay.service",
-            user="root",
-            group="root",
-            mode="644",
-        )
-        self.need_restart |= systemd_unit.changed
-
-        iroh_config = files.put(
-            name="Upload iroh-relay config",
-            src=get_resource("iroh-relay.toml"),
-            dest="/etc/iroh-relay.toml",
-            user="root",
-            group="root",
-            mode="644",
-        )
-        self.need_restart |= iroh_config.changed
+        self.ensure_systemd_unit("iroh-relay.service")
+        self.put_file("iroh-relay.toml", "/etc/iroh-relay.toml")
 
     def activate(self):
-        systemd.service(
-            name="Start and enable iroh-relay",
-            service="iroh-relay.service",
-            running=True,
+        self.ensure_service(
+            "iroh-relay.service",
             enabled=self.enable_iroh_relay,
-            restarted=self.need_restart,
         )
-        self.need_restart = False
 
 
 class JournaldDeployer(Deployer):
     def configure(self):
-        journald_conf = files.put(
-            name="Configure journald",
-            src=get_resource("journald.conf"),
-            dest="/etc/systemd/journald.conf",
-            user="root",
-            group="root",
-            mode="644",
-        )
-        self.need_restart = journald_conf.changed
+        self.put_file("journald.conf", "/etc/systemd/journald.conf")
 
     def activate(self):
-        systemd.service(
-            name="Start and enable journald",
-            service="systemd-journald.service",
-            running=True,
-            enabled=True,
-            restarted=self.need_restart,
-        )
-        self.need_restart = False
+        self.ensure_service("systemd-journald.service")
 
 
 class ChatmailVenvDeployer(Deployer):
@@ -468,10 +396,12 @@ class ChatmailVenvDeployer(Deployer):
 
     def configure(self):
         _configure_remote_venv_with_chatmaild(self.config)
-        configure_remote_units(self.config.mail_domain, self.units)
+        self.daemon_reload |= configure_remote_units(
+            self.config.mail_domain, self.units
+        )
 
     def activate(self):
-        activate_remote_units(self.units)
+        activate_remote_units(self.units, daemon_reload=self.daemon_reload)
 
 
 class ChatmailDeployer(Deployer):
@@ -535,12 +465,7 @@ class FcgiwrapDeployer(Deployer):
         )
 
     def activate(self):
-        systemd.service(
-            name="Start and enable fcgiwrap",
-            service="fcgiwrap.service",
-            running=True,
-            enabled=True,
-        )
+        self.ensure_service("fcgiwrap.service")
 
 
 class GithashDeployer(Deployer):
@@ -553,12 +478,7 @@ class GithashDeployer(Deployer):
             git_diff = subprocess.check_output(["git", "diff"]).decode()
         except Exception:
             git_diff = ""
-        files.put(
-            name="Upload chatmail relay git commit hash",
-            src=StringIO(git_hash + git_diff),
-            dest="/etc/chatmail-version",
-            mode="700",
-        )
+        self.put_file(src=StringIO(git_hash + git_diff), dest="/etc/chatmail-version")
 
 
 def get_tls_deployer(config, mail_domain):
