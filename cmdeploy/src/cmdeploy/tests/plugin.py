@@ -273,6 +273,12 @@ def imap_or_smtp(request):
 
 @pytest.fixture
 def gencreds(chatmail_config):
+    if not chatmail_config.allow_account_autocreation:
+        def disabled_gen(_domain=None):
+            pytest.skip("Account auto-creation is disabled by policy.")
+
+        return disabled_gen
+
     count = itertools.count()
     next(count)
 
