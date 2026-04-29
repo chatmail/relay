@@ -26,6 +26,8 @@ def test_login_basic_functioning(imap_or_smtp, gencreds, lp):
     """Test a) that an initial login creates a user automatically
     and b) verify we can also login a second time with the same password
     and c) that using a different password fails the login."""
+    if not imap_or_smtp.chatmail_config.allow_account_autocreation:
+        pytest.skip("Account auto-creation is disabled by policy.")
     user, password = gencreds()
     lp.sec(f"login first time with {user} {password}")
     imap_or_smtp.connect()
@@ -54,6 +56,8 @@ def test_login_same_password(imap_or_smtp, gencreds):
     to ensure that authentication process does not confuse the users
     by using only the password hash as a key.
     """
+    if not imap_or_smtp.chatmail_config.allow_account_autocreation:
+        pytest.skip("Account auto-creation is disabled by policy.")
     user1, password1 = gencreds()
     user2, _ = gencreds()
     imap_or_smtp.connect()
@@ -63,11 +67,13 @@ def test_login_same_password(imap_or_smtp, gencreds):
 
 
 def test_concurrent_logins_same_account(
-    make_imap_connection, make_smtp_connection, gencreds
+    make_imap_connection, make_smtp_connection, gencreds, chatmail_config
 ):
     """Test concurrent smtp and imap logins
     and check remote server succeeds on each connection.
     """
+    if not chatmail_config.allow_account_autocreation:
+        pytest.skip("Account auto-creation is disabled by policy.")
     user1, password1 = gencreds()
     login_results = queue.Queue()
 

@@ -11,6 +11,8 @@ def test_gen_qr_png_data(maildomain):
 
 @pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")
 def test_fastcgi_working(maildomain, chatmail_config):
+    if not chatmail_config.allow_account_autocreation:
+        pytest.skip("Account auto-creation is disabled by policy.")
     url = f"https://{maildomain}/new"
     print(url)
     verify = chatmail_config.tls_cert_mode == "acme"
@@ -22,6 +24,8 @@ def test_fastcgi_working(maildomain, chatmail_config):
 @pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")
 def test_newemail_configure(maildomain, rpc, chatmail_config):
     """Test configuring accounts by scanning a QR code works."""
+    if not chatmail_config.allow_account_autocreation:
+        pytest.skip("Account auto-creation is disabled by policy.")
     url = f"DCACCOUNT:https://{maildomain}/new"
     for i in range(3):
         account_id = rpc.add_account()
