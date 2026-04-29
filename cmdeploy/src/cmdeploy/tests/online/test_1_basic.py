@@ -109,6 +109,25 @@ def test_dovecot_main_process_matches_installed_binary(sshdomain):
     )
 
 
+def test_maildir_tree_is_writable_for_vmail(sshdomain):
+    sshexec = get_sshexec(sshdomain)
+    not_writable = sshexec(
+        call=remote.rshell.shell,
+        kwargs=dict(
+            command=(
+                "set -eu; "
+                "MAIL_ROOT=\"$(doveconf -h mail_location | sed 's#^maildir:##; s#/%u$##')\"; "
+                "test -d \"$MAIL_ROOT\"; "
+                "find \"$MAIL_ROOT\" -mindepth 1 -maxdepth 1 -type d ! -writable -print -quit || true"
+            )
+        ),
+    ).strip()
+    assert not not_writable, (
+        "found non-writable mailbox directory for vmail: "
+        f"{not_writable!r}; fix ownership/permissions under mail root"
+    )
+
+
 def test_timezone_env(remote):
     for line in remote.iter_output("env"):
         print(line)

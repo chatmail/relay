@@ -1,4 +1,5 @@
 import io
+import shlex
 import urllib.request
 
 from chatmaild.config import Config
@@ -93,6 +94,9 @@ class DovecotDeployer(Deployer):
 
         restart = False if self.disable_mail else self.need_restart
 
+        if not self.disable_mail:
+            _repair_maildir_permissions(self.config)
+
         systemd.service(
             name="Disable dovecot for now"
             if self.disable_mail
@@ -103,6 +107,10 @@ class DovecotDeployer(Deployer):
             restarted=restart,
             daemon_reload=self.daemon_reload,
         )
+
+        if not self.disable_mail:
+            _run_dovecot_maildir_healthcheck(self.config)
+
         self.need_restart = False
 
 
@@ -225,3 +233,36 @@ def _configure_dovecot(config: Config, debug: bool = False) -> tuple[bool, bool]
         )
 
     return need_restart, daemon_reload
+
+
+def _repair_maildir_permissions(config: Config) -> None:
+    """Normalize maildir ownership and mode to prevent Dovecot lock-file failures."""
+    mailboxes_dir = shlex.quote(str(config.mailboxes_dir))
+    server.shell(
+        name="Repair vmail maildir permissions",
+        commands=[
+            f"test -d {mailboxes_dir}",
+            f"chown -R vmail:vmail {mailboxes_dir}",
+            f"find {mailboxes_dir} -type d -exec chmod 750 {{}} +",
+            f"find {mailboxes_dir} -type f -exec chmod 640 {{}} +",
+        ],
+    )
+
+
+def _run_dovecot_maildir_healthcheck(config: Config) -> None:
+    """Fail fast if Dovecot cannot write lock/quota files under maildir."""
+    mailboxes_dir = shlex.quote(str(config.mailboxes_dir))
+    server.shell(
+        name="Dovecot maildir write healthcheck",
+        commands=[
+            "set -eu",
+            f"test -d {mailboxes_dir}",
+            f"broken=\"$(find {mailboxes_dir} -mindepth 1 -maxdepth 1 -type d ! -writable -print -quit || true)\"",
+            "if [ -n \"$broken\" ]; then",
+            "  echo \"ERROR: non-writable mailbox directory detected: $broken\" >&2",
+            "  echo \"Hint: run chown -R vmail:vmail and chmod 750/640 for maildir\" >&2",
+            "  exit 1",
+            "fi",
+            "doveadm service status imap >/dev/null",
+        ],
+    )
