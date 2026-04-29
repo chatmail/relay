@@ -5,6 +5,7 @@ from chatmaild.config import parse_size_mb, read_config
 
 def test_read_config_basic(example_config):
     assert example_config.mail_domain == "chat.example.org"
+    assert example_config.allow_account_autocreation is False
     assert not example_config.privacy_supervisor and not example_config.privacy_mail
     assert not example_config.privacy_pdo and not example_config.privacy_postal
 
@@ -20,6 +21,7 @@ def test_read_config_basic_using_defaults(tmp_path, maildomain):
     inipath.write_text(f"[params]\nmail_domain = {maildomain}")
     example_config = read_config(inipath)
     assert example_config.max_user_send_per_minute == 60
+    assert example_config.allow_account_autocreation is False
     assert example_config.filtermail_smtp_port_incoming == 10081
 
 

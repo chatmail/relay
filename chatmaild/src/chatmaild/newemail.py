@@ -47,6 +47,13 @@ def create_dclogin_url(email, password):
 
 def print_new_account():
     config = read_config(CONFIG_PATH)
+    if not config.allow_account_autocreation:
+        print("Status: 403 Forbidden")
+        print("Content-Type: application/json")
+        print("")
+        print(json.dumps({"error": "account creation disabled"}))
+        return
+
     creds = create_newemail_dict(config)
 
     result = dict(email=creds["email"], password=creds["password"])

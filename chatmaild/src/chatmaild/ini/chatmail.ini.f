@@ -42,6 +42,10 @@ username_max_length = 9
 # minimum length a password must have
 password_min_length = 9
 
+# if set to true, missing accounts may be auto-created on first successful login
+# and /new endpoint may mint credentials for onboarding
+allow_account_autocreation = false
+
 # list of chatmail addresses which can send outbound un-encrypted mail
 passthrough_senders =
 

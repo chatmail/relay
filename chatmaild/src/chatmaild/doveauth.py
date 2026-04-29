@@ -16,6 +16,8 @@ from .dictproxy import DictProxy
 from .migrate_db import migrate_from_db_to_maildir
 
 NOCREATE_FILE = "/etc/chatmail-nocreate"
+BLOCKED_ADDRESSES_FILE = "/etc/chatmail-control/blocked_addresses.txt"
+BLOCKED_DOMAINS_FILE = "/etc/chatmail-control/blocked_domains.txt"
 VALID_LOCALPART_RE = re.compile(r"^[a-z0-9._-]+$")
 
 
@@ -27,6 +29,10 @@ def encrypt_password(password: str):
 
 def is_allowed_to_create(config: Config, user, cleartext_password) -> bool:
     """Return True if user and password are admissable."""
+    if not config.allow_account_autocreation:
+        logging.warning("blocked account creation because allow_account_autocreation is false")
+        return False
+
     if os.path.exists(NOCREATE_FILE):
         logging.warning(f"blocked account creation because {NOCREATE_FILE!r} exists.")
         return False
@@ -43,6 +49,15 @@ def is_allowed_to_create(config: Config, user, cleartext_password) -> bool:
         logging.warning(f"user {user!r} is not a proper e-mail address")
         return False
     localpart, domain = parts
+    normalized_user = user.lower()
+    normalized_domain = domain.lower()
+
+    if is_blocked_address(normalized_user):
+        logging.warning("blocked account creation for banned address %s", normalized_user)
+        return False
+    if is_blocked_domain(normalized_domain):
+        logging.warning("blocked account creation for banned domain %s", normalized_domain)
+        return False
 
     if (
         len(localpart) > config.username_max_length
@@ -61,6 +76,28 @@ def is_allowed_to_create(config: Config, user, cleartext_password) -> bool:
         return False
 
     return True
+
+
+def _iter_blocklist_values(path: str):
+    try:
+        with open(path) as f:
+            for raw_line in f:
+                line = raw_line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                value = line.split()[0].strip().lower()
+                if value:
+                    yield value
+    except FileNotFoundError:
+        return
+
+
+def is_blocked_address(addr: str) -> bool:
+    return any(value == addr for value in _iter_blocklist_values(BLOCKED_ADDRESSES_FILE))
+
+
+def is_blocked_domain(domain: str) -> bool:
+    return any(value == domain for value in _iter_blocklist_values(BLOCKED_DOMAINS_FILE))
 
 
 def split_and_unescape(s):

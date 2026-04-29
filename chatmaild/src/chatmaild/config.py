@@ -31,6 +31,9 @@ class Config:
         self.username_min_length = int(params["username_min_length"])
         self.username_max_length = int(params["username_max_length"])
         self.password_min_length = int(params["password_min_length"])
+        self.allow_account_autocreation = (
+            params.get("allow_account_autocreation", "false").lower() == "true"
+        )
         self.passthrough_senders = params["passthrough_senders"].split()
         self.passthrough_recipients = params["passthrough_recipients"].split()
         self.www_folder = params.get("www_folder", "")

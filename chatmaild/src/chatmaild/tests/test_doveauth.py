@@ -41,6 +41,7 @@ def test_iterate_addresses(dictproxy):
 
 def test_invalid_username_length(example_config):
     config = example_config
+    config.allow_account_autocreation = True
     config.username_min_length = 6
     config.username_max_length = 10
     password = create_newemail_dict(config)["password"]
@@ -122,7 +123,10 @@ def test_handle_dovecot_protocol_iterate(gencreds, example_config):
 
 def test_invalid_localpart_characters(make_config):
     """Test that is_allowed_to_create rejects localparts with invalid characters."""
-    config = make_config("chat.example.org", {"username_min_length": "3"})
+    config = make_config(
+        "chat.example.org",
+        {"username_min_length": "3", "allow_account_autocreation": "true"},
+    )
     password = "zequ0Aimuchoodaechik"
     domain = config.mail_domain
 
@@ -141,6 +145,13 @@ def test_invalid_localpart_characters(make_config):
     assert not is_allowed_to_create(config, f"ab@cdef@{domain}", password)
     assert not is_allowed_to_create(config, f"abc/def@{domain}", password)
     assert not is_allowed_to_create(config, f"abc\\def@{domain}", password)
+
+
+def test_autocreation_disabled_by_default(example_config):
+    password = "zequ0Aimuchoodaechik"
+    assert not is_allowed_to_create(
+        example_config, f"abc123@{example_config.mail_domain}", password
+    )
 
 
 def test_concurrent_creation_same_account(dictproxy):

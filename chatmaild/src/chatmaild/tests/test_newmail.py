@@ -45,14 +45,26 @@ def test_print_new_account(capsys, monkeypatch, maildomain, tmpdir, example_conf
     assert lines[0] == "Content-Type: application/json"
     assert not lines[1]
     dic = json.loads(lines[2])
-    assert dic["email"].endswith(f"@{example_config.mail_domain}")
+    assert dic["error"] == "account creation disabled"
+
+
+def test_print_new_account_enabled(capsys, monkeypatch, make_config):
+    config = make_config(
+        "chat.example.org", {"allow_account_autocreation": "true"}
+    )
+    monkeypatch.setattr(chatmaild.newemail, "CONFIG_PATH", str(config._inipath))
+    print_new_account()
+    out, err = capsys.readouterr()
+    lines = out.split("\n")
+    dic = json.loads(lines[2])
+    assert dic["email"].endswith(f"@{config.mail_domain}")
     assert len(dic["password"]) >= 10
     # default tls_cert=acme should not include dclogin_url
     assert "dclogin_url" not in dic
 
 
 def test_print_new_account_self_signed(capsys, monkeypatch, make_config):
-    config = make_config("_test.example.org")
+    config = make_config("_test.example.org", {"allow_account_autocreation": "true"})
     monkeypatch.setattr(chatmaild.newemail, "CONFIG_PATH", str(config._inipath))
     print_new_account()
     out, err = capsys.readouterr()
