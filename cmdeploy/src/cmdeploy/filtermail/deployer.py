@@ -1,3 +1,5 @@
+import os
+
 from pyinfra import facts, host
 from pyinfra.operations import files, systemd
 
@@ -13,6 +15,16 @@ class FiltermailDeployer(Deployer):
         self.need_restart = False
 
     def install(self):
+        local_bin = os.environ.get("CHATMAIL_FILTERMAIL_BINARY")
+        if local_bin:
+            self.need_restart |= files.put(
+                name="Upload locally built filtermail",
+                src=local_bin,
+                dest=self.bin_path,
+                mode="755",
+            ).changed
+            return
+
         arch = host.get_fact(facts.server.Arch)
         url = f"https://github.com/chatmail/filtermail/releases/download/v0.6.1/filtermail-{arch}"
         sha256sum = {
