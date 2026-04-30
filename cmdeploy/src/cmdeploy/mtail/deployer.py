@@ -1,10 +1,7 @@
 from pyinfra import facts, host
-from pyinfra.operations import apt, files, server, systemd
+from pyinfra.operations import apt
 
-from cmdeploy.basedeploy import (
-    Deployer,
-    get_resource,
-)
+from cmdeploy.basedeploy import Deployer
 
 
 class MtailDeployer(Deployer):
@@ -18,53 +15,30 @@ class MtailDeployer(Deployer):
         (url, sha256sum) = {
             "x86_64": (
                 "https://github.com/google/mtail/releases/download/v3.0.8/mtail_3.0.8_linux_amd64.tar.gz",
-                "123c2ee5f48c3eff12ebccee38befd2233d715da736000ccde49e3d5607724e4",
+                "d55cb601049c5e61eabab29998dbbcea95d480e5448544f9470337ba2eea882e",
             ),
             "aarch64": (
                 "https://github.com/google/mtail/releases/download/v3.0.8/mtail_3.0.8_linux_arm64.tar.gz",
-                "aa04811c0929b6754408676de520e050c45dddeb3401881888a092c9aea89cae",
+                "f748db8ad2a1e0b63684d4c8868cf6a373a20f7e6922e5ece601fff0ee00eb1a",
             ),
         }[host.get_fact(facts.server.Arch)]
-
-        server.shell(
-            name="Download mtail",
-            commands=[
-                f"(echo '{sha256sum} /usr/local/bin/mtail' | sha256sum -c) || (curl -L {url} | gunzip | tar -x -f - mtail -O >/usr/local/bin/mtail.new && mv /usr/local/bin/mtail.new /usr/local/bin/mtail)",
-                "chmod 755 /usr/local/bin/mtail",
-            ],
+        self.download_executable(
+            url,
+            "/usr/local/bin/mtail",
+            sha256sum,
+            extract="gunzip | tar -xf - mtail -O",
         )
 
     def configure(self):
         # Using our own systemd unit instead of `/usr/lib/systemd/system/mtail.service`.
         # This allows to read from journalctl instead of log files.
-        unit = files.template(
-            src=get_resource("mtail/mtail.service.j2"),
-            dest="/etc/systemd/system/mtail.service",
-            user="root",
-            group="root",
-            mode="644",
+        self.ensure_systemd_unit(
+            "mtail/mtail.service.j2",
             address=self.mtail_address or "127.0.0.1",
             port=3903,
         )
-
-        mtail_conf = files.put(
-            name="Mtail configuration",
-            src=get_resource("mtail/delivered_mail.mtail"),
-            dest="/etc/mtail/delivered_mail.mtail",
-            user="root",
-            group="root",
-            mode="644",
-        )
-        self.unit_changed = unit.changed
-        self.need_restart = unit.changed or mtail_conf.changed
+        self.put_file("mtail/delivered_mail.mtail", "/etc/mtail/delivered_mail.mtail")
 
     def activate(self):
-        systemd.service(
-            name="Start and enable mtail",
-            service="mtail.service",
-            running=bool(self.mtail_address),
-            enabled=bool(self.mtail_address),
-            restarted=self.need_restart,
-            daemon_reload=self.unit_changed,
-        )
-        self.need_restart = False
+        active = bool(self.mtail_address)
+        self.ensure_service("mtail.service", running=active, enabled=active)
