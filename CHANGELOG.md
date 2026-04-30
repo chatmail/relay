@@ -2,12 +2,12 @@
 
 ## 1.10.0 2026-04-30
 
-* start after networking is fully up <https://github.com/chatmail/relay/pull/942>
+* start mtail after networking is fully up <https://github.com/chatmail/relay/pull/942>
 * support specifying custom filtermail binary through environment variable <https://github.com/chatmail/relay/pull/941>
-* setup zizmor <https://github.com/chatmail/relay/pull/938>
-* add repository_dispatch trigger to chatmail/docker for automated docker image builds <https://github.com/chatmail/relay/pull/934>
+* add automated zizmor scanning of github workflows <https://github.com/chatmail/relay/pull/938>
+* added dispatch for *automated builds of chatmail relay docker images* <https://github.com/chatmail/relay/pull/934>
 * do not bind SMTP client sockets to public addresses <https://github.com/chatmail/relay/pull/932>
-* scripts/initenv.sh should be used for building the docs <https://github.com/chatmail/relay/pull/933>
+* underline in docs that scripts/initenv.sh should be used for building the docs <https://github.com/chatmail/relay/pull/933>
 * automatic oldest-first message removal from mailboxes to always stay under max_mailbox_size <https://github.com/chatmail/relay/pull/929>
 * remove --slow from cmdeploy test <https://github.com/chatmail/relay/pull/931>
 * handle missing inotify sysctl keys in containers <https://github.com/chatmail/relay/pull/930>
@@ -17,7 +17,7 @@
 * explicitly install resolvconf <https://github.com/chatmail/relay/pull/924>
 * detect stale dovecot binary and force restart in activate() <https://github.com/chatmail/relay/pull/922>
 * Rename filtermail_http_port to filtermail_http_port_incoming <https://github.com/chatmail/relay/pull/921>
-* Docker Preparations: <consolidate is_in_container() by @j4n in https://github.com/chatmail/relay/pull/920>
+* consolidated is_in_container() check https://github.com/chatmail/relay/pull/920>
 * restart dovecot after package replacement (rebase, test condense) <https://github.com/chatmail/relay/pull/913>
 * Set permissions on dovecot pin prefs <https://github.com/chatmail/relay/pull/915>
 * Route `/mxdeliv/` to configurable port <https://github.com/chatmail/relay/pull/901>
@@ -36,7 +36,7 @@
 * disable installing recommended packages globally on the relay <https://github.com/chatmail/relay/pull/887>
 * multiple bug fixes across chatmaild and cmdeploy <https://github.com/chatmail/relay/pull/883>
 * remove /metrics from the website <https://github.com/chatmail/relay/pull/703>
-* add Prometheus textfile output <https://github.com/chatmail/relay/pull/881>
+* add Prometheus textfile output to fsreport <https://github.com/chatmail/relay/pull/881>
 * chown opendkim: private key <https://github.com/chatmail/relay/pull/879>
 * make sure chatmail-metadata was started <https://github.com/chatmail/relay/pull/882>
 * dovecot update url <https://github.com/chatmail/relay/pull/880>
