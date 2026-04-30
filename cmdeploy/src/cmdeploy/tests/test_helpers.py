@@ -1,11 +1,10 @@
-import importlib.resources
+from pathlib import Path
 
 from cmdeploy.www import build_webpages
 
 
 def test_build_webpages(tmp_path, make_config):
-    pkgroot = importlib.resources.files("cmdeploy")
-    src_dir = pkgroot.joinpath("../../../www/src").resolve()
+    src_dir = (Path(__file__).resolve() / "../../../../../www/src").resolve()
     assert src_dir.exists(), src_dir
     config = make_config("chat.example.org")
     build_dir = tmp_path.joinpath("build")
