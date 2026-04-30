@@ -1,5 +1,4 @@
 import hashlib
-import importlib.resources
 import re
 import time
 import traceback
@@ -37,7 +36,7 @@ def prepare_template(source):
 
 
 def get_paths(config) -> (Path, Path, Path):
-    reporoot = importlib.resources.files(__package__).joinpath("../../../").resolve()
+    reporoot = (Path(__file__).resolve() / "../../../../").resolve()
     www_path = Path(config.www_folder)
     # if www_folder was not set, use default directory
     if config.www_folder == "":
@@ -133,8 +132,7 @@ def find_merge_conflict(src_dir) -> Path:
 
 
 def main():
-    path = importlib.resources.files(__package__)
-    reporoot = path.joinpath("../../../").resolve()
+    reporoot = (Path(__file__).resolve() / "../../../../").resolve()
     inipath = reporoot.joinpath("chatmail.ini")
     config = read_config(inipath)
     config.webdev = True
