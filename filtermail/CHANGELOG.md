@@ -1,3 +1,16 @@
+## 0.6.4 - 2026-05-01
+
+### Bug Fixes
+
+- Implement missing "implicit MX" rule
+
+### Features
+
+- Https transport channel (#122)
+
+### Refactor
+
+- *(transport)* Explicitly handle RFC7505 null MX
 ## 0.6.3 - 2026-04-20
 
 ### Features
