@@ -27,6 +27,7 @@
 mod config;
 mod dkim_verifier;
 pub(crate) mod error;
+mod http_server;
 pub(crate) mod inbound;
 pub(crate) mod message;
 pub(crate) mod openpgp;
@@ -37,6 +38,7 @@ mod tls;
 mod transport;
 pub(crate) mod utils;
 
+use crate::http_server::run_http_server;
 use crate::transport::TransportHandler;
 use config::Config;
 use env_logger::Env;
@@ -151,6 +153,17 @@ async fn main() -> Result<(), error::Error> {
                 "Incoming SMTP server listening on {}:{}",
                 addr_smtp.0,
                 addr_smtp.1
+            );
+
+            let addr_http = (config.filtermail_host, config.filtermail_http_port_incoming);
+            let handler_http = handler.clone();
+
+            server_set
+                .spawn(async move { run_http_server(&addr_http, handler_http, max_size).await });
+            log::debug!(
+                "Incoming HTTP server listening on {}:{}",
+                addr_http.0,
+                addr_http.1
             );
 
             while let Some(result) = server_set.join_next().await {

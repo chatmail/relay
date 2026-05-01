@@ -27,6 +27,12 @@ pub enum Error {
     Tls(#[from] rustls::Error),
     #[error(transparent)]
     InvalidDnsName(#[from] rustls::pki_types::InvalidDnsNameError),
+    #[error(transparent)]
+    Hyper(#[from] hyper::Error),
+    #[error(transparent)]
+    HyperHttp(#[from] hyper::http::Error),
+    #[error(transparent)]
+    HyperClient(#[from] hyper_util::client::legacy::Error),
 }
 
 impl Error {

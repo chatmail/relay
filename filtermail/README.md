@@ -19,6 +19,29 @@ Filtermail can be used in `incoming`, `outgoing` or `transport` mode.
 
 ### Incoming mode
 
+```mermaid
+flowchart LR
+
+    subgraph chatmail relay
+        subgraph postfix
+            smtpd1[smtpd]
+            smtpd2[smtpd] --> queue[...]
+        end
+        nginx[nginx]
+        smtpd1 -.SMTP :10081.-> filtermail[filtermail-incoming]
+        nginx -.HTTP :10082.-> filtermail
+        filtermail --SMTP :10026--> smtpd2
+    end
+    mta[Sender's relay] -.SMTP :25.-> smtpd1
+    mta -.HTTPS /mxdeliv.-> nginx
+
+    style postfix fill:#363
+    style smtpd1 fill:#252
+    style smtpd2 fill:#252
+    style queue fill:#252
+    style filtermail fill:#225
+```
+
 Filtermail in incoming mode acts as a proxy filter
 for messages received from remote MTAs and performs following steps:
 
@@ -41,7 +64,31 @@ for messages received from remote MTAs and performs following steps:
 5. In case of a DKIM failure,
    the message is saved to `/tmp/filtermail-rejected/dkim-verify` directory for later inspection.
 
+In contrast to outgoing mode, incoming mode starts with not only SMTP but also HTTP listener.
+Built-in HTTP server doesn't handle TLS, and should be placed behind a TLS-terminating reverse proxy.
+
 ### Outgoing mode
+
+```mermaid
+flowchart LR
+    
+    subgraph chatmail relay
+        subgraph postfix
+            smtpd1[smtpd]
+            smtpd2[smtpd] --> queue[...]
+        end
+        smtpd1 --SMTP :10080--> filtermail[filtermail-outgoing]
+        filtermail --SMTP :10025--> smtpd2
+        open-dkim[OpenDKIM] <--milter--> smtpd2
+    end
+    client[Client] --SMTP :587--> smtpd1
+
+    style postfix fill:#363
+    style smtpd1 fill:#252
+    style smtpd2 fill:#252
+    style queue fill:#252
+    style filtermail fill:#225
+```
 
 Filtermail in outgoing mode acts as a proxy filter
 for messages received from clients and performs following steps:
@@ -58,12 +105,33 @@ for messages received from clients and performs following steps:
 
 ### Transport mode
 
+```mermaid
+flowchart LR
+    
+    subgraph chatmail relay
+        subgraph postfix
+            qmgr[...] --> lmtp[default-transport lmtp] 
+        end
+        
+        lmtp --LMTP :10083--> filtermail[filtermail-transport]
+    end
+    filtermail -.SMTP :25.-> mta[Recipient's relay]
+    filtermail -.HTTPS /mxdeliv.-> mta
+    
+    style postfix fill:#363
+    style qmgr fill:#252
+    style lmtp fill:#252
+    style filtermail fill:#225
+```
+
 Filtermail in transport mode is used for final delivery to remote MTAs.
 As opposed to incoming/outgoing, it accepts connections from postfix over LMTP instead of SMTP,
 to allow returning per-recipient status back to postfix.
-Received message is split per-domain and sent to recipients' MX servers over SMTP,
+Received message is split per-domain and sent to recipients' MX servers over HTTP and SMTP,
 enforcing TLS.
 As opposed to postfix, IPv4 and IPv6 connections are tried in parallel and first successful connection is used.
+HTTP delivery channel is preferred,
+and SMTP is used only if HTTP delivery fails.
 
 ## Configuration
 
@@ -74,8 +142,10 @@ but implements a custom parser that only requires a small subset of configuratio
 
 - `filtermail_smtp_port` - port to listen on in outgoing mode,
   defaults to `10080`.
-- `filtermail_smtp_port_incoming` - port to listen on in incoming mode,
+- `filtermail_smtp_port_incoming` - SMTP port to listen on in incoming mode,
   defaults to `10081`.
+- `filtermail_http_port_incoming` - HTTP port to listen on in incoming mode,
+  defaults to `10082`.
 - `filtermail_lmtp_port_transport` - port to listen on in transport mode,
   defaults to `10083`.
 - `postfix_reinject_port` - port to reinject messages to postfix in outgoing mode,
@@ -124,7 +194,7 @@ Additional options that can be set using environment variables:
 Although unsupported, it may still work outside of this context or even without postfix,
 with few considerations:
 
-- Filtermail expects to receive messages from a trusted server,
+- Filtermail expects to receive messages from trusted clients,
   and thus should not listen on ports exposed directly to the internet.
 - Issues outside of chatmail relay context are not necessarily considered bugs;
   PRs fixing them are not guaranteed to be accepted.
