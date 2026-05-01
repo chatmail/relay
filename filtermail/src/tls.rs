@@ -16,8 +16,19 @@ pub async fn wrap_rustls<IO>(
 where
     IO: AsyncRead + AsyncWrite + Unpin,
 {
-    let mut root_cert_store = rustls::RootCertStore::empty();
-    root_cert_store.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
+    let config = configure_rustls(resumption_store, dangerous_no_cert_verification);
+    let tls = tokio_rustls::TlsConnector::from(Arc::new(config));
+    let name = rustls::pki_types::ServerName::try_from(hostname)?.to_owned();
+    let tls_stream = tls.connect(name, stream).await?;
+    Ok(tls_stream.into())
+}
+
+pub fn configure_rustls(
+    resumption_store: Arc<ClientSessionMemoryCache>,
+    dangerous_no_cert_verification: bool,
+) -> rustls::ClientConfig {
+    let root_cert_store =
+        rustls::RootCertStore::from_iter(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
 
     let mut config = rustls::ClientConfig::builder()
         .with_root_certificates(root_cert_store)
@@ -39,8 +50,5 @@ where
             .set_certificate_verifier(Arc::new(NoCertificateVerification::default()));
     }
 
-    let tls = tokio_rustls::TlsConnector::from(Arc::new(config));
-    let name = rustls::pki_types::ServerName::try_from(hostname)?.to_owned();
-    let tls_stream = tls.connect(name, stream).await?;
-    Ok(tls_stream.into())
+    config
 }

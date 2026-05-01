@@ -14,6 +14,8 @@ pub struct Config {
     pub filtermail_smtp_port: u16,
     #[serde(default = "Config::default_filtermail_smtp_port_incoming")]
     pub filtermail_smtp_port_incoming: u16,
+    #[serde(default = "Config::default_filtermail_http_port_incoming")]
+    pub filtermail_http_port_incoming: u16,
     #[serde(default = "Config::default_filtermail_lmtp_port_transport")]
     pub filtermail_lmtp_port_transport: u16,
     #[serde(default = "Config::default_postfix_host")]
@@ -110,6 +112,9 @@ impl Config {
     const fn default_filtermail_smtp_port_incoming() -> u16 {
         10081
     }
+    const fn default_filtermail_http_port_incoming() -> u16 {
+        10082
+    }
     const fn default_filtermail_lmtp_port_transport() -> u16 {
         10083
     }
@@ -143,6 +148,7 @@ impl Default for Config {
             filtermail_host: Self::default_filtermail_host(),
             filtermail_smtp_port: Self::default_filtermail_smtp_port(),
             filtermail_smtp_port_incoming: Self::default_filtermail_smtp_port_incoming(),
+            filtermail_http_port_incoming: Self::default_filtermail_http_port_incoming(),
             filtermail_lmtp_port_transport: Self::default_filtermail_lmtp_port_transport(),
             postfix_host: Self::default_postfix_host(),
             postfix_reinject_port: Self::default_postfix_reinject_port(),

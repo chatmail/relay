@@ -1,45 +1,123 @@
 use crate::config::Config;
 use crate::smtp_client::{SmtpConnectionPool, TlsConfig};
 use crate::smtp_server::{Envelope, SmtpHandler};
+use crate::tls;
 use crate::utils::{AddressDomain, build_resolver};
 use async_trait::async_trait;
 use hickory_resolver::TokioResolver;
+use http_body_util::BodyExt;
+use hyper::body::Bytes;
+use hyper_rustls::HttpsConnector;
+use hyper_util::client::legacy::connect::HttpConnector;
 use std::collections::BTreeMap;
 use std::str::FromStr;
 use std::sync::Arc;
-use tokio::task::JoinSet;
+use std::time::Duration;
+use tokio::task::{JoinHandle, JoinSet};
 use tokio_rustls::rustls;
+
+pub const HEADER_MAIL_FROM: &str = "X-MAIL-FROM";
+pub const HEADER_RCPT_TO: &str = "X-MAIL-TO";
+
+/// Cheaply clonable HTTPS client.
+///
+/// Holds regular secure variant and relaxed - without certificate verification.
+///
+/// Connection pool handled internally by [`hyper_util::client::legacy::Client`].
+#[derive(Clone)]
+struct HttpsClient {
+    pub secure: hyper_util::client::legacy::Client<
+        HttpsConnector<HttpConnector>,
+        http_body_util::Full<Bytes>,
+    >,
+    pub relaxed: hyper_util::client::legacy::Client<
+        HttpsConnector<HttpConnector>,
+        http_body_util::Full<Bytes>,
+    >,
+}
+
+impl HttpsClient {
+    /// Creates a new `[HttpsClient]`.
+    pub fn new(tls_resumption_store: Arc<rustls::client::ClientSessionMemoryCache>) -> Self {
+        let tls_client_config = tls::configure_rustls(tls_resumption_store.clone(), false);
+        let https_connector = hyper_rustls::HttpsConnectorBuilder::new()
+            .with_tls_config(tls_client_config)
+            .https_only()
+            .enable_http1()
+            .enable_http2()
+            .build();
+        let https_client =
+            hyper_util::client::legacy::Client::builder(hyper_util::rt::TokioExecutor::new())
+                .build(https_connector);
+
+        let tls_client_config_relaxed = tls::configure_rustls(tls_resumption_store, true);
+        let https_connector_relaxed = hyper_rustls::HttpsConnectorBuilder::new()
+            .with_tls_config(tls_client_config_relaxed)
+            .https_only()
+            .enable_http1()
+            .enable_http2()
+            .build();
+        let https_client_relaxed =
+            hyper_util::client::legacy::Client::builder(hyper_util::rt::TokioExecutor::new())
+                .build(https_connector_relaxed);
+
+        Self {
+            secure: https_client,
+            relaxed: https_client_relaxed,
+        }
+    }
+}
 
 pub struct TransportHandler {
     config: Config,
     dns_resolver: Arc<TokioResolver>,
     tls_resumption_store: Arc<rustls::client::ClientSessionMemoryCache>,
     smtp_connection_pool: Arc<SmtpConnectionPool>,
+    https_client: HttpsClient,
+    mxdeliv_unsupported_hosts: Arc<retainer::Cache<String, bool>>,
+    monitor_handle: JoinHandle<()>,
 }
 
 impl TransportHandler {
     pub fn new(config: Config) -> Result<Self, crate::error::Error> {
         let dns_resolver = Arc::new(build_resolver()?);
         let tls_resumption_store = Arc::new(rustls::client::ClientSessionMemoryCache::new(256));
+        let https_client = HttpsClient::new(tls_resumption_store.clone());
+
+        let mxdeliv_cache = Arc::new(retainer::Cache::new());
+        let mxdeliv_cache_clone = mxdeliv_cache.clone();
+
+        let monitor_handle = tokio::spawn(async move {
+            mxdeliv_cache_clone
+                .monitor(4, 0.25, Duration::from_secs(10))
+                .await
+        });
+
         Ok(Self {
             config,
             dns_resolver,
             tls_resumption_store,
             smtp_connection_pool: SmtpConnectionPool::new(),
+            https_client,
+            mxdeliv_unsupported_hosts: mxdeliv_cache,
+            monitor_handle,
         })
     }
 
     /// Handles a single email transaction for a single recipient domain.
+    #[expect(clippy::too_many_arguments)]
     async fn handle_single_domain(
         tls_resumption_store: Arc<rustls::client::ClientSessionMemoryCache>,
         smtp_connection_pool: Arc<SmtpConnectionPool>,
+        mxdeliv_unsupported_hosts: Arc<retainer::Cache<String, bool>>,
+        https_client: HttpsClient,
         dns_resolver: Arc<TokioResolver>,
         domain: AddressDomain,
         envelope: Envelope,
         client_hostname: String,
     ) -> Result<String, String> {
         let mut allow_invalid_cert = false;
-        let mut skip_tls = false;
+        let mut skip_tls = false; // only respected by smtp channel
 
         let mx_hosts = match domain {
             // no-DNS setup; assume the ip from email address is the destination.
@@ -110,6 +188,34 @@ impl TransportHandler {
         // but the IPv4 and IPv6 connections (after `smtp_client::send` resolves mx hostname)
         // happens in parallel.
         'try_relay: for (_, mx_host) in mx_hosts {
+            let skip_mxdeliv = mxdeliv_unsupported_hosts
+                .get(&mx_host)
+                .await
+                .map(|guard| *guard.value())
+                .unwrap_or(false);
+
+            // HTTPS channel
+            if skip_mxdeliv {
+                log::debug!("Skipping HTTP delivery to host that failed recently: {mx_host}");
+            } else {
+                match Self::https_delivery(
+                    https_client.clone(),
+                    mx_host.clone(),
+                    &envelope,
+                    allow_invalid_cert,
+                )
+                .await
+                {
+                    Ok(_) => {
+                        return Ok("250 Ok (HTTPS)".to_string());
+                    }
+                    Err(e) => {
+                        log::debug!("HTTPS delivery to {mx_host} failed: {e}");
+                    }
+                }
+            }
+
+            // SMTP channel (fallback)
             match crate::smtp_client::send(
                 &mx_host,
                 25,
@@ -122,7 +228,14 @@ impl TransportHandler {
             .await
             {
                 Ok(_) => {
-                    return Ok("250 Ok".to_string());
+                    // Switches this host to SMTP for 30 minutes.
+                    // Note: this MUST happen only after a successful SMTP delivery,
+                    // or otherwise any http error will lock us out of any way to
+                    // deliver to a relay with a blocked port 25 for 30 minutes.
+                    mxdeliv_unsupported_hosts
+                        .insert(mx_host.clone(), true, Duration::from_mins(30))
+                        .await;
+                    return Ok("250 Ok (SMTP)".to_string());
                 }
                 Err(error) => {
                     match error {
@@ -151,6 +264,60 @@ impl TransportHandler {
         }
 
         Err("421 Failed to connect to any mail server".to_string())
+    }
+
+    /// Performs mail delivery to `mx_host` over HTTPS.
+    ///
+    /// Times out after 60s.
+    async fn https_delivery(
+        https_client: HttpsClient,
+        mx_host: String,
+        envelope: &Envelope,
+        allow_invalid_cert: bool,
+    ) -> Result<(), crate::error::Error> {
+        let request: hyper::Request<http_body_util::Full<Bytes>> = {
+            let mut builder = hyper::Request::builder()
+                .method(hyper::Method::POST)
+                .uri(format!("https://{mx_host}/mxdeliv"));
+
+            if !envelope.mail_from.is_empty() {
+                builder = builder.header(HEADER_MAIL_FROM, &envelope.mail_from);
+            }
+
+            for rcpt_to in &envelope.rcpt_to {
+                builder = builder.header(HEADER_RCPT_TO, rcpt_to);
+            }
+
+            builder.body(http_body_util::Full::from(envelope.data.clone()))?
+        };
+
+        let client = if allow_invalid_cert {
+            https_client.relaxed
+        } else {
+            https_client.secure
+        };
+
+        let response = tokio::time::timeout(Duration::from_secs(60), client.request(request))
+            .await
+            .map_err(|_| crate::error::Error::MailSend {
+                context: "HTTPS delivery".to_string(),
+                raw_smtp_answer: "[timeout]".to_string(),
+            })??;
+        if response.status().is_success() {
+            Ok(())
+        } else {
+            let response_body = response.collect().await?.to_bytes();
+            Err(crate::error::Error::MailSend {
+                context: "HTTPS delivery".to_string(),
+                raw_smtp_answer: String::from_utf8_lossy(&response_body).into(),
+            })
+        }
+    }
+}
+
+impl Drop for TransportHandler {
+    fn drop(&mut self) {
+        self.monitor_handle.abort();
     }
 }
 
@@ -201,6 +368,8 @@ impl SmtpHandler for TransportHandler {
                 .spawn(Self::handle_single_domain(
                     self.tls_resumption_store.clone(),
                     self.smtp_connection_pool.clone(),
+                    self.mxdeliv_unsupported_hosts.clone(),
+                    self.https_client.clone(),
                     self.dns_resolver.clone(),
                     rcpt_domain.clone(),
                     domain_envelope,
