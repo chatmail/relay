@@ -28,7 +28,7 @@ tokio-rustls = { version = "0.26.4", default-features = false, features = [
   "logging",
   "tls12",
 ] }
-webpki-roots = "1.0.6"
+webpki-roots = "1.0.7"
 tokio-io-timeout = "1.2.1"
 retainer = "0.4.0"
 hyper = { version = "1.8.1", features = ["server"] }
