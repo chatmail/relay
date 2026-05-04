@@ -37,7 +37,7 @@ class MtailDeployer(Deployer):
     def configure(self):
         # Using our own systemd unit instead of `/usr/lib/systemd/system/mtail.service`.
         # This allows to read from journalctl instead of log files.
-        files.template(
+        unit = files.template(
             src=get_resource("mtail/mtail.service.j2"),
             dest="/etc/systemd/system/mtail.service",
             user="root",
@@ -55,7 +55,8 @@ class MtailDeployer(Deployer):
             group="root",
             mode="644",
         )
-        self.need_restart = mtail_conf.changed
+        self.unit_changed = unit.changed
+        self.need_restart = unit.changed or mtail_conf.changed
 
     def activate(self):
         systemd.service(
@@ -64,5 +65,6 @@ class MtailDeployer(Deployer):
             running=bool(self.mtail_address),
             enabled=bool(self.mtail_address),
             restarted=self.need_restart,
+            daemon_reload=self.unit_changed,
         )
         self.need_restart = False
