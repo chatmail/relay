@@ -21,7 +21,7 @@ env_logger = "0.11.10"
 governor = "0.10.4"
 viadkim = { version = "0.2.0" }
 hickory-resolver = { version = "0.25.2", features = ["dnssec-ring"] }
-lru = "0.16.3"
+lru = "0.17.0"
 parking_lot = "0.12.5"
 tokio-rustls = { version = "0.26.4", default-features = false, features = [
   "ring",
