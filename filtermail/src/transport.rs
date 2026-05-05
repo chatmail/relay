@@ -4,7 +4,7 @@ use crate::smtp_server::{Envelope, SmtpHandler};
 use crate::tls;
 use crate::utils::{AddressDomain, build_resolver};
 use async_trait::async_trait;
-use hickory_resolver::TokioResolver;
+use hickory_resolver::{TokioResolver, proto::rr::RData};
 use http_body_util::BodyExt;
 use hyper::body::Bytes;
 use hyper_rustls::HttpsConnector;
@@ -141,9 +141,14 @@ impl TransportHandler {
                 match dns_resolver.mx_lookup(query).await {
                     Ok(mx_records) => {
                         let mut hosts: Vec<(u16, String)> = Vec::new();
-                        for mx in mx_records {
+                        for mx_record in mx_records.answers() {
+                            let mx = match mx_record.data {
+                                RData::MX(ref mx) => mx,
+                                _ => continue,
+                            };
+
                             // Null MX / RFC7505
-                            if mx.exchange().is_root() {
+                            if mx.exchange.is_root() {
                                 // From RFC7505 section 3:
                                 // > A domain that advertises a null MX MUST NOT
                                 // > advertise any other MX RR.
@@ -154,8 +159,8 @@ impl TransportHandler {
                                 );
                             }
 
-                            let host = mx.exchange().to_string().trim_end_matches('.').to_string();
-                            hosts.push((mx.preference(), host))
+                            let host = mx.exchange.to_string().trim_end_matches('.').to_string();
+                            hosts.push((mx.preference, host))
                         }
                         hosts.sort();
                         hosts
