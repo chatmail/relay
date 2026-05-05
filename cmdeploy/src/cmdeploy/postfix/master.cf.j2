@@ -101,7 +101,7 @@ filter    unix -        n       n       -       -       lmtp
 authclean unix  n       -       -       -       0       cleanup
   -o header_checks=regexp:/etc/postfix/submission_header_cleanup
 
-lmtp-filtermail unix  -       -       y       -       -       lmtp
+lmtp-filtermail unix  -       -       y       -       10000       lmtp
   -o syslog_name=postfix/lmtp-filtermail
   -o lmtp_header_checks=
   -o lmtp_tls_security_level=none
