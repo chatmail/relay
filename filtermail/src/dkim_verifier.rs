@@ -1,4 +1,4 @@
-use hickory_resolver::{Name, TokioResolver};
+use hickory_resolver::{TokioResolver, proto::rr::Name};
 use lru::LruCache;
 use std::io;
 use std::num::NonZeroUsize;
@@ -84,22 +84,26 @@ impl LookupTxt for CachedResolver {
 
             log::debug!("Trying to resolve TXT records for {}", name);
             let txts: Vec<Vec<u8>> = {
-                let lookup = self.dns_resolver.txt_lookup(name.clone()).await?;
+                let lookup = self
+                    .dns_resolver
+                    .txt_lookup(name.clone())
+                    .await
+                    .map_err(io::Error::other)?;
 
                 // viadkim would filter out non-DKIM TXT records,
                 // but we filter it here anyway so that we know which one should be cached.
                 lookup
-                    .into_iter()
+                    .answers()
+                    .iter()
                     // We don't check all records, as this can be a DoS attack vector.
                     // In theory, selector domains should only have a single TXT record.
                     // In practice, we check at most 3, just in case of weird configuration.
                     .take(3)
                     .map(|txt| {
-                        let rdata_raw = txt.txt_data().concat();
-                        let rdata = String::from_utf8_lossy(&rdata_raw);
-                        log::trace!("TXT (concat): {:?}", rdata);
+                        let rdata = txt.data.to_string();
+                        log::trace!("TXT (raw rdata): {:?}", rdata);
                         let normalized = normalize_rdata(&rdata);
-                        log::trace!("TXT (normalized): {:?}", normalized);
+                        log::trace!("TXT (concatenated and normalized): {:?}", normalized);
                         normalized.into_bytes()
                     })
                     .collect()
