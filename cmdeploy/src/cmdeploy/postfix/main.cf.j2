@@ -99,4 +99,4 @@ smtpd_peername_lookup = no
 # when specifying a custom next-hop,
 # so instead this is handled in filtermail.
 # We use LMTP instead SMTP so we can communicate per-recipient errors back to postfix.
-default_transport = lmtp-filtermail:inet:[127.0.0.1]:{{ config.filtermail_lmtp_port_transport }}
+#default_transport = lmtp-filtermail:inet:[127.0.0.1]:{{ config.filtermail_lmtp_port_transport }}
