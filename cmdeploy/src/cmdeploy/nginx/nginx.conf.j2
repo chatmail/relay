@@ -69,7 +69,7 @@ http {
 
 		index index.html index.htm;
 
-		server_name {{ config.mail_domain }} www.{{ config.mail_domain }} mta-sts.{{ config.mail_domain }};
+		server_name {{ config.mail_domain }} mta-sts.{{ config.mail_domain }};
 
 		access_log syslog:server=unix:/dev/log,facility=local7;
 
