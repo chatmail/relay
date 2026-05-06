@@ -192,6 +192,12 @@ class UnboundDeployer(Deployer):
 
         self.ensure_service("unbound.service")
 
+        self.ensure_service(
+            "unbound-resolvconf.service",
+            running=False,
+            enabled=False,
+        )
+
 
 class MtastsDeployer(Deployer):
     def configure(self):
