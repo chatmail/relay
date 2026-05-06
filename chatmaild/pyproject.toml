@@ -24,6 +24,7 @@ chatmail-metadata = "chatmaild.metadata:main"
 chatmail-expire = "chatmaild.expire:daily_expire_main"
 chatmail-quota-expire = "chatmaild.expire:quota_expire_main"
 chatmail-fsreport = "chatmaild.fsreport:main"
+chatmail-deferred = "chatmaild.deferred:main"
 lastlogin = "chatmaild.lastlogin:main"
 turnserver = "chatmaild.turnserver:main"
 
