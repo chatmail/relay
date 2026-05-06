@@ -228,6 +228,13 @@ class UnboundDeployer(Deployer):
             restarted=self.need_restart,
         )
 
+        systemd.service(
+            name="Stop and disable unbound-resolvconf",
+            service="unbound-resolvconf.service",
+            running=False,
+            enabled=False,
+        )
+
 
 class MtastsDeployer(Deployer):
     def configure(self):
