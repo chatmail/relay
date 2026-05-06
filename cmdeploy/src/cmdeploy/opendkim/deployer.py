@@ -12,8 +12,8 @@ from cmdeploy.basedeploy import Deployer, get_resource
 class OpendkimDeployer(Deployer):
     required_users = [("opendkim", None, ["opendkim"])]
 
-    def __init__(self, mail_domain):
-        self.mail_domain = mail_domain
+    def __init__(self, mail_domain_deliverable):
+        self.mail_domain_deliverable = mail_domain_deliverable
 
     def install(self):
         apt.packages(
@@ -22,7 +22,7 @@ class OpendkimDeployer(Deployer):
         )
 
     def configure(self):
-        domain = self.mail_domain
+        domain = self.mail_domain_deliverable
         dkim_selector = "opendkim"
         """Configures OpenDKIM"""
         need_restart = False

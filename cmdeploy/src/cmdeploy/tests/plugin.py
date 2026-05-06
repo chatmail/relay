@@ -10,7 +10,8 @@ import time
 from pathlib import Path
 
 import pytest
-from chatmaild.config import read_config
+from chatmaild.config import read_config, format_deliverable_domain, is_valid_ipv4
+
 
 conftestdir = Path(__file__).parent
 
@@ -59,6 +60,11 @@ def chatmail_config(pytestconfig):
 @pytest.fixture(scope="session")
 def maildomain(chatmail_config):
     return chatmail_config.mail_domain
+
+
+@pytest.fixture(scope="session")
+def maildomain_deliverable(maildomain):
+    return format_deliverable_domain(maildomain)
 
 
 @pytest.fixture(scope="session")
@@ -277,8 +283,7 @@ def gencreds(chatmail_config):
     next(count)
 
     def gen(domain=None):
-        domain = domain if domain else chatmail_config.mail_domain
-        addr_domain = f"[{domain}]" if _is_ip(domain) else domain
+        domain = domain if domain else chatmail_config.mail_domain_deliverable
         while 1:
             num = next(count)
             alphanumeric = "abcdefghijklmnopqrstuvwxyz1234567890"
@@ -292,7 +297,7 @@ def gencreds(chatmail_config):
             password = "".join(
                 random.choices(alphanumeric, k=chatmail_config.password_min_length)
             )
-            yield f"{user}@{addr_domain}", f"{password}"
+            yield f"{user}@{domain}", f"{password}"
 
     return lambda domain=None: next(gen(domain))
 
@@ -317,7 +322,8 @@ class ChatmailACFactory:
 
     def _make_transport(self, domain):
         """Build a transport config dict for the given domain."""
-        addr, password = self.gencreds(domain)
+        domain_deliverable = format_deliverable_domain(domain)
+        addr, password = self.gencreds(domain_deliverable)
         transport = {
             "addr": addr,
             "password": password,
@@ -326,7 +332,7 @@ class ChatmailACFactory:
             "imapServer": domain,
             "smtpServer": domain,
         }
-        if self.chatmail_config.tls_cert_mode == "self":
+        if domain.startswith("_") or is_valid_ipv4(domain):
             transport["certificateChecks"] = "acceptInvalidCertificates"
         return transport
 
@@ -341,7 +347,8 @@ class ChatmailACFactory:
         accounts = []
         for _ in range(num):
             account = self.dc.add_account()
-            addr, password = self.gencreds(domain)
+            domain_deliverable = format_deliverable_domain(domain)
+            addr, password = self.gencreds(domain_deliverable)
             if _is_ip(domain):
                 # Use DCLOGIN scheme with explicit server hosts,
                 # matching how madmail presents its addresses to users.

@@ -74,7 +74,7 @@ def test_one_mail(
         print(line.decode("ascii"), file=sys.stderr)
         pytest.fail("starting filtermail failed")
 
-    addr = f"user1@{config.mail_domain}"
+    addr = f"user1@{config.mail_domain_deliverable}"
     config.get_user(addr).set_password("l1k2j3l1k2j3l")
 
     # send encrypted mail

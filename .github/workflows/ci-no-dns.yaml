@@ -1,0 +1,35 @@
+name: No-DNS
+
+on:
+  # Triggers when a PR is merged into main or a direct push occurs
+  push:
+    branches: [ "main" ]
+    
+  # Triggers for any PR (and its subsequent commits) targeting the main branch
+  pull_request:
+    branches: [ "main" ]
+
+# Newest push wins: Prevents multiple runs from clashing and wasting runner efforts
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+
+jobs:
+  no-dns:
+    name: LXC deploy and test
+    uses: chatmail/cmlxc/.github/workflows/lxc-test.yml@d39fe34c39cee6d760c3479325e8dc82b66a8928
+    with:
+      cmlxc_commands: |
+        cmlxc init 
+        # single cmdeploy relay test
+        cmlxc -v deploy-cmdeploy --source ./repo --ipv4-only --no-dns cm0
+        cmlxc -v test-cmdeploy --no-dns cm0
+
+        # cross cmdeploy relay test
+        cmlxc -v deploy-cmdeploy --source ./repo cm1
+        cmlxc -v test-cmdeploy --no-dns cm0 cm1
+
+        # cross cmdeploy/madmail relay tests
+        cmlxc -v deploy-madmail mad0
+        cmlxc -v test-cmdeploy --no-dns cm0 mad0
