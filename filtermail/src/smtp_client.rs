@@ -11,13 +11,19 @@ use tokio::task::{JoinHandle, JoinSet};
 use tokio_io_timeout::TimeoutStream;
 use tokio_rustls::rustls::client::ClientSessionMemoryCache;
 
+/// Wraps SMTP connection, contains stream and ESMTP support information.
+pub struct SmtpConnection {
+    pub stream: BufStream<SmtpStream>,
+    pub pipelining: bool,
+}
+
 /// A connection pool for SMTP connections, keyed by (address, port).
 ///
 /// Connections are cached for up to 100 seconds of idle time.
 ///
 /// Only a single connection is cached per address/port pair.
 pub struct SmtpConnectionPool {
-    pool: Arc<retainer::Cache<(String, u16), BufStream<SmtpStream>>>,
+    pool: Arc<retainer::Cache<(String, u16), SmtpConnection>>,
     monitor_handle: JoinHandle<()>,
 }
 
@@ -37,17 +43,17 @@ impl SmtpConnectionPool {
     }
 
     /// Takes a connection from the pool for the given address and port, if available.
-    pub async fn take(&self, address: &str, port: u16) -> Option<BufStream<SmtpStream>> {
+    pub async fn take(&self, address: &str, port: u16) -> Option<SmtpConnection> {
         self.pool.remove(&(address.to_string(), port)).await
     }
 
     /// Puts a connection into the pool for the given address and port, with a 100s timeout.
-    pub async fn put(&self, address: &str, port: u16, stream: BufStream<SmtpStream>) {
+    pub async fn put(&self, address: &str, port: u16, connection: SmtpConnection) {
         // similarly to postfix default -> 100s max idle time.
         self.pool
             .insert(
                 (address.to_string(), port),
-                stream,
+                connection,
                 Duration::from_secs(100),
             )
             .await;
@@ -204,22 +210,23 @@ pub async fn send(
     dns_resolver: Arc<TokioResolver>,
     pool: Arc<SmtpConnectionPool>,
 ) -> Result<(), crate::error::Error> {
-    let (mut buf_stream, reused) = if let Some(stream) = pool.take(address, port).await {
-        log::debug!("Reusing existing connection to {address}:{port}",);
-        if tls_config.is_some() {
-            // This should never happen,
-            // assert to make sure we never accidentally use a plain connection while expecting TLS.
-            assert!(
-                matches!(stream.get_ref(), SmtpStream::Tls(_)),
-                "Expected TLS stream from pool, but got plain stream."
-            );
-        }
-        (stream, true)
-    } else {
-        let stream = establish_tcp_connection(address, port, dns_resolver.clone()).await?;
-        log::debug!("Successfully connected to {}", stream.peer_addr()?);
-        (BufStream::new(SmtpStream::plain(stream)), false)
-    };
+    let (mut buf_stream, reused, mut pipelining) =
+        if let Some(connection) = pool.take(address, port).await {
+            log::debug!("Reusing existing connection to {address}:{port}",);
+            if tls_config.is_some() {
+                // This should never happen,
+                // assert to make sure we never accidentally use a plain connection while expecting TLS.
+                assert!(
+                    matches!(connection.stream.get_ref(), SmtpStream::Tls(_)),
+                    "Expected TLS stream from pool, but got plain stream."
+                );
+            }
+            (connection.stream, true, connection.pipelining)
+        } else {
+            let stream = establish_tcp_connection(address, port, dns_resolver.clone()).await?;
+            log::debug!("Successfully connected to {}", stream.peer_addr()?);
+            (BufStream::new(SmtpStream::plain(stream)), false, false)
+        };
 
     let mut response = String::new();
 
@@ -246,28 +253,30 @@ pub async fn send(
             }
             log::trace!("SMTP response for {}:\n{}", $context, response);
         };
-        ($context:expr, $expected_code:expr) => {
+        ($context:expr, $expected_code:expr) => {{
             smtp_read!($context);
-            smtp_expect!($context, $expected_code);
-        };
+            smtp_expect!($context, $expected_code)
+        }};
     }
 
     macro_rules! smtp_expect {
         ($context:expr, $expected_code:expr) => {
             if !response.starts_with($expected_code) {
-                return Err(crate::error::Error::MailSend {
+                Err(crate::error::Error::MailSend {
                     context: $context.to_string(),
                     raw_smtp_answer: response.clone(),
-                });
+                })
+            } else {
+                Ok(())
             }
         };
     }
 
     macro_rules! smtp_cmd {
-        ($command:expr, $context:expr, $expected_code:expr) => {
+        ($command:expr, $context:expr, $expected_code:expr) => {{
             smtp_write!($command);
-            smtp_read!($context, $expected_code);
-        };
+            smtp_read!($context, $expected_code)
+        }};
     }
 
     // RSET reused connection or fallback to a new connection
@@ -284,7 +293,7 @@ pub async fn send(
             buf_stream = BufStream::new(SmtpStream::plain(stream));
             false
         } else {
-            smtp_expect!("RSET", "250");
+            smtp_expect!("RSET", "250")?;
             true
         }
     } else {
@@ -293,23 +302,21 @@ pub async fn send(
 
     if !reused {
         // Read initial greeting
-        smtp_read!("initial greeting", "220");
+        smtp_read!("initial greeting", "220")?;
 
-        if tls_config.is_some() {
-            smtp_cmd!(
-                format!("EHLO {client_hostname}\r\n").as_bytes(),
-                "EHLO",
-                "250"
-            );
-        } else {
-            smtp_cmd!(
-                format!("HELO {client_hostname}\r\n").as_bytes(),
-                "HELO",
-                "250"
-            );
-        };
+        smtp_cmd!(
+            format!("EHLO {client_hostname}\r\n").as_bytes(),
+            "EHLO",
+            "250"
+        )?;
 
-        // STARTTLS
+        // ESMTP: PIPELINING
+        if response.to_uppercase().contains("PIPELINING") {
+            pipelining = true;
+            log::debug!("Using pipelining");
+        }
+
+        // ESMTP: STARTTLS
         if let Some(tls_config) = tls_config {
             if !response.to_uppercase().contains("STARTTLS") {
                 // TLS was requested, but server doesn't support STARTTLS.
@@ -320,7 +327,7 @@ pub async fn send(
             }
 
             log::trace!("Initiating STARTTLS...");
-            smtp_cmd!(b"STARTTLS\r\n", "STARTTLS", "220");
+            smtp_cmd!(b"STARTTLS\r\n", "STARTTLS", "220")?;
 
             let stream = buf_stream.into_inner();
             let raw_tcp = match stream {
@@ -346,33 +353,78 @@ pub async fn send(
                 format!("EHLO {client_hostname}\r\n").as_bytes(),
                 "EHLO after STARTTLS",
                 "250"
-            );
+            )?;
         }
     }
 
     // MAIL FROM
-    smtp_cmd!(
-        format!("MAIL FROM:<{}>\r\n", envelope.mail_from).as_bytes(),
-        "MAIL FROM",
-        "250"
-    );
+    smtp_write!(format!("MAIL FROM:<{}>\r\n", envelope.mail_from).as_bytes());
+    if !pipelining {
+        smtp_read!("MAIL FROM", "250")?;
+    }
 
     // RCPT TO
     for rcpt in &envelope.rcpt_to {
-        smtp_cmd!(
-            format!("RCPT TO:<{}>\r\n", rcpt).as_bytes(),
-            "RCPT TO",
-            "250"
-        );
+        smtp_write!(format!("RCPT TO:<{}>\r\n", rcpt).as_bytes());
+        if !pipelining {
+            smtp_read!("RCPT TO", "250")?;
+        }
     }
 
     // DATA
-    smtp_cmd!(b"DATA\r\n", "DATA", "354");
-    smtp_write!(&envelope.data);
-    smtp_write!(b".\r\n");
-    smtp_read!("end of DATA", "250");
+    smtp_write!(b"DATA\r\n");
+    if !pipelining {
+        smtp_read!("DATA", "354")?;
+    } else {
+        // We only return first error
+        let mut error = smtp_read!("MAIL FROM", "250").err();
 
-    pool.put(address, port, buf_stream).await;
+        for _ in &envelope.rcpt_to {
+            let result = smtp_read!("RCPT TO", "250");
+            if error.is_none() {
+                error = result.err()
+            }
+        }
+
+        let data_354 = if let Err(e) = smtp_read!("DATA", "354") {
+            if error.is_none() {
+                error = Some(e);
+            }
+            false
+        } else {
+            true
+        };
+
+        if let Some(e) = error {
+            // RFC2920 3.1:
+            // > If the DATA command was properly rejected the client SMTP can just issue RSET,
+            // > but if the DATA command was accepted the client SMTP should send a single dot.
+            if data_354 {
+                log::warn!(
+                    "Server {address} advertised PIPELINING support, \
+                    but accepted DATA despite error response to at least one \
+                    previous command in the group: \n\
+                    {e} \n\
+                    Sending a single dot (RFC2920 section 3.1)."
+                );
+                smtp_cmd!(b".\r\n", "end of DATA", "250")?;
+            }
+            return Err(e);
+        }
+    }
+
+    smtp_write!(&envelope.data);
+    smtp_cmd!(b".\r\n", "end of DATA", "250")?;
+
+    pool.put(
+        address,
+        port,
+        SmtpConnection {
+            stream: buf_stream,
+            pipelining,
+        },
+    )
+    .await;
 
     Ok(())
 }
