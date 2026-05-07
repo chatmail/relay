@@ -65,7 +65,6 @@ def get_dkim_entry(mail_domain, pre_command, dkim_selector):
 
 
 def get_authoritative_ns(domain):
-    """Get autoritative nameserver from the SOA record."""
     ns_replies = [
         x.split()
         for x in shell(
