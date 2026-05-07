@@ -21,9 +21,19 @@ def read_config(inipath):
 class Config:
     def __init__(self, inipath, params):
         self._inipath = inipath
-        self.mail_domain = params["mail_domain"]
-        self.mail_domain_hostname = format_arpa_address(params["mail_domain"])
-        self.mail_domain_deliverable = format_deliverable_domain(params["mail_domain"])
+        raw_domain = params["mail_domain"]
+        self.mail_domain_bare = raw_domain
+
+        if is_valid_ipv4(raw_domain):
+            self.ipv4_relay = raw_domain
+            self.mail_domain = f"[{raw_domain}]"
+            self.postfix_myhostname = ipaddress.IPv4Address(raw_domain).reverse_pointer
+        else:
+            DomainValidator().validate_domain_re(raw_domain)
+            self.ipv4_relay = None
+            self.mail_domain = raw_domain
+            self.postfix_myhostname = raw_domain
+
         self.max_user_send_per_minute = int(params.get("max_user_send_per_minute", 60))
         self.max_user_send_burst_size = int(params.get("max_user_send_burst_size", 10))
         self.max_mailbox_size = params["max_mailbox_size"]
@@ -57,7 +67,7 @@ class Config:
         self.imap_rawlog = params.get("imap_rawlog", "false").lower() == "true"
         self.imap_compress = params.get("imap_compress", "false").lower() == "true"
         if "iroh_relay" not in params:
-            self.iroh_relay = "https://" + params["mail_domain"]
+            self.iroh_relay = "https://" + raw_domain
             self.enable_iroh_relay = True
         else:
             self.iroh_relay = params["iroh_relay"].strip()
@@ -83,19 +93,17 @@ class Config:
                 )
             self.tls_cert_mode = "external"
             self.tls_cert_path, self.tls_key_path = parts
-        elif self.mail_domain.startswith("_") or is_valid_ipv4(params["mail_domain"]):
+        elif raw_domain.startswith("_") or self.ipv4_relay:
             self.tls_cert_mode = "self"
             self.tls_cert_path = "/etc/ssl/certs/mailserver.pem"
             self.tls_key_path = "/etc/ssl/private/mailserver.key"
         else:
             self.tls_cert_mode = "acme"
-            self.tls_cert_path = f"/var/lib/acme/live/{self.mail_domain}/fullchain"
-            self.tls_key_path = f"/var/lib/acme/live/{self.mail_domain}/privkey"
+            self.tls_cert_path = f"/var/lib/acme/live/{raw_domain}/fullchain"
+            self.tls_key_path = f"/var/lib/acme/live/{raw_domain}/privkey"
 
         # deprecated option
-        mbdir = params.get(
-            "mailboxes_dir", f"/home/vmail/mail/{self.mail_domain_deliverable}"
-        )
+        mbdir = params.get("mailboxes_dir", f"/home/vmail/mail/{raw_domain}")
         self.mailboxes_dir = Path(mbdir.strip())
 
         # old unused option (except for first migration from sqlite to maildir store)
@@ -192,6 +200,7 @@ def is_valid_ipv4(address: str) -> bool:
         return False
 
 
+
 def format_arpa_address(address: str) -> str:
     if is_valid_ipv4(address):
         return ipaddress.IPv4Address(address).reverse_pointer
@@ -199,8 +208,8 @@ def format_arpa_address(address: str) -> str:
     return address
 
 
-def format_deliverable_domain(mail_domain: str) -> str:
-    if is_valid_ipv4(mail_domain):
-        return f"[{mail_domain}]"
-    DomainValidator().validate_domain_re(mail_domain)
-    return mail_domain
+def format_mail_domain(raw_domain: str) -> str:
+    if is_valid_ipv4(raw_domain):
+        return f"[{raw_domain}]"
+    DomainValidator().validate_domain_re(raw_domain)
+    return raw_domain

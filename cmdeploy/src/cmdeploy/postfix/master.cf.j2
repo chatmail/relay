@@ -81,7 +81,7 @@ filter    unix -        n       n       -       -       lmtp
   -o syslog_name=postfix/reinject
   -o milter_macro_daemon_name=ORIGINATING
   -o cleanup_service_name=authclean
-{% if config.mail_domain == config.mail_domain_deliverable %}  -o smtpd_milters=unix:opendkim/opendkim.sock
+{% if not config.ipv4_relay %}  -o smtpd_milters=unix:opendkim/opendkim.sock
 {% endif %}
 
 # Local SMTP server for reinjecting incoming filtered mail 

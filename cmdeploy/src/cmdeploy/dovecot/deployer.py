@@ -73,7 +73,7 @@ class DovecotDeployer(Deployer):
         )
 
     def configure(self):
-        configure_remote_units(self.config.mail_domain, self.units)
+        configure_remote_units(self.config.mail_domain_bare, self.units)
         config_restart, self.daemon_reload = _configure_dovecot(self.config)
         self.need_restart |= config_restart
 
