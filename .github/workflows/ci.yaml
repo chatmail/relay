@@ -57,8 +57,9 @@ jobs:
 
   lxc-test:
     name: LXC deploy and test
-    uses: chatmail/cmlxc/.github/workflows/lxc-test.yml@v0.10.0
+    uses: chatmail/cmlxc/.github/workflows/lxc-test.yml@v0.13.5
     with:
+      cmlxc_version: v0.13.5
       cmlxc_commands: |
         cmlxc init 
         # single cmdeploy relay test
