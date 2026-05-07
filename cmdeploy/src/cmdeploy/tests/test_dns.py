@@ -15,26 +15,15 @@ def mockdns_base(monkeypatch):
         if command.startswith("dig"):
             if command == "dig":
                 return "."
-            if "with.public.soa" in command:
-                return (
-                    "domain.with.public.soa. 2419 IN SOA ns1.first-ns.de. dns.hetzner.com."
-                    " 2026050300 7200 1800 604800 3600"
-                )
-            if "with.hidden.soa" in command and "SOA" in command:
-                return (
-                    "domain.with.hidden.soa. 300 IN SOA get.desec.io. get.desec.io."
-                    " 2026025451 86400 3600 2419200 3600"
-                )
+            if "with.public.soa" in command and "NS" in command:
+                return "domain.with.public.soa. 2419 IN NS ns1.first-ns.de."
             if "with.hidden.soa" in command and "NS" in command:
                 return (
                     "domain.with.hidden.soa. 2137 IN NS ns1.desec.io.\n"
                     "domain.with.hidden.soa. 2137 IN NS ns2.desec.org."
                 )
             if "NS" in command:
-                return (
-                    "delta.chat. 21600 IN SOA ns1.first-ns.de. dns.hetzner.com."
-                    " 2025102800 14400 1800 604800 3600"
-                )
+                return "delta.chat. 21600 IN NS ns1.first-ns.de."
             command_chunks = command.split()
             domain, typ = command_chunks[4], command_chunks[6]
             try:
@@ -145,8 +134,8 @@ class TestPerformInitialChecks:
     ("domain", "ns"),
     [
         ("domain.with.public.soa", "ns1.first-ns.de."),
-        ("domain.with.hidden.soa", "ns1.desec.io.")
-    ]
+        ("domain.with.hidden.soa", "ns1.desec.io."),
+    ],
 )
 def test_get_authoritative_ns(domain, ns, mockdns):
     assert get_authoritative_ns(domain) == ns
