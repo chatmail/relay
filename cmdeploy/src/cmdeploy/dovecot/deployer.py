@@ -68,7 +68,7 @@ class DovecotDeployer(Deployer):
         )
 
     def configure(self):
-        configure_remote_units(self, self.config.mail_domain, self.units)
+        configure_remote_units(self, self.config.mail_domain_bare, self.units)
         _configure_dovecot(self, self.config)
 
     def activate(self):

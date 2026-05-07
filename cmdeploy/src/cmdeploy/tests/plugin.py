@@ -10,7 +10,7 @@ import time
 from pathlib import Path
 
 import pytest
-from chatmaild.config import read_config, format_deliverable_domain, is_valid_ipv4
+from chatmaild.config import read_config, format_mail_domain, is_valid_ipv4
 
 
 conftestdir = Path(__file__).parent
@@ -59,12 +59,12 @@ def chatmail_config(pytestconfig):
 
 @pytest.fixture(scope="session")
 def maildomain(chatmail_config):
-    return chatmail_config.mail_domain
+    return chatmail_config.mail_domain_bare
 
 
 @pytest.fixture(scope="session")
 def maildomain_deliverable(maildomain):
-    return format_deliverable_domain(maildomain)
+    return format_mail_domain(maildomain)
 
 
 @pytest.fixture(scope="session")
@@ -283,7 +283,7 @@ def gencreds(chatmail_config):
     next(count)
 
     def gen(domain=None):
-        domain = domain if domain else chatmail_config.mail_domain_deliverable
+        domain = domain if domain else chatmail_config.mail_domain
         while 1:
             num = next(count)
             alphanumeric = "abcdefghijklmnopqrstuvwxyz1234567890"
@@ -322,7 +322,7 @@ class ChatmailACFactory:
 
     def _make_transport(self, domain):
         """Build a transport config dict for the given domain."""
-        domain_deliverable = format_deliverable_domain(domain)
+        domain_deliverable = format_mail_domain(domain)
         addr, password = self.gencreds(domain_deliverable)
         transport = {
             "addr": addr,
@@ -347,7 +347,7 @@ class ChatmailACFactory:
         accounts = []
         for _ in range(num):
             account = self.dc.add_account()
-            domain_deliverable = format_deliverable_domain(domain)
+            domain_deliverable = format_mail_domain(domain)
             addr, password = self.gencreds(domain_deliverable)
             if _is_ip(domain):
                 # Use DCLOGIN scheme with explicit server hosts,
