@@ -1,4 +1,4 @@
-myorigin = {{ config.mail_domain_deliverable }}
+myorigin = {{ config.mail_domain }}
 
 smtpd_banner = $myhostname ESMTP $mail_name (Debian/GNU)
 biff = no
@@ -54,13 +54,13 @@ smtpd_tls_exclude_ciphers = aNULL, RC4, MD5, DES
 tls_preempt_cipherlist = yes
 
 smtpd_relay_restrictions = permit_mynetworks permit_sasl_authenticated defer_unauth_destination
-myhostname = {{ config.mail_domain_hostname }}
+myhostname = {{ config.postfix_myhostname }}
 alias_maps = hash:/etc/aliases
 alias_database = hash:/etc/aliases
 
 # When postfix receives mail for $mydestination,
 # it hands it over to dovecot via $local_transport.
-mydestination = {{ config.mail_domain_deliverable }}
+mydestination = {{ config.mail_domain }}
 local_transport = lmtp:unix:private/dovecot-lmtp
 # postfix doesn't check whether local users exist or not:
 local_recipient_maps =

@@ -22,9 +22,7 @@ def create_newemail_dict(config: Config):
         secrets.choice(ALPHANUMERIC_PUNCT)
         for _ in range(config.password_min_length + 3)
     )
-    return dict(
-        email=f"{user}@{config.mail_domain_deliverable}", password=f"{password}"
-    )
+    return dict(email=f"{user}@{config.mail_domain}", password=f"{password}")
 
 
 def create_dclogin_url(config, email, password):
@@ -33,9 +31,9 @@ def create_dclogin_url(config, email, password):
     Uses ic=3 (AcceptInvalidCertificates) so chatmail clients
     can connect to servers with self-signed TLS certificates.
     """
-    if config.mail_domain != config.mail_domain_deliverable:
-        imap_host = "&ih=" + config.mail_domain
-        smtp_host = "&sh=" + config.mail_domain
+    if config.ipv4_relay:
+        imap_host = "&ih=" + config.ipv4_relay
+        smtp_host = "&sh=" + config.ipv4_relay
     else:
         imap_host = ""
         smtp_host = ""
