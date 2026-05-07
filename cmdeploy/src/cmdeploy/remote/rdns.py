@@ -72,7 +72,7 @@ def get_authoritative_ns(domain):
             f"dig -r -q {domain} -t NS +noall +authority +answer", print=log_progress
         ).split("\n")
     ]
-    filtered_replies = [a for a in ns_replies if len(a) >= 3 and a[3] in ("SOA", "NS")]
+    filtered_replies = [a for a in ns_replies if len(a) >= 5 and a[3] in ("SOA", "NS")]
     if not filtered_replies:
         return
     return filtered_replies[0][4]
