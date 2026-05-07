@@ -216,7 +216,7 @@ pub async fn send(
         }
         (stream, true)
     } else {
-        let stream = establish_tcp_connection(address, port, dns_resolver).await?;
+        let stream = establish_tcp_connection(address, port, dns_resolver.clone()).await?;
         log::debug!("Successfully connected to {}", stream.peer_addr()?);
         (BufStream::new(SmtpStream::plain(stream)), false)
     };
@@ -232,7 +232,7 @@ pub async fn send(
     }
 
     macro_rules! smtp_read {
-        ($context:expr, $expected_code:expr) => {
+        ($context:expr) => {
             response.clear();
             let mut next_line = String::new();
             buf_stream.read_line(&mut next_line).await?;
@@ -245,6 +245,15 @@ pub async fn send(
                 response.push_str(&next_line);
             }
             log::trace!("SMTP response for {}:\n{}", $context, response);
+        };
+        ($context:expr, $expected_code:expr) => {
+            smtp_read!($context);
+            smtp_expect!($context, $expected_code);
+        };
+    }
+
+    macro_rules! smtp_expect {
+        ($context:expr, $expected_code:expr) => {
             if !response.starts_with($expected_code) {
                 return Err(crate::error::Error::MailSend {
                     context: $context.to_string(),
@@ -261,9 +270,28 @@ pub async fn send(
         };
     }
 
-    if reused {
-        smtp_cmd!(b"RSET\r\n", "RSET on reused connection", "250");
+    // RSET reused connection or fallback to a new connection
+    let reused = if reused {
+        smtp_write!(b"RSET\r\n");
+        smtp_read!("RSET");
+        // We don't want to defer if the connection was closed already by the server.
+        // This is a special case where we end up reading message sent before we sent RSET.
+        // e.g.: 421 example.org Service closing transmission channel - command timeout
+        if response.starts_with("421") {
+            log::debug!("Reused connection is dead; establishing new connection...");
+            let stream = establish_tcp_connection(address, port, dns_resolver).await?;
+            log::debug!("Successfully connected to {}", stream.peer_addr()?);
+            buf_stream = BufStream::new(SmtpStream::plain(stream));
+            false
+        } else {
+            smtp_expect!("RSET", "250");
+            true
+        }
     } else {
+        false
+    };
+
+    if !reused {
         // Read initial greeting
         smtp_read!("initial greeting", "220");
 
