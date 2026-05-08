@@ -88,29 +88,27 @@ class MetadataDictProxy(DictProxy):
 
     def handle_lookup(self, parts):
         # Lpriv/43f5f508a7ea0366dff30200c15250e3/devicetoken\tlkj123poi@c2.testrun.org
-        keyparts = parts[0].split("/", 2)
-        if keyparts[0] == "priv":
-            keyname = keyparts[2]
-            addr = parts[1]
-            if keyname == self.metadata.DEVICETOKEN_KEY:
+        match parts[0].split("/", 2):
+            case ["priv", _, keyname] if keyname == self.metadata.DEVICETOKEN_KEY:
+                addr = parts[1]
                 res = " ".join(self.metadata.get_tokens_for_addr(addr))
                 return f"O{res}\n"
-        elif keyparts[0] == "shared":
-            keyname = keyparts[2]
-            if (
-                keyname == "vendor/vendor.dovecot/pvt/server/vendor/deltachat/irohrelay"
-                and self.iroh_relay
-            ):
-                # Handle `GETMETADATA "" /shared/vendor/deltachat/irohrelay`
-                return f"O{self.iroh_relay}\n"
-            elif keyname == "vendor/vendor.dovecot/pvt/server/vendor/deltachat/turn":
-                try:
-                    res = turn_credentials()
-                except Exception:
-                    logging.exception("failed to get TURN credentials")
-                    return "N\n"
-                port = 3478
-                return f"O{self.turn_hostname}:{port}:{res}\n"
+            case ["shared", _, keyname]:
+                prefix = "vendor/vendor.dovecot/pvt/server/vendor/deltachat/"
+                if keyname.startswith(prefix):
+                    match keyname[len(prefix) :]:
+                        case "irohrelay" if self.iroh_relay:
+                            return f"O{self.iroh_relay}\n"
+                        case "turn":
+                            try:
+                                res = turn_credentials()
+                            except Exception:
+                                logging.exception("failed to get TURN credentials")
+                                return "N\n"
+                            return f"O{self.turn_hostname}:3478:{res}\n"
+                        case "maxsmtprecipients":
+                            # postfix default  (see "postconf smtpd_recipient_limit")
+                            return "O1000\n"
 
         logging.warning(f"lookup ignored: {parts!r}")
         return "N\n"
@@ -120,12 +118,13 @@ class MetadataDictProxy(DictProxy):
         # https://github.com/dovecot/core/blob/main/src/lib-storage/mailbox-attribute.h
         keyname = parts[1].split("/")
         value = parts[2] if len(parts) > 2 else ""
-        if keyname[0] == "priv" and keyname[2] == self.metadata.DEVICETOKEN_KEY:
-            self.metadata.add_token_to_addr(addr, value)
-            return True
-        elif keyname[0] == "priv" and keyname[2] == "messagenew":
-            self.notifier.new_message_for_addr(addr, self.metadata)
-            return True
+        match keyname:
+            case ["priv", _, key] if key == self.metadata.DEVICETOKEN_KEY:
+                self.metadata.add_token_to_addr(addr, value)
+                return True
+            case ["priv", _, "messagenew"]:
+                self.notifier.new_message_for_addr(addr, self.metadata)
+                return True
 
         return False
 

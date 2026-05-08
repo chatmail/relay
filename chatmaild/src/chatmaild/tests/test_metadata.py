@@ -360,15 +360,8 @@ def test_turn_credentials_success(notifier, metadata, monkeypatch):
 
 
 def test_iroh_relay(dictproxy):
-    rfile = io.BytesIO(
-        b"\n".join(
-            [
-                b"H",
-                b"Lshared/0123/vendor/vendor.dovecot/pvt/server/vendor/deltachat/irohrelay\tuser@example.org",
-            ]
-        )
-    )
-    wfile = io.BytesIO()
+    key = b"Lshared/0123/vendor/vendor.dovecot/pvt/server/vendor/deltachat/irohrelay\tuser@example.org"
+    rfile, wfile = io.BytesIO(b"H\n" + key), io.BytesIO()
     dictproxy.iroh_relay = "https://example.org/"
     dictproxy.loop_forever(rfile, wfile)
     assert wfile.getvalue() == b"Ohttps://example.org/\n"
@@ -383,3 +376,23 @@ def test_legacy_token_migration(metadata, testaddr):
     tokens = mdict[metadata.DEVICETOKEN_KEY]
     assert isinstance(tokens, dict)
     assert "oldtoken1" in tokens and "oldtoken2" in tokens
+
+
+@pytest.mark.parametrize(
+    "suffix, expected",
+    [
+        (b"vendor/deltachat/maxsmtprecipients", b"O1000\n"),
+        (b"wrong/prefix/key", b"N\n"),
+        (b"vendor/deltachat/unknown", b"N\n"),
+    ],
+    ids=["maxsmtprecipients", "prefix_mismatch", "unknown_name"],
+)
+def test_shared_lookup(dictproxy, suffix, expected):
+    key = (
+        b"Lshared/0123/vendor/vendor.dovecot/pvt/server/"
+        + suffix
+        + b"\tuser@example.org"
+    )
+    rfile, wfile = io.BytesIO(b"H\n" + key), io.BytesIO()
+    dictproxy.loop_forever(rfile, wfile)
+    assert wfile.getvalue() == expected
