@@ -8,8 +8,12 @@ def log_progress(data):
 
 
 def shell(command, fail_ok=False, print=print):
-    print(f"$ {command}")
-    args = dict(shell=True)
+    if isinstance(command, list):
+        cmd_str = " ".join(command)
+    else:
+        cmd_str = command
+    print(f"$ {cmd_str}")
+    args = dict(shell=False)
     if fail_ok:
         args["stderr"] = DEVNULL
     try:
@@ -21,7 +25,7 @@ def shell(command, fail_ok=False, print=print):
 
 
 def get_systemd_running():
-    lines = shell("systemctl --type=service --state=running").split("\n")
+    lines = shell(["systemctl", "--type=service", "--state=running"]).split("\n")
     return [line for line in lines if line.startswith("  ")]
 
 
@@ -31,8 +35,8 @@ def write_numbytes(path, num):
 
 
 def dovecot_recalc_quota(user):
-    shell(f"doveadm quota recalc -u {user}")
-    output = shell(f"doveadm quota get -u {user}")
+    shell(["doveadm", "quota", "recalc", "-u", user])
+    output = shell(["doveadm", "quota", "get", "-u", user])
     #
     # Quota name Type    Value  Limit                                              %
     # User quota STORAGE     5 102400                                              0
