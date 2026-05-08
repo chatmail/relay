@@ -70,6 +70,9 @@ class Metadata:
                 # Some tokens have expired, remove them.
                 with self._modify_tokens(addr) as _tokens:
                     pass
+        elif isinstance(tokens, list):
+            with self._modify_tokens(addr) as tokens:
+                token_list = list(tokens.keys())
         else:
             token_list = []
         return token_list

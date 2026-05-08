@@ -372,3 +372,14 @@ def test_iroh_relay(dictproxy):
     dictproxy.iroh_relay = "https://example.org/"
     dictproxy.loop_forever(rfile, wfile)
     assert wfile.getvalue() == b"Ohttps://example.org/\n"
+
+
+def test_legacy_token_migration(metadata, testaddr):
+    with metadata.get_metadata_dict(testaddr).modify() as data:
+        data[metadata.DEVICETOKEN_KEY] = ["oldtoken1", "oldtoken2"]
+
+    assert metadata.get_tokens_for_addr(testaddr) == ["oldtoken1", "oldtoken2"]
+    mdict = metadata.get_metadata_dict(testaddr).read()
+    tokens = mdict[metadata.DEVICETOKEN_KEY]
+    assert isinstance(tokens, dict)
+    assert "oldtoken1" in tokens and "oldtoken2" in tokens
