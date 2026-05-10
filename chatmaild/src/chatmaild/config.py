@@ -200,7 +200,6 @@ def is_valid_ipv4(address: str) -> bool:
         return False
 
 
-
 def format_arpa_address(address: str) -> str:
     if is_valid_ipv4(address):
         return ipaddress.IPv4Address(address).reverse_pointer
