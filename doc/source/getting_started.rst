@@ -27,7 +27,7 @@ You will need the following:
    paramiko <https://github.com/paramiko/paramiko/issues/2191>`_)
 
 -  Control over a domain through a DNS provider of your choice
-   (there is experimental support for :ref:`DNS-less relays <iponly>`).
+   (there is experimental support for :ref:`IP-only relays <iponly>`).
 
 
 .. _setup:

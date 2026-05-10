@@ -1,4 +1,3 @@
-
 from pyinfra import host
 from pyinfra.facts.files import File
 
@@ -21,8 +20,8 @@ class ExternalTlsDeployer(Deployer):
     def configure(self):
         # Verify cert and key exist on the remote host using pyinfra facts.
         for path in (self.cert_path, self.key_path):
-                if host.get_fact(File, path=path) is None:
-                    raise Exception(f"External TLS file not found on server: {path}")
+            if host.get_fact(File, path=path) is None:
+                raise Exception(f"External TLS file not found on server: {path}")
 
         self.ensure_systemd_unit(
             "external/tls-cert-reload.path.j2",
@@ -40,5 +39,3 @@ class ExternalTlsDeployer(Deployer):
             running=True,
             enabled=True,
         )
-
-

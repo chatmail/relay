@@ -265,7 +265,8 @@ from the chatmail relay server.
 Email domain authentication (DKIM)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Chatmail relays enforce :rfc:`DKIM <6376>` to authenticate incoming emails.
+Chatmail relays enforce :rfc:`DKIM <6376>` to authenticate incoming emails
+(except for :ref:`IP-only relays <iponly>`).
 Incoming emails must have a valid DKIM signature with
 Signing Domain Identifier (SDID, ``d=`` parameter in the DKIM-Signature
 header) equal to the ``From:`` header domain. This property is checked

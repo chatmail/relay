@@ -1,10 +1,6 @@
-from contextlib import nullcontext as does_not_raise
-
 import pytest
 
 from chatmaild.config import (
-    format_arpa_address,
-    format_mail_domain,
     is_valid_ipv4,
     parse_size_mb,
     read_config,
@@ -163,31 +159,3 @@ def test_max_mailbox_size_mb(make_config):
 )
 def test_is_valid_ipv4(input, result):
     assert result == is_valid_ipv4(input)
-
-
-@pytest.mark.parametrize(
-    ["input", "result", "exception"],
-    [
-        ("example.org", "example.org", does_not_raise()),
-        ("1.3.3.7", "7.3.3.1.in-addr.arpa", does_not_raise()),
-        ("fe::1", None, pytest.raises(ValueError)),
-        ("12394142", None, pytest.raises(ValueError)),
-    ],
-)
-def test_format_arpa_address(input, result, exception):
-    with exception:
-        assert result == format_arpa_address(input)
-
-
-@pytest.mark.parametrize(
-    ["input", "result", "exception"],
-    [
-        ("example.org", "example.org", does_not_raise()),
-        ("1.3.3.7", "[1.3.3.7]", does_not_raise()),
-        ("fe::1", None, pytest.raises(ValueError)),
-        ("12394142", None, pytest.raises(ValueError)),
-    ],
-)
-def test_format_mail_domain(input, result, exception):
-    with exception:
-        assert result == format_mail_domain(input)

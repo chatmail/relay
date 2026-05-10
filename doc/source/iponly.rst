@@ -24,6 +24,17 @@ Drawbacks
   the chatmail core's end-to-end encryption should suffice in most scenarios though.
 
 - your messages will not be DKIM-signed;
-  experimentally, most chatmail relays accept non-DKIM-signed messages from IPv4-only relays,
+  experimentally, most chatmail relays accept non-DKIM-signed messages from IP-only relays,
   but some relays might not accept messages from yours.
+
+
+Email addresses
+---------------
+
+When running without a domain,
+your chatmail addresses will use the IPv4 address
+in brackets as the domain part,
+for example ``user@[13.12.23.42]``.
+This is a valid email address format
+according to :rfc:`5321`.
 

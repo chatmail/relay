@@ -540,7 +540,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool, website_only: bool) -
         WebsiteDeployer(config),
         ChatmailVenvDeployer(config),
         MtastsDeployer(),
-        OpendkimDeployer(config.mail_domain),
+        *([] if config.ipv4_relay else [OpendkimDeployer(bare_host)]),
         # Dovecot should be started before Postfix
         # because it creates authentication socket
         # required by Postfix.

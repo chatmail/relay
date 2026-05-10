@@ -198,17 +198,3 @@ def is_valid_ipv4(address: str) -> bool:
         return True
     except ValueError:
         return False
-
-
-def format_arpa_address(address: str) -> str:
-    if is_valid_ipv4(address):
-        return ipaddress.IPv4Address(address).reverse_pointer
-    DomainValidator().validate_domain_re(address)
-    return address
-
-
-def format_mail_domain(raw_domain: str) -> str:
-    if is_valid_ipv4(raw_domain):
-        return f"[{raw_domain}]"
-    DomainValidator().validate_domain_re(raw_domain)
-    return raw_domain

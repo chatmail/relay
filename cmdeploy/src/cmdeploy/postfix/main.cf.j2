@@ -60,6 +60,7 @@ alias_database = hash:/etc/aliases
 
 # When postfix receives mail for $mydestination,
 # it hands it over to dovecot via $local_transport.
+# Note: IP literals must be handled via local delivery / mydestination.
 mydestination = {{ config.mail_domain }}
 local_transport = lmtp:unix:private/dovecot-lmtp
 # postfix doesn't check whether local users exist or not:

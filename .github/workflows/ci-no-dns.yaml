@@ -9,6 +9,8 @@ on:
   pull_request:
     branches: [ "main" ]
 
+permissions: {}
+
 # Newest push wins: Prevents multiple runs from clashing and wasting runner efforts
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -18,8 +20,9 @@ concurrency:
 jobs:
   no-dns:
     name: LXC deploy and test
-    uses: chatmail/cmlxc/.github/workflows/lxc-test.yml@v0.14.1
+    uses: chatmail/cmlxc/.github/workflows/lxc-test.yml@v0.14.6
     with:
+      cmlxc_version: v0.14.6
       cmlxc_commands: |
         cmlxc init 
         # single cmdeploy relay test

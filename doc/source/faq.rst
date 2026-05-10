@@ -15,6 +15,7 @@ goes beyond what classic email servers offer:
    streaming, privacy-preserving Push Notifications for Apple, Google, and `Ubuntu Touch <https://docs.ubports.com/en/latest/appdev/guides/pushnotifications.html>`_;
 
 -  **Security Enforcement**: only strict TLS, DKIM and OpenPGP with minimized metadata accepted
+   (DKIM is not enforced on :ref:`IP-only relays <iponly>`)
 
 -  **Reliable Federation and Decentralization:** No spam or IP reputation checks, federating
    depends on established IETF standards and protocols.
