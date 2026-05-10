@@ -159,6 +159,7 @@ http {
 		{% endif %}
 
 		return 301 https://$host$request_uri;
+		access_log syslog:server=unix:/dev/log,facility=local7;
 	}
 
 	{% if config.tls_cert_mode == "acme" %}
