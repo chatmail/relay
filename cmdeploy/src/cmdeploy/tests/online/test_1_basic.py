@@ -281,3 +281,13 @@ def test_deployed_state(remote):
     # assert len(git_status) == len(remote_version)  # for some reason, we only get 11 lines from remote.iter_output()
     for i in range(len(remote_version)):
         assert git_status[i] == remote_version[i], "You have undeployed changes."
+
+
+def test_nginx_access_log_only_defined_once(sshdomain):
+    sshexec = get_sshexec(sshdomain)
+    conf = sshexec(
+        call=remote.rshell.shell,
+        kwargs=dict(command="nginx -T 2>/dev/null"),
+    )
+    access_logs = [l for l in conf.splitlines() if l.strip().startswith("access_log")]
+    assert len(access_logs) == 1, f"expected 1 access_log, found {len(access_logs)}: {access_logs}"
