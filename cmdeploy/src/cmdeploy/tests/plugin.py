@@ -19,6 +19,7 @@ def format_mail_domain(raw_domain: str) -> str:
     DomainValidator().validate_domain_re(raw_domain)
     return raw_domain
 
+
 conftestdir = Path(__file__).parent
 
 
@@ -466,6 +467,11 @@ def cmsetup(maildomain, gencreds, ssl_context):
     return CMSetup(maildomain, gencreds, ssl_context)
 
 
+@pytest.fixture
+def cmsetup2(maildomain2, gencreds, ssl_context):
+    return CMSetup(maildomain2, gencreds, ssl_context)
+
+
 class CMSetup:
     def __init__(self, maildomain, gencreds, ssl_context):
         self.maildomain = maildomain
@@ -476,7 +482,7 @@ class CMSetup:
         print(f"Creating {num} online users")
         users = []
         for i in range(num):
-            addr, password = self.gencreds()
+            addr, password = self.gencreds(format_mail_domain(self.maildomain))
             user = CMUser(self.maildomain, addr, password, self.ssl_context)
             assert user.smtp
             users.append(user)

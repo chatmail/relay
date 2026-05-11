@@ -103,3 +103,11 @@ smtpd_peername_lookup = no
 default_transport = lmtp-filtermail:inet:[127.0.0.1]:{{ config.filtermail_lmtp_port_transport }}
 lmtp-filtermail_initial_destination_concurrency=10000
 lmtp-filtermail_destination_concurrency_limit=10000
+
+{% if not config.ipv4_relay %}
+# DKIM-sign locally generated mail (bounces, DSNs).
+# These bypass smtpd, so they need explicit milter configuration.
+non_smtpd_milters = unix:opendkim/opendkim.sock
+internal_mail_filter_classes = bounce
+milter_macro_daemon_name = ORIGINATING
+{% endif %}
