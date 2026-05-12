@@ -1,4 +1,4 @@
-use crate::smtp_server::{Envelope, SmtpHandler};
+use crate::smtp_server::{SmtpHandler, Transaction};
 use http_body_util::combinators::BoxBody;
 use http_body_util::{BodyExt, Full};
 use hyper::body::{Bytes, Incoming};
@@ -93,6 +93,8 @@ impl<H: SmtpHandler + 'static> Service<Request<Incoming>> for MxDelivService<H> 
                 )?);
             }
 
+            let mut transaction = Transaction::default();
+
             let mail_from = req
                 .headers()
                 .get(crate::transport::HEADER_MAIL_FROM)
@@ -100,22 +102,35 @@ impl<H: SmtpHandler + 'static> Service<Request<Incoming>> for MxDelivService<H> 
                 .unwrap_or("")
                 .to_string();
 
-            match handler.handle_mail(&mail_from) {
-                Ok(_) => {}
-                Err(e) => {
-                    return Ok(Response::builder()
-                        .status(400)
-                        .body(Full::new(Bytes::from(e)).boxed())?);
-                }
-            };
+            if let Err(e) = handler.handle_mail_from(&mail_from) {
+                return Ok(Response::builder()
+                    .status(400)
+                    .body(Full::new(Bytes::from(e)).boxed())?);
+            }
+            transaction.envelope.mail_from = mail_from;
 
-            let rcpt_to = req
+            let rcpt_to: Vec<String> = req
                 .headers()
                 .get_all(crate::transport::HEADER_RCPT_TO)
                 .iter()
                 .filter_map(|v| v.to_str().ok())
                 .map(ToString::to_string)
                 .collect();
+
+            for r in &rcpt_to {
+                if let Err(e) = handler.handle_rcpt_to(r, &mut transaction) {
+                    return Ok(Response::builder()
+                        .status(400)
+                        .body(Full::new(Bytes::from(e)).boxed())?);
+                }
+            }
+            transaction.envelope.rcpt_to = rcpt_to;
+
+            if let Err(e) = handler.handle_data_start(&transaction) {
+                return Ok(Response::builder()
+                    .status(400)
+                    .body(Full::new(Bytes::from(e)).boxed())?);
+            }
 
             let body_limited = http_body_util::Limited::new(req.into_body(), max_size);
             let body_bytes = match body_limited.collect().await {
@@ -127,24 +142,19 @@ impl<H: SmtpHandler + 'static> Service<Request<Incoming>> for MxDelivService<H> 
                 }
             };
 
-            let mut envelope = Envelope {
-                origin_ip: "".to_string(),
-                mail_from,
-                rcpt_to,
-                data: body_bytes.to_vec(),
-            };
+            transaction.envelope.data = body_bytes.to_vec();
 
-            log::debug!("(HTTP) MAIL FROM:<{}>", envelope.mail_from);
-            for rcpt in &envelope.rcpt_to {
+            log::debug!("(HTTP) MAIL FROM:<{}>", transaction.envelope.mail_from);
+            for rcpt in &transaction.envelope.rcpt_to {
                 log::debug!("(HTTP) RCPT TO:<{}>", rcpt);
             }
 
             log::trace!(
                 "(HTTP) DATA:\n{:?}",
-                String::from_utf8_lossy(&envelope.data)
+                String::from_utf8_lossy(&transaction.envelope.data)
             );
 
-            match handler.handle_data(&mut envelope).await {
+            match handler.handle_data_dot(&mut transaction).await {
                 Ok(response) => Ok(Response::builder()
                     .status(200)
                     .body(Full::new(Bytes::from(response)).boxed())?),
