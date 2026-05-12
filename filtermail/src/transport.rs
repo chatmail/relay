@@ -189,6 +189,8 @@ impl TransportHandler {
             }),
         };
 
+        let mut last_error = None;
+
         // we try sequentially in order of MX preference,
         // but the IPv4 and IPv6 connections (after `smtp_client::send` resolves mx hostname)
         // happens in parallel.
@@ -243,7 +245,7 @@ impl TransportHandler {
                     return Ok("250 Ok (SMTP)".to_string());
                 }
                 Err(error) => {
-                    match error {
+                    match &error {
                         // We only want to try other MX hosts if we encounter a problem
                         // related to connection.
                         // (So we don't spam other servers if the message is actually rejected.)
@@ -255,18 +257,31 @@ impl TransportHandler {
                             log::warn!(
                                 "Connection error relaying to mail server {mx_host}: {error}"
                             );
+                            last_error = Some((error.smtp_response(), mx_host.clone()));
                             continue 'try_relay;
                         }
-                        _ => {
+                        crate::error::Error::MailSend { .. } => {
                             log::warn!("Message rejected by mail server {mx_host}: {error}");
                             return Err(error.smtp_response());
+                        }
+                        _ => {
+                            log::warn!(
+                                "Unexpected error while delivering to mail server {mx_host}: {error}"
+                            );
+                            return Err(format!(
+                                "{} (while attempting delivery to {mx_host})",
+                                error.smtp_response()
+                            ));
                         }
                     }
                 }
             }
         }
 
-        Err("421 Failed to connect to any mail server".to_string())
+        let (error, mx_host) = last_error.unwrap_or(("?".to_string(), "?".to_string()));
+        Err(format!(
+            "421 Failed to connect to any mail server; last attempt to {mx_host}: {error}"
+        ))
     }
 
     /// Performs mail delivery to `mx_host` over HTTPS.
@@ -305,6 +320,7 @@ impl TransportHandler {
             .map_err(|_| crate::error::Error::MailSend {
                 context: "HTTPS delivery".to_string(),
                 raw_smtp_answer: "[timeout]".to_string(),
+                host: mx_host.clone(),
             })??;
         if response.status().is_success() {
             Ok(())
@@ -313,6 +329,7 @@ impl TransportHandler {
             Err(crate::error::Error::MailSend {
                 context: "HTTPS delivery".to_string(),
                 raw_smtp_answer: String::from_utf8_lossy(&response_body).into(),
+                host: mx_host,
             })
         }
     }

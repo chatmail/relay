@@ -84,6 +84,41 @@ impl SmtpStream {
         timeout_stream.set_read_timeout(Some(Duration::from_secs(60)));
         Self::Plain(Box::pin(timeout_stream))
     }
+
+    /// Returns the peer address of the underlying TCP stream.
+    pub fn peer_addr(&self) -> std::io::Result<std::net::SocketAddr> {
+        match self {
+            SmtpStream::Plain(stream) => stream.get_ref().peer_addr(),
+            SmtpStream::Tls(stream) => stream.get_ref().0.get_ref().peer_addr(),
+        }
+    }
+
+    /// Formats a peer host, including underlying TCP connection's socket address.
+    ///
+    /// Returns either:
+    /// - `<ip>:<port>` if `address` is an IP matching underlying TCP connection.
+    /// - `<address>[<ip>:<port>]` otherwise.
+    ///
+    /// `<ip>` is either `<ipv4>` or `[<ipv6>]`.
+    ///
+    /// Infallible, fallbacks to `<address>[?:?]` if peer address is unavailable.
+    fn format_host(&self, address: &str) -> String {
+        let socket_addr = self.peer_addr().ok();
+        Self::format_host_inner(address, socket_addr)
+    }
+
+    /// Internal logic of [`SmtpStream::format_host`], only for testing purposes.
+    fn format_host_inner(address: &str, socket_addr: Option<std::net::SocketAddr>) -> String {
+        let socket_addr_str = if let Some(socket_addr) = socket_addr {
+            if socket_addr.ip().to_string().eq_ignore_ascii_case(address) {
+                return socket_addr.to_string();
+            }
+            socket_addr.to_string()
+        } else {
+            "?:?".to_string()
+        };
+        format!("{address}[{socket_addr_str}]")
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -210,23 +245,28 @@ pub async fn send(
     dns_resolver: Arc<TokioResolver>,
     pool: Arc<SmtpConnectionPool>,
 ) -> Result<(), crate::error::Error> {
-    let (mut buf_stream, reused, mut pipelining) =
-        if let Some(connection) = pool.take(address, port).await {
-            log::debug!("Reusing existing connection to {address}:{port}",);
-            if tls_config.is_some() {
-                // This should never happen,
-                // assert to make sure we never accidentally use a plain connection while expecting TLS.
-                assert!(
-                    matches!(connection.stream.get_ref(), SmtpStream::Tls(_)),
-                    "Expected TLS stream from pool, but got plain stream."
-                );
-            }
-            (connection.stream, true, connection.pipelining)
-        } else {
-            let stream = establish_tcp_connection(address, port, dns_resolver.clone()).await?;
-            log::debug!("Successfully connected to {}", stream.peer_addr()?);
-            (BufStream::new(SmtpStream::plain(stream)), false, false)
-        };
+    let (mut buf_stream, reused, mut pipelining) = if let Some(connection) =
+        pool.take(address, port).await
+    {
+        log::debug!(
+            "Reusing existing connection to {}",
+            connection.stream.get_ref().format_host(address)
+        );
+        if tls_config.is_some() {
+            // This should never happen,
+            // assert to make sure we never accidentally use a plain connection while expecting TLS.
+            assert!(
+                matches!(connection.stream.get_ref(), SmtpStream::Tls(_)),
+                "Expected TLS stream from pool, but got plain stream."
+            );
+        }
+        (connection.stream, true, connection.pipelining)
+    } else {
+        let stream =
+            SmtpStream::plain(establish_tcp_connection(address, port, dns_resolver.clone()).await?);
+        log::debug!("Successfully connected to {}", stream.format_host(address));
+        (BufStream::new(stream), false, false)
+    };
 
     let mut response = String::new();
 
@@ -265,6 +305,7 @@ pub async fn send(
                 Err(crate::error::Error::MailSend {
                     context: $context.to_string(),
                     raw_smtp_answer: response.clone(),
+                    host: buf_stream.get_ref().format_host(address),
                 })
             } else {
                 Ok(())
@@ -323,6 +364,7 @@ pub async fn send(
                 return Err(crate::error::Error::MailSend {
                     context: "STARTTLS".to_string(),
                     raw_smtp_answer: response.clone(),
+                    host: buf_stream.get_ref().format_host(address),
                 });
             }
 
@@ -401,11 +443,12 @@ pub async fn send(
             // > but if the DATA command was accepted the client SMTP should send a single dot.
             if data_354 {
                 log::warn!(
-                    "Server {address} advertised PIPELINING support, \
+                    "Server {} advertised PIPELINING support, \
                     but accepted DATA despite error response to at least one \
                     previous command in the group: \n\
                     {e} \n\
-                    Sending a single dot (RFC2920 section 3.1)."
+                    Sending a single dot (RFC2920 section 3.1).",
+                    buf_stream.get_ref().format_host(address)
                 );
                 smtp_cmd!(b".\r\n", "end of DATA", "250")?;
             }
@@ -427,4 +470,26 @@ pub async fn send(
     .await;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rstest::rstest;
+    use std::net::SocketAddr;
+
+    #[rstest]
+    #[case::ipv4("192.0.2.0:25".parse().ok(), "192.0.2.0", "192.0.2.0:25")]
+    #[case::ipv6("[2001:db8::1]:25".parse().ok(), "2001:db8::1", "[2001:db8::1]:25")]
+    #[case::domain_ipv4("192.0.2.0:25".parse().ok(), "example.org", "example.org[192.0.2.0:25]")]
+    #[case::domain_ipv6("[2001:db8::1]:25".parse().ok(), "example.org", "example.org[[2001:db8::1]:25]")]
+    #[case::unknown(None, "example.org", "example.org[?:?]")]
+    fn test_format_host_inner(
+        #[case] socket_addr: Option<SocketAddr>,
+        #[case] host: &str,
+        #[case] expected: &str,
+    ) {
+        let result = SmtpStream::format_host_inner(host, socket_addr);
+        assert_eq!(result, expected);
+    }
 }

@@ -14,10 +14,11 @@ pub enum Error {
     Resolve(#[from] hickory_resolver::net::NetError),
     #[error("OpenPGP packet header is truncated - can't validate!")]
     TruncatedHeader,
-    #[error("Unable to send email, Error during {context}, server said: {raw_smtp_answer}")]
+    #[error("Unable to send email, Error during {context}, host {host} said: {raw_smtp_answer}")]
     MailSend {
         context: String,
         raw_smtp_answer: String,
+        host: String,
     },
     #[error("Invalid email address: {0}")]
     InvalidEmailAddress(String),
@@ -38,14 +39,36 @@ pub enum Error {
 impl Error {
     /// Formats [`Error`] as an SMTP response.
     pub fn smtp_response(&self) -> String {
+        macro_rules! format_smtp {
+            ($code:expr) => {
+                format!("{} {}", $code, self.to_string())
+            };
+        }
+
         match self {
-            // We transparently pass postfix/milter errors reported on reinjection
+            // Errors returned by server we connect to are forwarded.
+            // We add "(forwarded from ...)" to distinguish these from our local errors.
             Error::MailSend {
-                raw_smtp_answer, ..
-            } => raw_smtp_answer.clone(),
-            Error::TruncatedHeader => self.to_string(),
-            Error::InvalidEmailAddress(address) => format!("500 Invalid email address: {address}"),
-            _ => "451 Local error".to_string(),
+                raw_smtp_answer,
+                host,
+                ..
+            } => format!("{raw_smtp_answer} (forwarded from {host})"),
+
+            // Permanent errors
+            Error::TruncatedHeader => format_smtp!("554"),
+            Error::InvalidEmailAddress(_) => format_smtp!("553"),
+            Error::InvalidDnsName(_) => format_smtp!("501"),
+
+            // Transient errors
+            Error::ConnectionFailed(_) => format_smtp!("450"),
+            // We don't want to leak chatmail.ini config and other local error details.
+            Error::Config(_) => "451 Filtermail misconfigured; contact admin".to_string(),
+            Error::Io(_) => "451 I/O error".to_string(),
+            Error::Tls(_) => "451 TLS error".to_string(),
+            Error::Resolve(_) => "451 Resolver error".to_string(),
+            Error::Hyper(_) | Error::HyperHttp(_) | Error::HyperClient(_) => {
+                "451 HTTP error".to_string()
+            }
         }
     }
 
