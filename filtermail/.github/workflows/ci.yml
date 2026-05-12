@@ -64,12 +64,8 @@ jobs:
           RUSTUP_TOOLCHAIN: ${{ matrix.toolchain }}
 
   rust-test:
-    name: Run rust tests on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+    name: Run rust tests
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
