@@ -67,7 +67,7 @@ but a specific tagged release like `1.10.0 <https://github.com/chatmail/relay/re
 run ``git pull origin 1.10.0`` instead.
 
 If you made local changes for your setup,
-they will be reapplied as long as they conflict with the upgrade.
+they will be reapplied as long as they don't conflict with the upgrade.
 If a conflict arises, ``git status`` will tell you how to resolve it.
 
 
