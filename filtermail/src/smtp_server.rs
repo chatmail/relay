@@ -2,6 +2,7 @@
 
 use crate::utils::{extract_address, log_eml};
 use async_trait::async_trait;
+use memchr::{Memchr, memmem};
 use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, BufWriter};
 use tokio::net::{TcpListener, TcpStream};
@@ -12,7 +13,46 @@ pub struct Envelope {
     pub mail_from: String,
     pub origin_ip: String,
     pub rcpt_to: Vec<String>,
+
+    /// Mail data as transmitted over SMTP/LMTP.
+    ///
+    /// Described in <https://www.rfc-editor.org/rfc/rfc5321.html#section-2.3.9>.
+    ///
+    /// It MUST end with `<CRLF>`, contain no bare `<CR>` or `<LF>`
+    /// and have all `<CRLF>.` sequences escaped with `.` according to
+    /// <https://www.rfc-editor.org/rfc/rfc5321.html#section-4.5.2>.
     pub data: Vec<u8>,
+}
+
+/// Checks if mail data is valid.
+fn is_valid_data(data: &[u8]) -> bool {
+    // DATA must end with <CRLF>.
+    //
+    // Otherwise it is not possible to reinject it as is into SMTP/LMTP
+    // without adding <CRLF> at the end and modifying the message.
+    if !data.ends_with(b"\r\n") {
+        return false;
+    }
+
+    // Check for bare `<CR>` and `<LF>`.
+    // <https://www.rfc-editor.org/rfc/rfc5321.html#section-2.3.8>
+    for pos in Memchr::new(b'\r', data) {
+        if data.get(pos + 1) != Some(&b'\n') {
+            return false;
+        }
+    }
+    for pos in Memchr::new(b'\n', data) {
+        if pos == 0 || data.get(pos - 1) != Some(&b'\r') {
+            return false;
+        }
+    }
+
+    // Do not allow unescaped `.`.
+    if data.starts_with(b".\r\n") || memmem::find(data, b"\r\n.\r\n").is_some() {
+        return false;
+    }
+
+    true
 }
 
 /// Trait defining the SMTP handler interface.
@@ -32,6 +72,17 @@ pub trait SmtpHandler: Send + Sync {
     /// Handles the DATA command.
     async fn handle_data(&self, envelope: &mut Envelope) -> Result<String, String> {
         log::debug!("handle_DATA before-queue");
+
+        // Check if the DATA is valid
+        // before doing any custom checks.
+        //
+        // We are not going to normalize newlines
+        // and escape the dots in the mail data.
+        // If mail data turned out to be invalid, reject immediately.
+        if !is_valid_data(&envelope.data) {
+            return Err("500 Invalid DATA".to_string());
+        }
+
         self.check_data(envelope).await?;
         if envelope.rcpt_to.is_empty() {
             log::warn!("Dropping mail; All recipients disabled.");
@@ -245,4 +296,41 @@ where
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rstest::*;
+
+    #[rstest]
+    #[case(b"", false)]
+    #[case(b".", false)]
+    #[case(b"Hello!\n", false)]
+    #[case(b"Hello!\n\r", false)]
+    #[case(b"Hello\nworld!\r\n", false)]
+    #[case(b"Hello!\r\n\n", false)]
+    #[case(b"Hello\r\n.\r\n", false)]
+    #[case(b"Hello!\r\n .\r\n", true)]
+    #[case(b"Hello!\r\n..\r\n", true)]
+    #[case(b"Hello!\r\n", true)]
+    #[case(b"Hello\r\n.world\r\n", true)]
+    #[case(b"Hello!\r\r\n", false)]
+    #[case(b"Hello!\r\r\n\n", false)]
+    #[case(b"Hello\rworld!\r\n", false)]
+    #[case(b"\n", false)]
+    #[case(b"\nHello\r\n", false)]
+    #[case(b"\r", false)]
+    #[case(b".\r\n", false)]
+    #[case(b".\r\nHello\r\n", false)]
+    #[case(b"..\r\n.\r\n", false)]
+    #[case(b".\r\n..\r\n", false)]
+    #[case(b"\r\n.\r\n", false)]
+    #[case(b"..\r\n..\r\n", true)]
+    #[case(b" .\r\n", true)]
+    #[case(b"..\r\n", true)]
+    #[case(b"\r\n", true)]
+    fn test_is_valid_data(#[case] data: &[u8], #[case] expected: bool) {
+        assert_eq!(is_valid_data(data), expected, "{data:?}");
+    }
 }
