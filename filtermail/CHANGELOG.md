@@ -1,3 +1,17 @@
+## 0.6.6 - 2026-05-12
+
+### Bug Fixes
+
+- Return HTTP 200 because madmail expects it, and make sure https is immediately retried when SMTP fails (#153)
+
+### Features
+
+- Improved SMTP error responses (#147)
+
+### Miscellaneous Tasks
+
+- Remove mac and windows from matrix tests (#154)
+- Run cmlxc tests in all classic/classic-ipv4/madmail combinations
 ## 0.6.5 - 2026-05-12
 
 ### Bug Fixes
