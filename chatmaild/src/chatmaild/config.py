@@ -63,6 +63,9 @@ class Config:
         self.acme_email = params.get("acme_email", "")
         self.imap_rawlog = params.get("imap_rawlog", "false").lower() == "true"
         self.imap_compress = params.get("imap_compress", "false").lower() == "true"
+        self.turn_socket_path = params.get(
+            "turn_socket_path", "/run/chatmail-turn/turn.socket"
+        )
         if "iroh_relay" not in params:
             self.iroh_relay = "https://" + raw_domain
             self.enable_iroh_relay = True

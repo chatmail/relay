@@ -26,7 +26,6 @@ chatmail-expire = "chatmaild.expire:daily_expire_main"
 chatmail-quota-expire = "chatmaild.expire:quota_expire_main"
 chatmail-fsreport = "chatmaild.fsreport:main"
 lastlogin = "chatmaild.lastlogin:main"
-turnserver = "chatmaild.turnserver:main"
 
 [project.entry-points.pytest11]
 "chatmaild.testplugin" = "chatmaild.tests.plugin"

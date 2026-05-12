@@ -324,7 +324,7 @@ def test_turn_credentials_exception_returns_N(notifier, metadata, monkeypatch):
         turn_hostname="turn.example.org",
     )
 
-    def mock_turn_credentials():
+    def mock_turn_credentials(turn_socket_path):
         raise ConnectionRefusedError("socket not available")
 
     monkeypatch.setattr(chatmaild.metadata, "turn_credentials", mock_turn_credentials)
@@ -348,7 +348,9 @@ def test_turn_credentials_success(notifier, metadata, monkeypatch):
         turn_hostname="turn.example.org",
     )
 
-    monkeypatch.setattr(chatmaild.metadata, "turn_credentials", lambda: "user:pass")
+    monkeypatch.setattr(
+        chatmaild.metadata, "turn_credentials", lambda path: "user:pass"
+    )
 
     transactions = {}
     res = dictproxy.handle_dovecot_request(
