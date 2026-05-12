@@ -247,16 +247,14 @@ impl TransportHandler {
                         // We only want to try other MX hosts if we encounter a problem
                         // related to connection.
                         // (So we don't spam other servers if the message is actually rejected.)
-                        crate::error::Error::Io(io_err) => {
-                            log::warn!("I/O error relaying to mail server {mx_host}: {io_err}");
-                            continue 'try_relay;
-                        }
-                        crate::error::Error::ConnectionFailed(_) => {
-                            log::warn!("Failed to connect to mail server {mx_host}: {error}");
-                            continue 'try_relay;
-                        }
-                        crate::error::Error::Tls(tls_err) => {
-                            log::warn!("TLS error relaying to mail server {mx_host}: {tls_err}");
+                        crate::error::Error::Io(_)
+                        | crate::error::Error::ConnectionFailed(_)
+                        | crate::error::Error::Tls(_) => {
+                            // Make sure we quickly retry HTTP if SMTP failed to connect
+                            mxdeliv_unsupported_hosts.remove(&mx_host).await;
+                            log::warn!(
+                                "Connection error relaying to mail server {mx_host}: {error}"
+                            );
                             continue 'try_relay;
                         }
                         _ => {

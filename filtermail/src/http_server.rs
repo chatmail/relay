@@ -137,7 +137,7 @@ impl<H: SmtpHandler + 'static> Service<Request<Incoming>> for MxDelivService<H> 
 
             match handler.handle_data(&mut envelope).await {
                 Ok(response) => Ok(Response::builder()
-                    .status(201)
+                    .status(200)
                     .body(Full::new(Bytes::from(response)).boxed())?),
                 Err(e) => Ok(Response::builder()
                     .status(400)
