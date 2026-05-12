@@ -33,6 +33,7 @@ pub(crate) mod message;
 pub(crate) mod openpgp;
 pub(crate) mod outbound;
 pub(crate) mod smtp_client;
+mod smtp_responses;
 pub(crate) mod smtp_server;
 mod tls;
 mod transport;
@@ -49,8 +50,6 @@ use std::env;
 use std::process;
 use std::str::FromStr;
 use std::sync::Arc;
-
-const ENCRYPTION_NEEDED_523: &str = "523 Encryption Needed: Invalid Unencrypted Mail";
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 enum Mode {

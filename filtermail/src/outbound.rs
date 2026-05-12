@@ -1,11 +1,11 @@
 //! Module for handling outgoing SMTP messages.
 
-use crate::ENCRYPTION_NEEDED_523;
 use crate::config::Config;
 use crate::message::{check_encrypted, is_securejoin};
 use crate::smtp_client::SmtpConnectionPool;
-pub use crate::smtp_server::Envelope;
-use crate::smtp_server::SmtpHandler;
+use crate::smtp_responses::ENCRYPTION_NEEDED_523;
+use crate::smtp_responses::OK_250;
+use crate::smtp_server::{SmtpHandler, Transaction};
 use crate::utils::{build_resolver, extract_address};
 use async_trait::async_trait;
 use governor::clock::MonotonicClock;
@@ -53,7 +53,9 @@ impl OutgoingBeforeQueueHandler {
 
 #[async_trait]
 impl SmtpHandler for OutgoingBeforeQueueHandler {
-    fn handle_mail(&self, address: &str) -> Result<(), String> {
+    type State = ();
+
+    fn handle_mail_from(&self, address: &str) -> Result<(), String> {
         log::debug!("handle_MAIL from {address}");
 
         let parts: Vec<&str> = address.split('@').collect();
@@ -79,8 +81,8 @@ impl SmtpHandler for OutgoingBeforeQueueHandler {
         Ok(())
     }
 
-    async fn check_data(&self, envelope: &mut Envelope) -> Result<(), String> {
-        let message = match parse_mail(&envelope.data) {
+    async fn check_data(&self, transaction: &mut Transaction<Self::State>) -> Result<(), String> {
+        let message = match parse_mail(&transaction.envelope.data) {
             Ok(m) => m,
             Err(e) => return Err(format!("500 Failed to parse message: {}", e)),
         };
@@ -97,7 +99,8 @@ impl SmtpHandler for OutgoingBeforeQueueHandler {
         let from_addr = extract_address(&from_header)
             .ok_or(format!("500 Invalid FROM header: {from_header}"))?;
 
-        envelope.rcpt_to = envelope
+        transaction.envelope.rcpt_to = transaction
+            .envelope
             .rcpt_to
             .iter()
             .filter(|s| {
@@ -113,12 +116,19 @@ impl SmtpHandler for OutgoingBeforeQueueHandler {
         // MAIL FROM is our source of truth for outbound messages,
         // as this address is checked by postfix against the username before sending it
         // to filtermail.
-        log::debug!("Processing DATA message from {}", envelope.mail_from);
+        log::debug!(
+            "Processing DATA message from {}",
+            transaction.envelope.mail_from
+        );
 
-        if !envelope.mail_from.eq_ignore_ascii_case(&from_addr) {
+        if !transaction
+            .envelope
+            .mail_from
+            .eq_ignore_ascii_case(&from_addr)
+        {
             return Err(format!(
                 "500 Invalid FROM <{}> for <{}>",
-                from_addr, envelope.mail_from
+                from_addr, transaction.envelope.mail_from
             ));
         }
 
@@ -131,8 +141,8 @@ impl SmtpHandler for OutgoingBeforeQueueHandler {
         log::info!("Outgoing: Filtering unencrypted mail.");
 
         // Allow self-sent Autocrypt Setup Message
-        if envelope.rcpt_to.len() == 1
-            && let Some(rcpt_to) = envelope.rcpt_to.first()
+        if transaction.envelope.rcpt_to.len() == 1
+            && let Some(rcpt_to) = transaction.envelope.rcpt_to.first()
             && *rcpt_to == from_addr
         {
             let subject = message
@@ -148,13 +158,13 @@ impl SmtpHandler for OutgoingBeforeQueueHandler {
         Err(ENCRYPTION_NEEDED_523.to_string())
     }
 
-    async fn reinject_mail(&self, envelope: &Envelope) -> Result<(), String> {
+    async fn reinject_mail(&self, transaction: &Transaction<Self::State>) -> Result<(), String> {
         log::debug!("Re-injecting the mail that passed checks");
         let hostname = format!("[{}]", self.config.filtermail_host);
         crate::smtp_client::send(
             &self.config.postfix_host,
             self.config.postfix_reinject_port,
-            envelope,
+            &transaction.envelope,
             &hostname,
             None,
             self.dns_resolver.clone(),
@@ -169,21 +179,27 @@ impl SmtpHandler for OutgoingBeforeQueueHandler {
         Ok(())
     }
 
-    async fn handle_data(&self, envelope: &mut Envelope) -> Result<String, String> {
+    async fn handle_data_dot(
+        &self,
+        transaction: &mut Transaction<Self::State>,
+    ) -> Result<String, String> {
         log::debug!("handle_DATA before-queue");
-        self.check_data(envelope).await?;
-        if self.config.is_disabled(&envelope.mail_from) {
-            log::warn!("Dropping mail; Sender {} is disabled.", envelope.mail_from);
-            return Ok("250 OK".to_string());
+        self.check_data(transaction).await?;
+        if self.config.is_disabled(&transaction.envelope.mail_from) {
+            log::warn!(
+                "Dropping mail; Sender {} is disabled.",
+                transaction.envelope.mail_from
+            );
+            return Ok(OK_250.to_string());
         }
-        if envelope.rcpt_to.is_empty() {
+        if transaction.envelope.rcpt_to.is_empty() {
             log::warn!("Dropping mail; All recipients disabled.");
-            return Ok("250 OK".to_string());
+            return Ok(OK_250.to_string());
         }
-        self.reinject_mail(envelope).await.map_err(|e| {
+        self.reinject_mail(transaction).await.map_err(|e| {
             log::warn!("Failed to reinject mail: {e}");
             e
         })?;
-        Ok("250 OK".to_string())
+        Ok(OK_250.to_string())
     }
 }

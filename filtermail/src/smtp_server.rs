@@ -1,8 +1,10 @@
 //! A simplified SMTP server implementation for internal communication.
 
+use crate::smtp_responses::OK_250;
 use crate::utils::{extract_address, log_eml};
 use async_trait::async_trait;
 use memchr::{Memchr, memmem};
+use std::fmt::Debug;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, BufWriter};
@@ -12,9 +14,7 @@ use tokio::net::{TcpListener, TcpStream};
 #[derive(Debug, Default, Clone)]
 pub struct Envelope {
     pub mail_from: String,
-    pub origin_ip: String,
     pub rcpt_to: Vec<String>,
-
     /// Mail data as transmitted over SMTP/LMTP.
     ///
     /// Described in <https://www.rfc-editor.org/rfc/rfc5321.html#section-2.3.9>.
@@ -23,6 +23,16 @@ pub struct Envelope {
     /// and have all `<CRLF>.` sequences escaped with `.` according to
     /// <https://www.rfc-editor.org/rfc/rfc5321.html#section-4.5.2>.
     pub data: Vec<u8>,
+}
+
+/// Represent an ongoing SMTP transaction.
+///
+/// Every new connection starts with an empty envelope and handler state.
+/// A RSET command starts a new transaction, which clears the envelope and state.
+#[derive(Debug, Default)]
+pub struct Transaction<S: Debug + Default> {
+    pub envelope: Envelope,
+    pub state: S,
 }
 
 /// Checks if mail data is valid.
@@ -59,19 +69,55 @@ fn is_valid_data(data: &[u8]) -> bool {
 /// Trait defining the SMTP handler interface.
 #[async_trait]
 pub trait SmtpHandler: Send + Sync {
-    /// Handles the MAIL FROM command.
-    fn handle_mail(&self, address: &str) -> Result<(), String>;
+    /// Transaction state type associated with this handler.
+    type State: Debug + Default + Send;
 
     /// Checks the DATA command before reinjection.
     ///
     /// Can optionally modify the envelope before reinjection.
-    async fn check_data(&self, envelope: &mut Envelope) -> Result<(), String>;
+    ///
+    /// Default implementation is no-op.
+    async fn check_data(&self, _transaction: &mut Transaction<Self::State>) -> Result<(), String> {
+        Ok(())
+    }
 
     /// Reinjects the mail back to postfix.
-    async fn reinject_mail(&self, envelope: &Envelope) -> Result<(), String>;
+    ///
+    /// Default implementation is no-op.
+    async fn reinject_mail(&self, _transaction: &Transaction<Self::State>) -> Result<(), String> {
+        Ok(())
+    }
 
-    /// Handles the DATA command.
-    async fn handle_data(&self, envelope: &mut Envelope) -> Result<String, String> {
+    /// Handles the MAIL FROM command.
+    ///
+    /// Default implementation is no-op.
+    fn handle_mail_from(&self, _address: &str) -> Result<(), String> {
+        Ok(())
+    }
+
+    /// Handles the RCPT TO command.
+    ///
+    /// Default implementation is no-op.
+    fn handle_rcpt_to(
+        &self,
+        _address: &str,
+        _transaction: &mut Transaction<Self::State>,
+    ) -> Result<(), String> {
+        Ok(())
+    }
+
+    /// Handles the DATA command. Called after receiving DATA, before receiving actual data.
+    ///
+    /// Default implementation is no-op.
+    fn handle_data_start(&self, _transaction: &Transaction<Self::State>) -> Result<(), String> {
+        Ok(())
+    }
+
+    /// Handles the end of DATA command. Called after receiving the final dot.
+    async fn handle_data_dot(
+        &self,
+        transaction: &mut Transaction<Self::State>,
+    ) -> Result<String, String> {
         log::debug!("handle_DATA before-queue");
 
         // Check if the DATA is valid
@@ -80,20 +126,20 @@ pub trait SmtpHandler: Send + Sync {
         // We are not going to normalize newlines
         // and escape the dots in the mail data.
         // If mail data turned out to be invalid, reject immediately.
-        if !is_valid_data(&envelope.data) {
+        if !is_valid_data(&transaction.envelope.data) {
             return Err("500 Invalid DATA".to_string());
         }
 
-        self.check_data(envelope).await?;
-        if envelope.rcpt_to.is_empty() {
+        self.check_data(transaction).await?;
+        if transaction.envelope.rcpt_to.is_empty() {
             log::warn!("Dropping mail; All recipients disabled.");
-            return Ok("250 OK".to_string());
+            return Ok(OK_250.to_string());
         }
-        self.reinject_mail(envelope).await.map_err(|e| {
+        self.reinject_mail(transaction).await.map_err(|e| {
             log::warn!("Failed to reinject mail: {e}");
             e
         })?;
-        Ok("250 OK".to_string())
+        Ok("OK_250".to_string())
     }
 }
 
@@ -150,7 +196,7 @@ where
     writer.write_all(b"220 filtermail SMTP\r\n").await?;
     writer.flush().await?;
 
-    let mut envelope = Envelope::default();
+    let mut transaction = Transaction::default();
 
     'connection: loop {
         line.clear();
@@ -181,28 +227,24 @@ where
             || cmd.to_uppercase().starts_with("LHLO")
         {
             writer
-                .write_all(b"250-filtermail\r\n250-XFORWARD ADDR\r\n250-8BITMIME\r\n250 OK\r\n")
+                .write_all(b"250-filtermail\r\n250-8BITMIME\r\n250 OK\r\n")
                 .await?;
             writer.flush().await?;
         } else if cmd.to_uppercase().starts_with("MAIL FROM:<>") {
             // bounce message
-            envelope.mail_from = String::new();
-            writer.write_all(b"250 OK\r\n").await?;
+            transaction.envelope.mail_from = String::new();
+            writer.write_all(format!("{OK_250}\r\n").as_bytes()).await?;
             writer.flush().await?;
         } else if cmd.to_uppercase().starts_with("MAIL FROM:") {
             if let Some(from) = extract_address(cmd) {
-                match handler.handle_mail(&from) {
-                    Ok(_) => {
-                        envelope.mail_from = from;
-                        writer.write_all(b"250 OK\r\n").await?;
-                        writer.flush().await?;
-                    }
-                    Err(e) => {
-                        writer.write_all(format!("{}\r\n", e).as_bytes()).await?;
-                        writer.flush().await?;
-                        break 'connection;
-                    }
+                if let Err(e) = handler.handle_mail_from(&from) {
+                    writer.write_all(format!("{}\r\n", e).as_bytes()).await?;
+                    writer.flush().await?;
+                    continue 'connection;
                 }
+                transaction.envelope.mail_from = from;
+                writer.write_all(format!("{OK_250}\r\n").as_bytes()).await?;
+                writer.flush().await?;
             } else {
                 log::warn!("Invalid MAIL FROM command. Can't extract address. Received: {cmd}");
                 writer
@@ -212,11 +254,21 @@ where
             }
         } else if cmd.to_uppercase().starts_with("RCPT TO:") {
             if let Some(to) = extract_address(cmd) {
-                envelope.rcpt_to.push(to);
-                writer.write_all(b"250 OK\r\n").await?;
+                if let Err(e) = handler.handle_rcpt_to(&to, &mut transaction) {
+                    writer.write_all(format!("{}\r\n", e).as_bytes()).await?;
+                    writer.flush().await?;
+                    continue 'connection;
+                }
+                transaction.envelope.rcpt_to.push(to);
+                writer.write_all(format!("{OK_250}\r\n").as_bytes()).await?;
                 writer.flush().await?;
             }
         } else if cmd.to_uppercase().starts_with("DATA") {
+            if let Err(e) = handler.handle_data_start(&transaction) {
+                writer.write_all(format!("{}\r\n", e).as_bytes()).await?;
+                writer.flush().await?;
+                continue 'connection;
+            }
             writer
                 .write_all(b"354 End data with <CR><LF>.<CR><LF>\r\n")
                 .await?;
@@ -255,14 +307,14 @@ where
                         .write_all(b"552 Message exceeds maximum size\r\n")
                         .await?;
                     writer.flush().await?;
-                    break 'connection;
+                    continue 'connection;
                 }
             }
 
-            envelope.data = data;
+            transaction.envelope.data = data;
 
             // Process the message
-            match handler.handle_data(&mut envelope).await {
+            match handler.handle_data_dot(&mut transaction).await {
                 Ok(response) => {
                     log::debug!("Sent: {response}");
                     writer
@@ -277,29 +329,17 @@ where
                 }
             }
 
-            envelope = Envelope::default();
-        } else if cmd.to_uppercase().starts_with("XFORWARD") {
-            // https://www.postfix.org/XFORWARD_README.html
-            if let Some(addr_part) = cmd
-                .split_whitespace()
-                .find(|part| part.to_uppercase().starts_with("ADDR="))
-                && let Some(ip) = addr_part.strip_prefix("ADDR=")
-            {
-                let ip = ip.to_lowercase();
-                envelope.origin_ip = ip.strip_prefix("ipv6:").unwrap_or(&ip).to_string();
-                writer.write_all(b"250 OK\r\n").await?;
-                writer.flush().await?;
-            }
+            transaction = Transaction::default();
         } else if cmd.to_uppercase().starts_with("QUIT") {
             writer.write_all(b"221 OK\r\n").await?;
             writer.flush().await?;
             break 'connection;
         } else if cmd.to_uppercase().starts_with("RSET") {
-            envelope = Envelope::default();
-            writer.write_all(b"250 OK\r\n").await?;
+            transaction = Transaction::default();
+            writer.write_all(format!("{OK_250}\r\n").as_bytes()).await?;
             writer.flush().await?;
         } else if cmd.to_uppercase().starts_with("NOOP") {
-            writer.write_all(b"250 OK\r\n").await?;
+            writer.write_all(format!("{OK_250}\r\n").as_bytes()).await?;
             writer.flush().await?;
         } else {
             writer.write_all(b"500 Command not recognized\r\n").await?;

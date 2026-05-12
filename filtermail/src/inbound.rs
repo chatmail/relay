@@ -1,12 +1,12 @@
 //! Module for handling incoming SMTP messages.
 
-use crate::ENCRYPTION_NEEDED_523;
 use crate::config::Config;
 use crate::dkim_verifier::DkimVerifier;
 use crate::message::{check_encrypted, is_securejoin};
 use crate::smtp_client::SmtpConnectionPool;
+use crate::smtp_responses::ENCRYPTION_NEEDED_523;
 pub use crate::smtp_server::Envelope;
-use crate::smtp_server::SmtpHandler;
+use crate::smtp_server::{SmtpHandler, Transaction};
 use crate::utils::{AddressDomain, build_resolver, extract_address, log_eml};
 use async_trait::async_trait;
 use hickory_resolver::TokioResolver;
@@ -69,12 +69,10 @@ impl IncomingBeforeQueueHandler {
 
 #[async_trait]
 impl SmtpHandler for IncomingBeforeQueueHandler {
-    fn handle_mail(&self, _address: &str) -> Result<(), String> {
-        Ok(())
-    }
+    type State = ();
 
-    async fn check_data(&self, envelope: &mut Envelope) -> Result<(), String> {
-        let message = match parse_mail(&envelope.data) {
+    async fn check_data(&self, transaction: &mut Transaction<Self::State>) -> Result<(), String> {
+        let message = match parse_mail(&transaction.envelope.data) {
             Ok(m) => m,
             Err(e) => return Err(format!("500 Failed to parse message: {}", e)),
         };
@@ -92,16 +90,21 @@ impl SmtpHandler for IncomingBeforeQueueHandler {
 
         log::debug!("Processing DATA message from {from_addr}");
 
-        if !envelope.mail_from.eq_ignore_ascii_case(&from_addr) {
+        if !transaction
+            .envelope
+            .mail_from
+            .eq_ignore_ascii_case(&from_addr)
+        {
             // If the MAIL FROM doesn't match the From header, we do not reject the mail,
             // as this can be caused by e.g. SRS forwarding.
             // Instead, we reset the envelope address, so it is reinjected as
             // `MAIL FROM:<>` to prevent sending a bounce message.
             // <https://github.com/chatmail/filtermail/issues/67>
-            envelope.mail_from = String::new();
+            transaction.envelope.mail_from = String::new();
         }
 
-        envelope.rcpt_to = envelope
+        transaction.envelope.rcpt_to = transaction
+            .envelope
             .rcpt_to
             .iter()
             .filter(|s| {
@@ -121,7 +124,7 @@ impl SmtpHandler for IncomingBeforeQueueHandler {
         // Allow encrypted or securejoin messages
         if mail_encrypted || is_securejoin(&message) {
             log::info!("Incoming: Filtering encrypted mail.");
-            return self.verify_origin(envelope, &from_addr).await;
+            return self.verify_origin(&transaction.envelope, &from_addr).await;
         }
 
         log::info!("Incoming: Filtering unencrypted mail.");
@@ -132,26 +135,26 @@ impl SmtpHandler for IncomingBeforeQueueHandler {
             && from_addr.to_lowercase().starts_with("mailer-daemon@")
             && message.ctype.mimetype == "multipart/report"
         {
-            return self.verify_origin(envelope, &from_addr).await;
+            return self.verify_origin(&transaction.envelope, &from_addr).await;
         }
 
-        for recipient in &envelope.rcpt_to {
+        for recipient in &transaction.envelope.rcpt_to {
             if !self.config.is_cleartext_ok(recipient) {
                 log::warn!("Rejected unencrypted mail from: {from_addr}");
                 return Err(ENCRYPTION_NEEDED_523.to_string());
             }
         }
 
-        self.verify_origin(envelope, &from_addr).await
+        self.verify_origin(&transaction.envelope, &from_addr).await
     }
 
-    async fn reinject_mail(&self, envelope: &Envelope) -> Result<(), String> {
+    async fn reinject_mail(&self, transaction: &Transaction<Self::State>) -> Result<(), String> {
         log::debug!("Re-injecting the mail that passed checks");
         let hostname = format!("[{}]", self.config.filtermail_host);
         crate::smtp_client::send(
             &self.config.postfix_host,
             self.config.postfix_reinject_port_incoming,
-            envelope,
+            &transaction.envelope,
             &hostname,
             None,
             self.dns_resolver.clone(),
@@ -189,12 +192,14 @@ mod tests {
         config: Config,
     ) -> TestResult {
         let handler = IncomingBeforeQueueHandler::new(config, false)?;
-        let mut envelope = Envelope {
-            mail_from: address.to_string(),
-            origin_ip: "".to_string(), // Currently shouldn't be relevant.
-            data: eml.to_vec(),
-            rcpt_to: vec!["does.not.matter@example.org".to_string()],
+        let mut transaction = Transaction {
+            envelope: Envelope {
+                mail_from: address.to_string(),
+                data: eml.to_vec(),
+                rcpt_to: vec!["does.not.matter@example.org".to_string()],
+            },
+            ..Default::default()
         };
-        Ok(handler.check_data(&mut envelope).await?)
+        Ok(handler.check_data(&mut transaction).await?)
     }
 }
