@@ -121,7 +121,7 @@ where
             || cmd.to_uppercase().starts_with("LHLO")
         {
             writer
-                .write_all(b"250-filtermail\r\n250-XFORWARD ADDR\r\n250 OK\r\n")
+                .write_all(b"250-filtermail\r\n250-XFORWARD ADDR\r\n250-8BITMIME\r\n250 OK\r\n")
                 .await?;
             writer.flush().await?;
         } else if cmd.to_uppercase().starts_with("MAIL FROM:<>") {
