@@ -87,15 +87,21 @@ jobs:
         cd repo && RUSTFLAGS="-Ctarget-feature=+crt-static -Clink-self-contained=yes" cargo build --release --target x86_64-unknown-linux-musl
         cmlxc init
         cmlxc -v deploy-cmdeploy --filtermail repo/target/x86_64-unknown-linux-musl/release/filtermail cm0
-        cmlxc -v test-mini cm0
-        cmlxc -v test-cmdeploy cm0
-
-        # cross cmdeploy relay test
-        cmlxc -v deploy-cmdeploy --filtermail repo/target/x86_64-unknown-linux-musl/release/filtermail --ipv4-only cm1
-        cmlxc -v test-cmdeploy cm0 cm1
-
-        # cross cmdeploy/madmail relay tests
+        cmlxc -v deploy-cmdeploy --filtermail repo/target/x86_64-unknown-linux-musl/release/filtermail --type ipv4 cm1
         cmlxc -v deploy-madmail mad0
+
+        # single-relay tests
+        cmlxc -v test-cmdeploy cm0
+        cmlxc -v test-cmdeploy cm1
+        cmlxc -v test-mini cm0
+        cmlxc -v test-mini cm1
+
+        # cross-relay tests (Standard <-> IP-only <-> Madmail)
+        cmlxc -v test-cmdeploy cm0 cm1
+        cmlxc -v test-cmdeploy cm1 cm0
         cmlxc -v test-cmdeploy cm0 mad0
+        cmlxc -v test-cmdeploy cm1 mad0
         cmlxc -v test-mini cm0 mad0
         cmlxc -v test-mini mad0 cm0
+        cmlxc -v test-mini cm1 mad0
+        cmlxc -v test-mini mad0 cm1
