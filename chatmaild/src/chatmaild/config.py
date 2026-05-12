@@ -161,31 +161,7 @@ def get_default_config_content(mail_domain, **overrides):
     for name, value in extra.items():
         new_line = f"{name} = {value}"
         new_lines.append(new_line)
-
-    content = "\n".join(new_lines)
-
-    # apply testrun privacy overrides
-
-    if mail_domain.endswith(".testrun.org"):
-        override_inipath = inidir.joinpath("override-testrun.ini")
-        privacy = iniconfig.IniConfig(override_inipath)["privacy"]
-        lines = []
-        for line in content.split("\n"):
-            for key, value in privacy.items():
-                value_lines = value.format(mail_domain=mail_domain).strip().split("\n")
-                if not line.startswith(f"{key} =") or not value_lines:
-                    continue
-                if len(value_lines) == 1:
-                    lines.append(f"{key} = {value}")
-                else:
-                    lines.append(f"{key} =")
-                    for vl in value_lines:
-                        lines.append(f"    {vl}")
-                break
-            else:
-                lines.append(line)
-        content = "\n".join(lines)
-    return content
+    return "\n".join(new_lines)
 
 
 def is_valid_ipv4(address: str) -> bool:
