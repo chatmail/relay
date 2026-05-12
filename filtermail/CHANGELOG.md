@@ -1,3 +1,18 @@
+## 0.6.5 - 2026-05-12
+
+### Bug Fixes
+
+- *(smtp-client)* Handle 421 on reused connection (#145)
+- Advertise 8BITMIME to prevent conversion after DKIM signing (#149)
+- Validate mail data (#150)
+
+### Miscellaneous Tasks
+
+- Build and deploy relays with filtermail binary and run interop tests against madmail  (#131)
+
+### Performance
+
+- *(smtp-client)* Use pipelining if server advertises support (#146)
 ## 0.6.4 - 2026-05-01
 
 ### Bug Fixes
