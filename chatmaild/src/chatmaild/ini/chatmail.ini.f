@@ -63,14 +63,6 @@ mail_domain = {mail_domain}
 # Deployment Details
 #
 
-# SMTP outgoing filtermail and reinjection 
-#filtermail_smtp_port = 10080
-#postfix_reinject_port = 10025
-
-# SMTP incoming filtermail and reinjection 
-#filtermail_smtp_port_incoming = 10081
-#postfix_reinject_port_incoming = 10026
-
 # if set to "True" IPv6 is disabled
 #disable_ipv6 = False
 
