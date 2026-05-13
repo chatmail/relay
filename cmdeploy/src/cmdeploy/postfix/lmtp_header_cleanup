@@ -2,5 +2,4 @@
 /^Message-Id:/      DUNNO
 /^Chat-Is-Post-Message:/      DUNNO
 /^Content-Type:/    DUNNO
-/^Subject:/         DUNNO
 /.*/                IGNORE

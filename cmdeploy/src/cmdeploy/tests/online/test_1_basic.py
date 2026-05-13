@@ -232,26 +232,6 @@ def try_n_times(n, f):
     return f()
 
 
-def test_rewrite_subject(cmsetup, maildata):
-    """Test that subject gets replaced with [...]."""
-    user1, user2 = cmsetup.gen_users(2)
-
-    sent_msg = maildata(
-        "encrypted.eml",
-        from_addr=user1.addr,
-        to_addr=user2.addr,
-        subject="Unencrypted subject",
-    ).as_string()
-    user1.smtp.sendmail(from_addr=user1.addr, to_addrs=[user2.addr], msg=sent_msg)
-
-    # The message may need some time to get delivered by postfix.
-    messages = try_n_times(5, user2.imap.fetch_all_messages)
-    assert len(messages) == 1
-    rcvd_msg = messages[0]
-    assert "Subject: [...]" not in sent_msg
-    assert "Subject: [...]" in rcvd_msg
-    assert "Subject: Unencrypted subject" in sent_msg
-    assert "Subject: Unencrypted subject" not in rcvd_msg
 
 
 def test_exceed_rate_limit(cmsetup, gencreds, maildata, chatmail_config):
