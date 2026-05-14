@@ -2,7 +2,7 @@
 
 use crate::ENCRYPTION_NEEDED_523;
 use crate::config::Config;
-use crate::message::{check_encrypted, is_securejoin, recipient_matches_passthrough};
+use crate::message::{check_encrypted, is_securejoin};
 use crate::smtp_client::SmtpConnectionPool;
 pub use crate::smtp_server::Envelope;
 use crate::smtp_server::SmtpHandler;
@@ -114,11 +114,6 @@ impl SmtpHandler for OutgoingBeforeQueueHandler {
 
         log::info!("Outgoing: Filtering unencrypted mail.");
 
-        // Allow passthrough senders
-        if self.config.passthrough_senders.contains(&from_addr) {
-            return Ok(());
-        }
-
         // Allow self-sent Autocrypt Setup Message
         if envelope.rcpt_to.len() == 1
             && let Some(rcpt_to) = envelope.rcpt_to.first()
@@ -133,14 +128,8 @@ impl SmtpHandler for OutgoingBeforeQueueHandler {
             }
         }
 
-        for recipient in &envelope.rcpt_to {
-            if !recipient_matches_passthrough(recipient, &self.config.passthrough_recipients) {
-                log::warn!("Rejected unencrypted mail from: {from_addr}");
-                return Err(ENCRYPTION_NEEDED_523.to_string());
-            }
-        }
-
-        Ok(())
+        log::warn!("Rejected unencrypted mail from: {from_addr}");
+        Err(ENCRYPTION_NEEDED_523.to_string())
     }
 
     async fn reinject_mail(&self, envelope: &Envelope) -> Result<(), String> {
