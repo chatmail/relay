@@ -16,7 +16,8 @@ def read_config(inipath):
 class Config:
     def __init__(self, inipath, params):
         self._inipath = inipath
-        raw_domain = params["mail_domain"]
+        params = dict(params)
+        raw_domain = params.pop("mail_domain")
         self.mail_domain_bare = raw_domain
 
         if is_valid_ipv4(raw_domain):
@@ -29,60 +30,59 @@ class Config:
             self.mail_domain = raw_domain
             self.postfix_myhostname = raw_domain
 
-        self.max_user_send_per_minute = int(params.get("max_user_send_per_minute", 60))
-        self.max_user_send_burst_size = int(params.get("max_user_send_burst_size", 10))
-        self.max_mailbox_size = params.get("max_mailbox_size", "500M")
-        self.max_message_size = int(params.get("max_message_size", 31457280))
-        self.delete_mails_after = params.get("delete_mails_after", "20")
-        self.delete_large_after = params.get("delete_large_after", "7")
+        self.max_user_send_per_minute = int(params.pop("max_user_send_per_minute", 60))
+        self.max_user_send_burst_size = int(params.pop("max_user_send_burst_size", 10))
+        self.max_mailbox_size = params.pop("max_mailbox_size", "500M")
+        self.max_message_size = int(params.pop("max_message_size", 31457280))
+        self.delete_mails_after = params.pop("delete_mails_after", "20")
+        self.delete_large_after = params.pop("delete_large_after", "7")
         self.delete_inactive_users_after = int(
-            params.get("delete_inactive_users_after", 90)
+            params.pop("delete_inactive_users_after", 90)
         )
-        self.username_min_length = int(params.get("username_min_length", 9))
-        self.username_max_length = int(params.get("username_max_length", 9))
-        self.password_min_length = int(params.get("password_min_length", 9))
-        _unused = ("passthrough_senders", "passthrough_recipients")
-        self.unused_keys = [k for k in _unused if params.get(k)]
-        self.www_folder = params.get("www_folder", "")
-        self.filtermail_smtp_port = int(params.get("filtermail_smtp_port", "10080"))
+        self.username_min_length = int(params.pop("username_min_length", 9))
+        self.username_max_length = int(params.pop("username_max_length", 9))
+        self.password_min_length = int(params.pop("password_min_length", 9))
+        self.www_folder = params.pop("www_folder", "")
+        self.filtermail_smtp_port = int(params.pop("filtermail_smtp_port", "10080"))
         self.filtermail_smtp_port_incoming = int(
-            params.get("filtermail_smtp_port_incoming", "10081")
+            params.pop("filtermail_smtp_port_incoming", "10081")
         )
         self.filtermail_http_port_incoming = int(
-            params.get("filtermail_http_port_incoming", "10082")
+            params.pop("filtermail_http_port_incoming", "10082")
         )
         self.filtermail_lmtp_port_transport = int(
-            params.get("filtermail_lmtp_port_transport", "10083")
+            params.pop("filtermail_lmtp_port_transport", "10083")
         )
-        self.postfix_reinject_port = int(params.get("postfix_reinject_port", "10025"))
+        self.postfix_reinject_port = int(params.pop("postfix_reinject_port", "10025"))
         self.postfix_reinject_port_incoming = int(
-            params.get("postfix_reinject_port_incoming", "10026")
+            params.pop("postfix_reinject_port_incoming", "10026")
         )
-        self.mtail_address = params.get("mtail_address")
-        self.disable_ipv6 = params.get("disable_ipv6", "false").lower() == "true"
-        self.acme_email = params.get("acme_email", "")
-        self.imap_rawlog = params.get("imap_rawlog", "false").lower() == "true"
-        self.imap_compress = params.get("imap_compress", "false").lower() == "true"
-        self.turn_socket_path = params.get(
+        self.mtail_address = params.pop("mtail_address", None)
+        self.disable_ipv6 = params.pop("disable_ipv6", "false").lower() == "true"
+        self.acme_email = params.pop("acme_email", "")
+        self.imap_rawlog = params.pop("imap_rawlog", "false").lower() == "true"
+        self.imap_compress = params.pop("imap_compress", "false").lower() == "true"
+        self.turn_socket_path = params.pop(
             "turn_socket_path", "/run/chatmail-turn/turn.socket"
         )
-        if "iroh_relay" not in params:
+        iroh_relay = params.pop("iroh_relay", None)
+        if iroh_relay is None:
             self.iroh_relay = "https://" + raw_domain
             self.enable_iroh_relay = True
         else:
-            self.iroh_relay = params["iroh_relay"].strip()
+            self.iroh_relay = iroh_relay.strip()
             self.enable_iroh_relay = False
-        self.privacy_postal = params.get("privacy_postal")
-        self.privacy_mail = params.get("privacy_mail")
-        self.privacy_pdo = params.get("privacy_pdo")
-        self.privacy_supervisor = params.get("privacy_supervisor")
+        self.privacy_postal = params.pop("privacy_postal", None)
+        self.privacy_mail = params.pop("privacy_mail", None)
+        self.privacy_pdo = params.pop("privacy_pdo", None)
+        self.privacy_supervisor = params.pop("privacy_supervisor", None)
 
         # TLS certificate management.
         # If tls_external_cert_and_key is set, use externally managed certs.
         # Otherwise derived from the domain name:
         # - Domains starting with "_" use self-signed certificates
         # - All other domains use ACME.
-        external = params.get("tls_external_cert_and_key", "").strip()
+        external = params.pop("tls_external_cert_and_key", "").strip()
 
         if external:
             parts = external.split()
@@ -103,11 +103,12 @@ class Config:
             self.tls_key_path = f"/var/lib/acme/live/{raw_domain}/privkey"
 
         # deprecated option
-        mbdir = params.get("mailboxes_dir", f"/home/vmail/mail/{raw_domain}")
+        mbdir = params.pop("mailboxes_dir", f"/home/vmail/mail/{raw_domain}")
         self.mailboxes_dir = Path(mbdir.strip())
 
         # old unused option (except for first migration from sqlite to maildir store)
-        self.passdb_path = Path(params.get("passdb_path", "/home/vmail/passdb.sqlite"))
+        self.passdb_path = Path(params.pop("passdb_path", "/home/vmail/passdb.sqlite"))
+        self._unused_keys = list(params)
 
     @property
     def max_mailbox_size_mb(self):

@@ -134,7 +134,7 @@ def run_cmd(args, out):
             out.green("Deploy completed.")
         else:
             out.green("Deploy completed, call `cmdeploy dns` next.")
-        _warn_unused_settings(args.config.unused_keys, out)
+        _warn_unused_settings(args.config._unused_keys, out)
         return 0
     except subprocess.CalledProcessError:
         out.red("Deploy failed")
