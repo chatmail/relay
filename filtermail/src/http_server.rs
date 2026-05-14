@@ -8,6 +8,7 @@ use hyper_util::rt::TokioIo;
 use std::convert::Infallible;
 use std::pin::Pin;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::net::{TcpListener, TcpStream};
 
 /// Runs the HTTP server on the specified address with the given handler and maximum message size.
@@ -21,17 +22,25 @@ where
 {
     let listener = TcpListener::bind(addr).await?;
     loop {
-        let (socket, _) = listener.accept().await?;
+        match listener.accept().await {
+            Ok((socket, _peer_addr)) => {
+                // Disable Nagle's algorithm.
+                socket.set_nodelay(true)?;
 
-        // Disable Nagle's algorithm.
-        socket.set_nodelay(true)?;
-
-        let handler = handler.clone();
-        tokio::spawn(async move {
-            if let Err(e) = handle_connection(socket, handler, max_size).await {
-                log::error!("Error handling connection: {e}");
+                let handler = handler.clone();
+                tokio::spawn(async move {
+                    if let Err(e) = handle_connection(socket, handler, max_size).await {
+                        log::error!("Error handling connection: {e}");
+                    }
+                });
             }
-        });
+            Err(e) => {
+                log::error!("Error accepting connection: {e}");
+
+                // Sleep to avoid busy looping in case we ran into file descriptor limit.
+                tokio::time::sleep(Duration::from_secs(10)).await;
+            }
+        }
     }
 }
 

@@ -4,6 +4,7 @@ use crate::utils::{extract_address, log_eml};
 use async_trait::async_trait;
 use memchr::{Memchr, memmem};
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, BufWriter};
 use tokio::net::{TcpListener, TcpStream};
 
@@ -110,17 +111,25 @@ where
     log::info!("entering serving loop");
 
     loop {
-        let (socket, _) = listener.accept().await?;
+        match listener.accept().await {
+            Ok((socket, _peer_addr)) => {
+                // Disable Nagle's algorithm.
+                socket.set_nodelay(true)?;
 
-        // Disable Nagle's algorithm.
-        socket.set_nodelay(true)?;
-
-        let handler = handler.clone();
-        tokio::spawn(async move {
-            if let Err(e) = handle_connection(socket, handler, max_size).await {
-                log::error!("Error handling connection: {e}");
+                let handler = handler.clone();
+                tokio::spawn(async move {
+                    if let Err(e) = handle_connection(socket, handler, max_size).await {
+                        log::error!("Error handling connection: {e}");
+                    }
+                });
             }
-        });
+            Err(e) => {
+                log::error!("Error accepting connection: {e}");
+
+                // Sleep to avoid busy looping in case we ran into file descriptor limit.
+                tokio::time::sleep(Duration::from_secs(10)).await;
+            }
+        }
     }
 }
 
