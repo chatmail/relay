@@ -84,6 +84,15 @@ def run_cmd_options(parser):
     add_ssh_host_option(parser)
 
 
+def _warn_unused_settings(unused_keys, out):
+    if unused_keys:
+        names = ", ".join(unused_keys)
+        out.red(
+            f"WARNING: chatmail.ini contains settings that have no effect: {names}\n"
+            "Please remove them from chatmail.ini."
+        )
+
+
 def run_cmd(args, out):
     """Deploy chatmail services on the remote server."""
 
@@ -125,6 +134,7 @@ def run_cmd(args, out):
             out.green("Deploy completed.")
         else:
             out.green("Deploy completed, call `cmdeploy dns` next.")
+        _warn_unused_settings(args.config.unused_keys, out)
         return 0
     except subprocess.CalledProcessError:
         out.red("Deploy failed")

@@ -45,8 +45,12 @@ def test_read_config_basic_using_defaults(tmp_path, maildomain):
     assert example_config.username_min_length == 9
     assert example_config.username_max_length == 9
     assert example_config.password_min_length == 9
-    assert example_config.passthrough_recipients == []
-    assert example_config.passthrough_senders == []
+    assert example_config.unused_keys == []
+
+
+def test_config_unused_keys(make_config):
+    config = make_config("chat.example.org", {"passthrough_senders": "x@y.org"})
+    assert config.unused_keys == ["passthrough_senders"]
 
 
 def test_config_userstate_paths(make_config, tmp_path):

@@ -41,8 +41,8 @@ class Config:
         self.username_min_length = int(params.get("username_min_length", 9))
         self.username_max_length = int(params.get("username_max_length", 9))
         self.password_min_length = int(params.get("password_min_length", 9))
-        self.passthrough_senders = params.get("passthrough_senders", "").split()
-        self.passthrough_recipients = params.get("passthrough_recipients", "").split()
+        _unused = ("passthrough_senders", "passthrough_recipients")
+        self.unused_keys = [k for k in _unused if params.get(k)]
         self.www_folder = params.get("www_folder", "")
         self.filtermail_smtp_port = int(params.get("filtermail_smtp_port", "10080"))
         self.filtermail_smtp_port_incoming = int(

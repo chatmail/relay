@@ -42,13 +42,6 @@ mail_domain = {mail_domain}
 # minimum length a password must have
 #password_min_length = 9
 
-# list of chatmail addresses which can send outbound un-encrypted mail
-#passthrough_senders =
-
-# list of e-mail recipients for which to accept outbound un-encrypted mails
-# (space-separated, item may start with "@" to whitelist whole recipient domains)
-#passthrough_recipients =
-
 # Use externally managed TLS certificates instead of built-in acmetool.
 # Paths refer to files on the deployment server (not the build machine).
 # Both files must already exist before running cmdeploy.
