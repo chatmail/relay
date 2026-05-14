@@ -1,7 +1,23 @@
+# List of headers for incoming messages 
+# that must be retained for functionality and compatibility reasons 
 /^From:/            DUNNO
 /^Message-Id:/      DUNNO
 /^Chat-Is-Post-Message:/      DUNNO
 /^Content-Type:/    DUNNO
+
+# For receiving clear-text messages (still supported in May 2026)
 /^Subject:/         DUNNO
 /^Date:/            DUNNO
+
+# Senders might support Autocrypt 1 but not RFC9788 (Header Protection) 
+/^Autocrypt:/            DUNNO
+
+# SecureJoin V2 protocol headers (for backward compatibility) 
+/^Secure-Join:/             DUNNO
+/^Secure-Join-Invitenumber:/ DUNNO
+/^Secure-Join-Auth:/        DUNNO
+/^Secure-Join-Fingerprint:/ DUNNO
+/^Secure-Join-Group:/       DUNNO
+
+# Ignore all other headers
 /.*/                IGNORE
