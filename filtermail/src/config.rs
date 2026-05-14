@@ -1,6 +1,6 @@
 //! Configuration file handling for filtermail.
 
-use serde::{Deserialize, Deserializer};
+use serde::Deserialize;
 use std::net::IpAddr;
 use std::num::NonZeroU32;
 use std::path::{Path, PathBuf};
@@ -30,10 +30,6 @@ pub struct Config {
     pub max_user_send_per_minute: NonZeroU32,
     #[serde(default = "Config::default_max_user_send_burst_size")]
     pub max_user_send_burst_size: NonZeroU32,
-    #[serde(default, deserialize_with = "deserialize_sequence")]
-    pub passthrough_senders: Vec<String>,
-    #[serde(default, deserialize_with = "deserialize_sequence")]
-    pub passthrough_recipients: Vec<String>,
     pub mail_domain: String,
     mailboxes_dir: Option<PathBuf>,
 }
@@ -42,22 +38,6 @@ pub struct Config {
 struct ConfigWrapper {
     // The whole actual config is under `params` section.
     pub params: Config,
-}
-
-/// Custom deserializer to parse space-separated strings into [`Vec<String>`].
-fn deserialize_sequence<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let s: Option<String> = Deserialize::deserialize(deserializer)?;
-    Ok(match s {
-        Some(v) => v
-            .split(' ')
-            .map(|item| item.trim().to_string())
-            .filter(|item| !item.is_empty())
-            .collect(),
-        None => Vec::new(),
-    })
 }
 
 impl Config {
@@ -156,8 +136,6 @@ impl Default for Config {
             max_message_size: Self::default_max_message_size(),
             max_user_send_per_minute: Self::default_max_user_send_per_minute(),
             max_user_send_burst_size: Self::default_max_user_send_burst_size(),
-            passthrough_senders: Vec::new(),
-            passthrough_recipients: Vec::new(),
             mail_domain: "example.org".to_string(),
             mailboxes_dir: None,
         }

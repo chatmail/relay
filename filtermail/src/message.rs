@@ -131,30 +131,12 @@ pub fn check_encrypted(mail: &mailparse::ParsedMail, outgoing: bool) -> bool {
     true
 }
 
-/// Check if recipient matches a passthrough pattern
-pub fn recipient_matches_passthrough(recipient: &str, passthrough_recipients: &[String]) -> bool {
-    for addr in passthrough_recipients {
-        if recipient == addr {
-            return true;
-        }
-        if addr.starts_with('@') && recipient.ends_with(addr) {
-            return true;
-        }
-    }
-    false
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use mailparse::parse_mail;
     use rstest::*;
     use testresult::TestResult;
-
-    #[fixture]
-    fn passthrough_recipients() -> Vec<String> {
-        vec!["pass@example.org".to_string(), "@example.com".to_string()]
-    }
 
     #[rstest]
     #[case::asm("test_data/asm.eml", false)]
@@ -188,19 +170,5 @@ mod tests {
         let parsed = parse_mail(raw_email.as_bytes())?;
         assert_eq!(check_encrypted(&parsed, false), expected);
         Ok(())
-    }
-
-    #[rstest]
-    #[case("pass@example.org", true)]
-    #[case("other@example.org", false)]
-    #[case("anything@example.com", true)]
-    #[case("anything@sub.example.com", false)]
-    fn test_recipient_matches_passthrough(
-        #[case] recipient: &str,
-        #[case] expected: bool,
-        passthrough_recipients: Vec<String>,
-    ) {
-        let result = recipient_matches_passthrough(recipient, &passthrough_recipients);
-        assert_eq!(result, expected);
     }
 }
