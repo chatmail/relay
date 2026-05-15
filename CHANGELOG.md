@@ -1,4 +1,46 @@
-# Changelog for chatmail deployment 
+# Changelog for chatmail deployment
+
+## [1.11.0] - 2026-05-15
+
+### Breaking Changes
+
+- [**breaking**] Drop passthrough_sender and passthrough_recipients chatmail.ini options to eliminate one more source of unencrypted messages
+
+### Features
+
+- Use filtermail for delivery to remote MTAs
+- Expose metadata "maxsmtprecipients" value
+- Support setup without domain, with only an IPv4 address (#963)
+- *(doc/docker)* Introduce docker images in documentation
+- DKIM-sign bounce messages (mainly "user does not exist")
+- *(config)* Load default values from Config(), not chatmail.ini.f (#853)
+- Make turn_socket_path configurable, and cleanup tests and turnserver code.
+- Warn about any unused chatmail.ini parameter at the end of "cmdeploy run"
+
+### Bug Fixes
+
+- Make www tests work with editable instead of just plain installs
+- Use path with no leading slash for mxdeliv
+- Increase filtermail-transport concurrency limit
+- Fix #972 by increasing file descriptors for filtermail
+- *(mtail)* Correct boot ordering and deploy restart logic
+- *(cmdeploy)* Stop and disable unbound-resolvconf
+- *(nginx)* Properly redirect www to mail_domain
+- *(dns)* Query correct NS if MNAME server is hidden (#954)
+- Legacy token metadata storage used list type, but if no new setmetadata happened, the user would not be notified at all.
+- *(logging)* Log all http requests to syslog
+
+### Documentation
+
+- Document how to upgrade to new version (#965)
+
+### Other
+
+- *(deps)* Upgrade to filtermail v0.6.4
+
+### Refactor
+
+- Introduce automated change-tracking across deployers
 
 ## 1.10.0 2026-04-30
 
