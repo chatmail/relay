@@ -14,14 +14,10 @@
 /^In-Reply-To:/     DUNNO
 
 # Senders might support Autocrypt 1 but not RFC9788 (Header Protection) 
-/^Autocrypt:/            DUNNO
+/^Autocrypt:/       DUNNO
 
 # SecureJoin V2 protocol headers (for backward compatibility) 
-/^Secure-Join:/             DUNNO
-/^Secure-Join-Invitenumber:/ DUNNO
-/^Secure-Join-Auth:/        DUNNO
-/^Secure-Join-Fingerprint:/ DUNNO
-/^Secure-Join-Group:/       DUNNO
+/^Secure-Join/      DUNNO
 
 # Ignore all other headers
 /.*/                IGNORE
