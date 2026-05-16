@@ -17,6 +17,7 @@ smtp      inet  n       -       y       -       -       smtpd
   -o smtpd_tls_security_level=encrypt
   -o smtpd_tls_mandatory_protocols=>=TLSv1.2
   -o smtpd_proxy_filter=127.0.0.1:{{ config.filtermail_smtp_port_incoming }}
+  -o smtpd_relay_restrictions=reject_unauth_destination
 submission inet n       -       y       -       5000    smtpd
   -o syslog_name=postfix/submission
   -o smtpd_tls_security_level=encrypt
@@ -81,12 +82,14 @@ filter    unix -        n       n       -       -       lmtp
   -o syslog_name=postfix/reinject
   -o milter_macro_daemon_name=ORIGINATING
   -o cleanup_service_name=authclean
+  -o smtpd_relay_restrictions=permit_mynetworks,reject
 {% if not config.ipv4_relay %}  -o smtpd_milters=unix:opendkim/opendkim.sock
 {% endif %}
 
 # Local SMTP server for reinjecting incoming filtered mail 
 127.0.0.1:{{ config.postfix_reinject_port_incoming }} inet  n       -       n       -       100      smtpd
   -o syslog_name=postfix/reinject_incoming
+  -o smtpd_relay_restrictions=reject_unauth_destination
 
 # Cleanup `Received` headers for authenticated mail
 # to avoid leaking client IP.

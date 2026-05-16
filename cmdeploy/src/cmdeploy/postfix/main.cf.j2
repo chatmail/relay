@@ -53,7 +53,8 @@ smtpd_tls_exclude_ciphers = aNULL, RC4, MD5, DES
 # See <https://www.postfix.org/FORWARD_SECRECY_README.html#server_fs>.
 tls_preempt_cipherlist = yes
 
-smtpd_relay_restrictions = permit_mynetworks permit_sasl_authenticated defer_unauth_destination
+# Reject by default, override per smtpd in master.cf
+smtpd_relay_restrictions = reject
 myhostname = {{ config.postfix_myhostname }}
 alias_maps = hash:/etc/aliases
 alias_database = hash:/etc/aliases
