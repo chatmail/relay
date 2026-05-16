@@ -23,13 +23,13 @@ you can also **scan this QR code** with Delta Chat:
 <script src="qrcode-svg.min.js"></script>
 <script src="dclogin.js"></script>
 {% else %}
-<a class="cta-button" href="DCACCOUNT:https://{{ config.mail_domain }}/new">Get a {{config.mail_domain}} chat profile</a>
+<a class="cta-button" href="DCACCOUNT:{{ config.mail_domain }}">Get a {{config.mail_domain}} chat profile</a>
 
 If you are viewing this page on a different device
 without a Delta Chat app,
 you can also **scan this QR code** with Delta Chat:
 
-<a href="DCACCOUNT:https://{{ config.mail_domain }}/new">
+<a href="DCACCOUNT:{{ config.mail_domain }}">
     <img width=300 style="float: none;" src="qr-chatmail-invite-{{config.mail_domain}}.png" /></a>
 {% endif %}
 
