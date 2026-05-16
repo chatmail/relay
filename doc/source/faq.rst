@@ -60,6 +60,7 @@ and run the following commands:
    ::
 
        git pull origin main --rebase --autostash
+       scripts/initenv.sh
        scripts/cmdeploy run
 
 If you don't want the latest development version,
