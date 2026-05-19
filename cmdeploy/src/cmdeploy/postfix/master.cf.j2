@@ -105,7 +105,15 @@ filter    unix -        n       n       -       -       lmtp
 authclean unix  n       -       -       -       0       cleanup
   -o header_checks=regexp:/etc/postfix/submission_header_cleanup
 
-lmtp-filtermail unix  -       -       y       -       10000       lmtp
+# Reducing `maxproc` here may result in a head of line blocking
+# when there are many messages sent to unreachable destinations
+# at the same time.
+# LMTP clients here talk to filtermail-transport.
+# LMTP has no pipelining,
+# so while filtermail-transport tries to deliver the message,
+# possibly waiting for a long connection timeout
+# or talking to a slow server, LMTP client cannot be reused.
+lmtp-filtermail unix  -       -       y       -       1000       lmtp
   -o syslog_name=postfix/lmtp-filtermail
   -o lmtp_header_checks=
   -o lmtp_tls_security_level=none

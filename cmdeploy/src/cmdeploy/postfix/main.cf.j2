@@ -102,6 +102,18 @@ smtpd_peername_lookup = no
 # so instead this is handled in filtermail.
 # We use LMTP instead SMTP so we can communicate per-recipient errors back to postfix.
 default_transport = lmtp-filtermail:inet:[127.0.0.1]:{{ config.filtermail_lmtp_port_transport }}
+
+# All deliveries over lmtp-filtermail are treated
+# as having the same destination [127.0.0.1],
+# so it is not possible to limit per-destination concurrency here,
+# it is a job for filtermail-transport.
+# Total number of parallel deliveries is limited
+# by "maxproc" column in /etc/postfix/master.cf for lmtp-filtermail.
+# Settings below are to prevent Postfix queue manager
+# from limiting the number of LMTP connections to filtermail-transport.
+# Read <https://www.postfix.org/TUNING_README.html#rope> and
+# <https://www.postfix.org/SCHEDULER_README.html> for the details
+# of the Postfix algorithm that we effectively disable here.
 lmtp-filtermail_initial_destination_concurrency=10000
 lmtp-filtermail_destination_concurrency_limit=10000
 
