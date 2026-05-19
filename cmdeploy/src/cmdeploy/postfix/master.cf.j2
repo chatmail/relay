@@ -113,7 +113,7 @@ authclean unix  n       -       -       -       0       cleanup
 # so while filtermail-transport tries to deliver the message,
 # possibly waiting for a long connection timeout
 # or talking to a slow server, LMTP client cannot be reused.
-lmtp-filtermail unix  -       -       y       -       1000       lmtp
+lmtp-filtermail unix  -       -       y       -       500       lmtp
   -o syslog_name=postfix/lmtp-filtermail
   -o lmtp_header_checks=
   -o lmtp_tls_security_level=none
