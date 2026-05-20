@@ -117,6 +117,9 @@ default_transport = lmtp-filtermail:inet:[127.0.0.1]:{{ config.filtermail_lmtp_p
 lmtp-filtermail_initial_destination_concurrency=10000
 lmtp-filtermail_destination_concurrency_limit=10000
 
+# Do not try to deliver messages for more than 2 days.
+maximal_queue_lifetime = 2d
+
 {% if not config.ipv4_relay %}
 # DKIM-sign locally generated mail (bounces, DSNs).
 # These bypass smtpd, so they need explicit milter configuration.
