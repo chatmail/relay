@@ -99,9 +99,7 @@ for messages received from clients and performs following steps:
 4. Rejects messages that do not meet at least one of the following criteria:
     - PGP encrypted,
     - securejoin message,
-    - sender is in `passthrough_senders`,
     - self-sent Autocrypt Setup Message,
-    - all recipients match `passthrough_recipients`.
 
 ### Transport mode
 
@@ -158,11 +156,6 @@ but implements a custom parser that only requires a small subset of configuratio
   defaults to `60`.
 - `max_user_send_burst_size` - per-user max burst size for sending rate limiting (GCRA bucket capacity),
   defaults to `10`.
-- `passthrough_senders` - space separated list of email addresses
-  which can send outbound un-encrypted mail.
-- `passthrough_recipients` - space separated list of email addresses
-  which can receive inbound un-encrypted mail,
-  item may start with `@` to whitelist whole recipient domains.
 - `mail_domain` - domain name used in email addresses.
 - `mailboxes_dir` - path to mailboxes directory,
   defaults to `/home/vmail/mail/<mail_domain>`.
