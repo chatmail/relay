@@ -1,3 +1,16 @@
+## 0.7.0 - 2026-05-26
+
+### Bug Fixes
+
+- Do not crash if accepting new connection fails
+
+### Documentation
+
+- *(readme)* Remove docs for options removed in da9a116 (#162)
+
+### Features
+
+- [**breaking**] Remove passthrough options that allowed unencrypted mail to pass
 ## 0.6.6 - 2026-05-12
 
 ### Bug Fixes
