@@ -167,7 +167,6 @@ class TestEndToEndDeltaChat:
                 assert "error" not in m.get_info()
             time.sleep(1)
 
-
 def test_hide_senders_ip_address(cmfactory, ssl_context):
     public_ip = requests.get("http://icanhazip.com").content.decode().strip()
     assert ipaddress.ip_address(public_ip)
@@ -175,13 +174,23 @@ def test_hide_senders_ip_address(cmfactory, ssl_context):
     user1, user2 = cmfactory.get_online_accounts(2)
     chat = cmfactory.get_accepted_chat(user1, user2)
 
-    chat.send_text("testing submission header cleanup")
-    user2.wait_for_incoming_msg()
     addr = user2.get_config("addr")
     host = addr.split("@")[1].strip("[").strip("]")
     pw = user2.get_config("mail_pw")
+
     mailbox = imap_tools.MailBox(host, ssl_context=ssl_context)
     mailbox.login(addr, pw)
-    msgs = list(mailbox.fetch(mark_seen=False))
+
+    chat.send_text("testing submission header cleanup")
+
+    deadline = time.time() + 10
+    msgs = []
+
+    while time.time() < deadline:
+        msgs = list(mailbox.fetch(mark_seen=False))
+        if msgs:
+            break
+        time.sleep(0.5)
+
     assert msgs, "expected at least one message"
     assert public_ip not in msgs[0].obj.as_string()
