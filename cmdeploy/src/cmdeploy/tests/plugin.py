@@ -349,9 +349,9 @@ class ChatmailACFactory:
                 qr = (
                     f"dclogin:{addr}"
                     f"?p={password}&v=1"
-                    f"&ih={domain}&ip=993"
-                    f"&sh={domain}&sp=465"
-                    f"&ic=3&ss=default"
+                    f"&ih={domain}&ip=993&is=ssl"
+                    f"&sh={domain}&sp=465&ss=ssl"
+                    f"&ic=3"
                 )
                 future = account.add_transport_from_qr.future(qr)
             else:
