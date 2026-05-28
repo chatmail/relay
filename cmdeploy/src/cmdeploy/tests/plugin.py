@@ -360,9 +360,9 @@ class ChatmailACFactory:
                 )
             futures.append(future)
 
-            # ensure messages stay in INBOX so that they can be
-            # concurrently fetched via extra IMAP connections during tests
-            account.set_config("delete_server_after", "10")
+            ## ensure messages stay in INBOX so that they can be
+            ## concurrently fetched via extra IMAP connections during tests
+            ##account.set_config("delete_server_after", "10")
             accounts.append(account)
 
         for future in futures:
