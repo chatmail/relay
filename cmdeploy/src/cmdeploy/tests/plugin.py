@@ -362,7 +362,7 @@ class ChatmailACFactory:
 
             # ensure messages stay in INBOX so that they can be
             # concurrently fetched via extra IMAP connections during tests
-            account.set_config("delete_server_after", "10")
+            account.set_config("bcc_self", "1")
             accounts.append(account)
 
         for future in futures:
