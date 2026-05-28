@@ -20,9 +20,9 @@ concurrency:
 jobs:
   no-dns:
     name: LXC deploy and test
-    uses: chatmail/cmlxc/.github/workflows/lxc-test.yml@17e0d871869ad953268eefa0a448e95c73b9197d
+    uses: chatmail/cmlxc/.github/workflows/lxc-test.yml@6d64dff5cf1ad3ccd37f7b51ee0a96bbdc9c84d2
     with:
-      cmlxc_version: 17e0d871869ad953268eefa0a448e95c73b9197d
+      cmlxc_version: 6d64dff5cf1ad3ccd37f7b51ee0a96bbdc9c84d2
       cmlxc_commands: |
         cmlxc init 
         # single cmdeploy relay test
