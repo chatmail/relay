@@ -19,8 +19,8 @@ dependencies = [
   "pytest-xdist", 
   "execnet",
   "imap_tools",
-  "deltachat-rpc-client",
-  "deltachat-rpc-server",
+  "deltachat-rpc-client==2.49.0",
+  "deltachat-rpc-server==2.49.0",
 ]
 
 [project.scripts]
