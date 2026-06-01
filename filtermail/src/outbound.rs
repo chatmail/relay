@@ -8,7 +8,9 @@ pub use crate::smtp_server::Envelope;
 use crate::smtp_server::SmtpHandler;
 use crate::utils::{build_resolver, extract_address};
 use async_trait::async_trait;
-use governor::{DefaultKeyedRateLimiter, Quota, RateLimiter};
+use governor::clock::MonotonicClock;
+use governor::middleware::NoOpMiddleware;
+use governor::{Quota, RateLimiter};
 use hickory_resolver::TokioResolver;
 use mailparse::{MailHeaderMap, parse_mail};
 use std::sync::Arc;
@@ -17,7 +19,20 @@ use std::sync::Arc;
 pub struct OutgoingBeforeQueueHandler {
     config: Config,
     dns_resolver: Arc<TokioResolver>,
-    send_rate_limiter: DefaultKeyedRateLimiter<String>,
+
+    // We explicitly use standard MonotonicClock here.
+    // governor 0.10.4 by default uses "quanta" clock
+    // if the feature "quanta" is enabled
+    // and it has a known problem
+    // of sometimes jumping back in time
+    // when moved between CPU cores:
+    // <https://github.com/metrics-rs/quanta/issues/111>
+    send_rate_limiter: RateLimiter<
+        String,
+        governor::state::keyed::DashMapStateStore<String>,
+        MonotonicClock,
+        NoOpMiddleware<std::time::Instant>,
+    >,
     smtp_connection_pool: Arc<SmtpConnectionPool>,
 }
 
@@ -26,10 +41,11 @@ impl OutgoingBeforeQueueHandler {
         let quota = Quota::per_minute(config.max_user_send_per_minute)
             .allow_burst(config.max_user_send_burst_size);
         let dns_resolver = Arc::new(build_resolver()?);
+        let send_rate_limiter = RateLimiter::dashmap_with_clock(quota, MonotonicClock);
         Ok(Self {
             config,
             dns_resolver,
-            send_rate_limiter: RateLimiter::keyed(quota),
+            send_rate_limiter,
             smtp_connection_pool: SmtpConnectionPool::new(),
         })
     }
