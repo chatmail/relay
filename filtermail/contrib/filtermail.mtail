@@ -1,0 +1,101 @@
+# filtermail.mtail: filtermail process event counters
+
+#
+# Counters
+#
+
+# Connection errors in the transport path
+# Error::Io / Error::ConnectionFailed / Error::Tls: the reason string filtermail strips
+counter filtermail_transport_error_total by reason
+
+# Unexpected transport errors: DNS failure, HTTP error, config error.
+counter filtermail_transport_unexpected_total
+
+# Silent drops: inbound
+# "unencrypted" overlaps with rejected_unencrypted_mail_count in delivered_mail.mtail.
+counter filtermail_inbound_drop_total by reason
+
+# Silent drops: outbound
+# "unencrypted" overlaps with rejected_unencrypted_mail_count in delivered_mail.mtail;
+# "sender_disabled" and "all_recipients_disabled" are new.
+counter filtermail_outbound_drop_total by reason
+
+# Reinject failures
+counter filtermail_reinject_error_total by direction
+
+# SMTP-level connection errors (client dropped mid-session)
+counter filtermail_smtp_error_total by reason
+
+#
+# filtermail::transport
+#
+
+/filtermail\[\d+\]: \[WARN\s+filtermail::transport\] Connection error relaying to mail server \S+: / {
+    /timed out/ {
+        filtermail_transport_error_total["connection_timeout"]++
+    } otherwise {
+    /Failed to connect to any of the following addresses/ {
+        filtermail_transport_error_total["connection_refused"]++
+    } otherwise {
+    /Connection refused/ {
+        filtermail_transport_error_total["connection_refused"]++
+    } otherwise {
+    /invalid certificate/ {
+        filtermail_transport_error_total["tls_cert_not_verified"]++
+    } otherwise {
+    /peer sent fatal alert|handshake/ {
+        filtermail_transport_error_total["tls_handshake"]++
+    } otherwise {
+    /close_notify|connection closed/ {
+        filtermail_transport_error_total["lost_connection"]++
+    } otherwise {
+        filtermail_transport_error_total["other"]++
+    }}}}}}}
+
+/filtermail\[\d+\]: \[WARN\s+filtermail::transport\] Unexpected error while delivering/ {
+    filtermail_transport_unexpected_total++
+}
+
+#
+# filtermail::smtp_server
+#
+
+/filtermail(?:-incoming)?\[\d+\]: \[WARN\s+filtermail::smtp_server\] Unexpected EoF while receiving DATA/ {
+    filtermail_smtp_error_total["unexpected_eof"]++
+}
+
+/filtermail(?:-incoming)?\[\d+\]: \[WARN\s+filtermail::smtp_server\] Malformed DATA line without CRLF/ {
+    filtermail_smtp_error_total["malformed_data_line"]++
+}
+
+#
+# filtermail::outbound
+#
+
+/filtermail\[\d+\]: \[WARN\s+filtermail::outbound\] Rejected unencrypted mail/ {
+    filtermail_outbound_drop_total["unencrypted"]++
+}
+
+/filtermail\[\d+\]: \[WARN\s+filtermail::outbound\] Dropping mail; Sender .* is disabled/ {
+    filtermail_outbound_drop_total["sender_disabled"]++
+}
+
+/filtermail\[\d+\]: \[WARN\s+filtermail::outbound\] Dropping mail; All recipients disabled/ {
+    filtermail_outbound_drop_total["all_recipients_disabled"]++
+}
+
+/filtermail\[\d+\]: \[WARN\s+filtermail::outbound\] Failed to re.inject mail/ {
+    filtermail_reinject_error_total["outbound"]++
+}
+
+#
+# filtermail::inbound
+#
+
+/filtermail(?:-incoming)?\[\d+\]: \[WARN\s+filtermail::inbound\] Rejected unencrypted mail/ {
+    filtermail_inbound_drop_total["unencrypted"]++
+}
+
+/filtermail(?:-incoming)?\[\d+\]: \[WARN\s+filtermail::inbound\] Failed to re.inject mail/ {
+    filtermail_reinject_error_total["inbound"]++
+}
