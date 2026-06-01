@@ -19,7 +19,10 @@ mailparse = "0.16.1"
 memchr = "2.8.0"
 log = "0.4.29"
 env_logger = "0.11.10"
-governor = "0.10.4"
+governor = { version = "0.10.4", default-features = false, features = [
+  "std",
+  "dashmap",
+] }
 viadkim = { version = "0.2.0" }
 hickory-resolver = { version = "0.26.1", features = ["dnssec-ring"] }
 lru = "0.17.0"
