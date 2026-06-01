@@ -225,7 +225,10 @@ where
             let mut data_line = String::new();
             'data_read: loop {
                 data_line.clear();
-                reader.read_line(&mut data_line).await?;
+                if reader.read_line(&mut data_line).await? == 0 {
+                    log::warn!("Unexpected EoF while receiving DATA! Closing connection.");
+                    break 'connection;
+                }
 
                 if data_line == ".\r\n" {
                     break 'data_read;
