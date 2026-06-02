@@ -171,16 +171,14 @@ class UnboundDeployer(Deployer):
                 "unbound-anchor -a /var/lib/unbound/root.key || true",
             ],
         )
-        if self.config.disable_ipv6:
-            self.ensure_directory(
-                path="/etc/unbound/unbound.conf.d",
-            )
-            self.put_template(
-                "unbound/unbound.conf.j2",
-                "/etc/unbound/unbound.conf.d/chatmail.conf",
-            )
-        else:
-            self.remove_file("/etc/unbound/unbound.conf.d/chatmail.conf")
+        self.ensure_directory(
+            path="/etc/unbound/unbound.conf.d",
+        )
+        self.put_template(
+            "unbound/unbound.conf.j2",
+            "/etc/unbound/unbound.conf.d/chatmail.conf",
+            disable_ipv6=self.config.disable_ipv6,
+        )
 
     def activate(self):
         server.shell(
