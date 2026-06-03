@@ -1,6 +1,7 @@
 import itertools
 import os
 import random
+import shutil
 import time
 from datetime import datetime
 from fnmatch import fnmatch
@@ -9,6 +10,7 @@ from pathlib import Path
 import pytest
 
 from chatmaild.expire import (
+    Expiry,
     FileEntry,
     MailboxStat,
     expire_to_target,
@@ -102,6 +104,33 @@ def test_stats_mailbox(mbox1):
     Path(mbox1.basedir).joinpath("password").unlink()
     mbox3 = MailboxStat(mbox1.basedir)
     assert mbox3.last_login is None
+
+
+def test_mbox_without_password(mbox1, example_config, capsys):
+    password = Path(mbox1.basedir).joinpath("password")
+    os.remove(password)
+    mbox_rescan = MailboxStat(mbox1.basedir)
+    mbox_rescan.scandir(mbox_rescan.basedir)
+    assert mbox_rescan.last_login is None
+
+    exp = Expiry(
+        example_config, dry=False, now=datetime.now().timestamp(), verbose=False
+    )
+    exp.process_mailbox_stat(mbox_rescan)
+    out, err = capsys.readouterr()
+    assert "doesn't have last_login but isn't empty" in err
+    assert os.path.isdir(mbox_rescan.basedir)
+
+    for entry in os.scandir(mbox_rescan.basedir):
+        if os.path.isdir(entry):
+            shutil.rmtree(entry)
+        else:
+            os.remove(entry)
+
+    exp.process_mailbox_stat(mbox_rescan)
+    out, err = capsys.readouterr()
+    assert not "doesn't have last_login but isn't empty" in err
+    assert not os.path.isdir(mbox_rescan.basedir)
 
 
 def test_report_no_mailboxes(example_config):
