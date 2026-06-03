@@ -2,7 +2,6 @@ import ipaddress
 from pathlib import Path
 
 import iniconfig
-from domain_validator import DomainValidator
 
 from chatmaild.user import User
 
@@ -25,7 +24,6 @@ class Config:
             self.mail_domain = f"[{raw_domain}]"
             self.postfix_myhostname = ipaddress.IPv4Address(raw_domain).reverse_pointer
         else:
-            DomainValidator().validate_domain_re(raw_domain)
             self.ipv4_relay = None
             self.mail_domain = raw_domain
             self.postfix_myhostname = raw_domain

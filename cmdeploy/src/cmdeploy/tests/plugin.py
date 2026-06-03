@@ -10,13 +10,11 @@ from pathlib import Path
 
 import pytest
 from chatmaild.config import is_valid_ipv4, read_config
-from domain_validator import DomainValidator
 
 
 def format_mail_domain(raw_domain: str) -> str:
     if is_valid_ipv4(raw_domain):
         return f"[{raw_domain}]"
-    DomainValidator().validate_domain_re(raw_domain)
     return raw_domain
 
 
