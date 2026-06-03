@@ -221,6 +221,8 @@ Accepting and delivering mail
         filtermail-transport -.HTTPS /mxdeliv.-> mta1
         client[Client] -.SMTP inet:587.-> smtpd-submission
         client -.SMTP inet:465.-> smtpd-smtps
+        client -.SMTP inet:443.-> nginx
+        nginx -.SMTP inet:465.-> smtpd-smtps
         mta2[Remote relay] -.SMTP inet:25.-> smtpd-smtp
         mta2 -.HTTPS /mxdeliv.-> nginx
         style postfix fill:#363
