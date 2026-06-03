@@ -25,7 +25,7 @@ governor = { version = "0.10.4", default-features = false, features = [
 ] }
 viadkim = { version = "0.2.0" }
 hickory-resolver = { version = "0.26.1", features = ["dnssec-ring"] }
-lru = "0.17.0"
+lru = "0.18.0"
 parking_lot = "0.12.5"
 tokio-rustls = { version = "0.26.4", default-features = false, features = [
   "ring",
