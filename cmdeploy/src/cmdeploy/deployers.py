@@ -164,6 +164,7 @@ class UnboundDeployer(Deployer):
         self.put_file(
             src=BytesIO(b"nameserver 127.0.0.1\nnameserver 9.9.9.9\n"),
             dest="/etc/resolv.conf",
+            force=True,
         )
         server.shell(
             name="Generate root keys for validating DNSSEC",
