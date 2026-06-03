@@ -166,7 +166,7 @@ class Deployer:
             return self.put_template(src, dest, **kwargs)
         return self.put_file(src, dest)
 
-    def put_file(self, src, dest, mode="644"):
+    def put_file(self, src, dest, mode="644", **kwargs):
         if isinstance(src, str):
             src = get_resource(src)
         res = files.put(
@@ -176,6 +176,7 @@ class Deployer:
             user="root",
             group="root",
             mode=mode,
+            **kwargs,
         )
 
         return self._update_restart_signals(dest, res)
