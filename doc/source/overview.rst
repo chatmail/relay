@@ -156,6 +156,7 @@ Chatmail relay dependency diagram
         postfix --- |10083|filtermail-transport;
         filtermail-outgoing --- |10025 reinject|postfix;
         filtermail-incoming --- |10026 reinject|postfix;
+        postfix --- |milter opendkim.sock|OpenDKIM
         dovecot --- |doveauth.socket|doveauth;
         dovecot --- |message delivery|maildir["maildir
         /home/vmail/.../user"];
@@ -179,26 +180,64 @@ Chatmail relay dependency diagram
         style nginx-right fill:#f66;
         style postfix fill:#f66;
         style dovecot fill:#f66;
+        style OpenDKIM fill:#f66;
         style notification-proxy fill:#f66;
 
-Message between users on the same relay
----------------------------------------
+Accepting and delivering mail
+-----------------------------
 
 .. mermaid::
-    :caption: This diagram shows the path a non-federated message takes.
+    :caption: This diagram shows all the paths a message can take.
 
-    graph LR;
-        sender --> |465|smtps/smtpd;
-        sender --> |587|submission/smtpd;
-        smtps/smtpd --> |10080|filtermail;
-        submission/smtpd --> |10080|filtermail;
-        filtermail --> |10025|smtpd_reinject;
-        smtpd_reinject --> cleanup;
-        cleanup --> qmgr;
-        qmgr --> smtpd_accepts_message;
-        qmgr --> |lmtp|dovecot;
-        dovecot --> recipient;
-        dovecot --> sender's_other_devices;
+    flowchart LR
+        subgraph chatmail relay
+            subgraph postfix
+                qmgr .-> lmtp-filtermail["lmtp/lmtp-filtermail (default_transport)"]
+                qmgr .-> lmtp["lmtp (local_transport)"]
+                lmtp --> cleanup["cleanup (lmtp_header_cleanup)"]
+                bounce
+                smtpd-submission["smtpd/submission"]
+                smtpd-smtps["smtpd/smtps"]
+                smtpd-reinject-outgoing["smtpd/reinject-outgoing"] --> authclean["cleanup/authclean (submission_header_cleanup)"]
+                authclean --> qmgr
+                smtpd-smtp["smtpd/smtp"]
+                smtpd-reinject-incoming["smtpd/reinject-incoming"] --> qmgr
+            end
+            lmtp-filtermail --LMTP inet:10083--> filtermail-transport
+            cleanup --LMTP unix:private/dovecot-lmtp --> dovecot
+            dovecot --> maildir
+            smtpd-submission --SMTP inet:10080--> filtermail-outgoing
+            smtpd-smtps --SMTP inet:10080--> filtermail-outgoing
+            filtermail-outgoing --SMTP inet:10025--> smtpd-reinject-outgoing
+            open-dkim["OpenDKIM (signing only)"] <--milter unix:opendkim/opendkim.sock--> smtpd-reinject-outgoing
+            bounce <--milter unix:opendkim/opendkim.sock--> open-dkim
+            bounce --> qmgr
+            nginx
+            smtpd-smtp -.SMTP inet:10081.-> filtermail-incoming
+            nginx -.HTTP inet:10082.-> filtermail-incoming
+            filtermail-incoming --SMTP inet:10026--> smtpd-reinject-incoming
+        end
+        filtermail-transport -.SMTP inet:25.-> mta1[Remote relay]
+        filtermail-transport -.HTTPS /mxdeliv.-> mta1
+        client[Client] -.SMTP inet:587.-> smtpd-submission
+        client -.SMTP inet:465.-> smtpd-smtps
+        mta2[Remote relay] -.SMTP inet:25.-> smtpd-smtp
+        mta2 -.HTTPS /mxdeliv.-> nginx
+        style postfix fill:#363
+        style qmgr fill:#252
+        style authclean fill:#252
+        style cleanup fill:#252
+        style lmtp-filtermail fill:#252
+        style lmtp fill:#252
+        style bounce fill:#252
+        style smtpd-submission fill:#252
+        style smtpd-smtps fill:#252
+        style smtpd-reinject-outgoing fill:#252
+        style smtpd-reinject-incoming fill:#252
+        style smtpd-smtp fill:#252
+        style filtermail-outgoing fill:#225
+        style filtermail-incoming fill:#225
+        style filtermail-transport fill:#225
 
 Operational details of a chatmail relay
 ----------------------------------------
