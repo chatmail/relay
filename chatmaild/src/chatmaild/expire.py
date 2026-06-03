@@ -172,10 +172,12 @@ class Expiry:
             try:
                 if not self.dry:
                     os.rmdir(mbox.basedir)
+                    self.del_mboxes += 1
             except OSError:
                 print_info(
                     f"Skipped deleting {mbox.basedir}, doesn't have last_login but isn't empty"
                 )
+            return
 
         mboxname = os.path.basename(mbox.basedir)
         if self.verbose:

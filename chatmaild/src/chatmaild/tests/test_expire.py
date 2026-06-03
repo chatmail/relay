@@ -110,7 +110,6 @@ def test_mbox_without_password(mbox1, example_config, capsys):
     password = Path(mbox1.basedir).joinpath("password")
     os.remove(password)
     mbox_rescan = MailboxStat(mbox1.basedir)
-    mbox_rescan.scandir(mbox_rescan.basedir)
     assert mbox_rescan.last_login is None
 
     exp = Expiry(
@@ -129,7 +128,7 @@ def test_mbox_without_password(mbox1, example_config, capsys):
 
     exp.process_mailbox_stat(mbox_rescan)
     out, err = capsys.readouterr()
-    assert not "doesn't have last_login but isn't empty" in err
+    assert "doesn't have last_login but isn't empty" not in err
     assert not os.path.isdir(mbox_rescan.basedir)
 
 
