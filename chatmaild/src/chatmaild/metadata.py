@@ -125,6 +125,8 @@ class MetadataDictProxy(DictProxy):
                         case "maxsmtprecipients":
                             # postfix default  (see "postconf smtpd_recipient_limit")
                             return "O1000\n"
+                        case "unixtimestamp":
+                            return f"O{int(time.time())}\n"
 
         logging.warning(f"lookup ignored: {parts!r}")
         return "N\n"
