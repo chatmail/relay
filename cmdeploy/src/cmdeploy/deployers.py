@@ -390,6 +390,12 @@ class ChatmailDeployer(Deployer):
             src=BytesIO(b'APT::Install-Recommends "false";\n'),
             dest="/etc/apt/apt.conf.d/00InstallRecommends",
         )
+        # Pin dovecot-* to priority -1 before any apt operation, apt should
+        # never manage dovecot as our version might be lower than the distro's.
+        self.put_file(
+            src=StringIO("Package: dovecot-*\nPin: version *\nPin-Priority: -1\n"),
+            dest="/etc/apt/preferences.d/pin-dovecot",
+        )
         apt.update(name="apt update", cache_time=24 * 3600)
         apt.upgrade(name="upgrade apt packages", auto_remove=True)
 
