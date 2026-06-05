@@ -1,4 +1,3 @@
-import io
 import urllib.request
 
 from chatmaild.config import Config
@@ -19,12 +18,18 @@ DOVECOT_ARCHIVE_VERSION = "2.3.21+dfsg1-3"
 DOVECOT_PACKAGE_VERSION = f"1:{DOVECOT_ARCHIVE_VERSION}"
 
 DOVECOT_SHA256 = {
-    ("core", "amd64"): "dd060706f52a306fa863d874717210b9fe10536c824afe1790eec247ded5b27d",
-    ("core", "arm64"): "e7548e8a82929722e973629ecc40fcfa886894cef3db88f23535149e7f730dc9",
-    ("imapd", "amd64"): "8d8dc6fc00bbb6cdb25d345844f41ce2f1c53f764b79a838eb2a03103eebfa86",
-    ("imapd", "arm64"): "178fa877ddd5df9930e8308b518f4b07df10e759050725f8217a0c1fb3fd707f",
-    ("lmtpd", "amd64"): "2f69ba5e35363de50962d42cccbfe4ed8495265044e244007d7ccddad77513ab",
-    ("lmtpd", "arm64"): "89f52fb36524f5877a177dff4a713ba771fd3f91f22ed0af7238d495e143b38f",
+    ("amd64", "bookworm", "core"): "dd060706f52a306fa863d874717210b9fe10536c824afe1790eec247ded5b27d",
+    ("arm64", "bookworm", "core"): "e7548e8a82929722e973629ecc40fcfa886894cef3db88f23535149e7f730dc9",
+    ("amd64", "bookworm", "imapd"): "8d8dc6fc00bbb6cdb25d345844f41ce2f1c53f764b79a838eb2a03103eebfa86",
+    ("arm64", "bookworm", "imapd"): "178fa877ddd5df9930e8308b518f4b07df10e759050725f8217a0c1fb3fd707f",
+    ("amd64", "bookworm", "lmtpd"): "2f69ba5e35363de50962d42cccbfe4ed8495265044e244007d7ccddad77513ab",
+    ("arm64", "bookworm", "lmtpd"): "89f52fb36524f5877a177dff4a713ba771fd3f91f22ed0af7238d495e143b38f",
+    ("amd64", "trixie", "core"): "406d3781ed81e0913c472077dcf62cb1106e3855983efa6e44ddf43b4b0c9be1",
+    ("arm64", "trixie", "core"): "c75b0d9df11a77d07ebd8522920380c167fa47330ddefebe10575d99d0ecdf7f",
+    ("amd64", "trixie", "imapd"): "8d8dc6fc00bbb6cdb25d345844f41ce2f1c53f764b79a838eb2a03103eebfa86",
+    ("arm64", "trixie", "imapd"): "178fa877ddd5df9930e8308b518f4b07df10e759050725f8217a0c1fb3fd707f",
+    ("amd64", "trixie", "lmtpd"): "2f69ba5e35363de50962d42cccbfe4ed8495265044e244007d7ccddad77513ab",
+    ("arm64", "trixie", "lmtpd"): "89f52fb36524f5877a177dff4a713ba771fd3f91f22ed0af7238d495e143b38f",
 }
 
 
@@ -38,34 +43,32 @@ class DovecotDeployer(Deployer):
 
     def install(self):
         arch = host.get_fact(Arch)
+        codename = (host.get_fact(Command, "grep '^VERSION_CODENAME=' /etc/os-release | cut -d= -f2") or "").strip()
+        if codename not in {key[1] for key in DOVECOT_SHA256}:
+            raise ValueError(f"Unsupported Debian codename: {codename!r}")
         with blocked_service_startup():
             debs = []
             for pkg in ("core", "imapd", "lmtpd"):
-                deb, changed = _download_dovecot_package(pkg, arch)
+                deb, changed = _download_dovecot_package(pkg, arch, codename)
                 self.need_restart |= changed
                 if deb:
                     debs.append(deb)
             if debs:
                 deb_list = " ".join(debs)
-                # First dpkg may fail on missing dependencies (stderr suppressed);
-                # apt-get --fix-broken pulls them in, then dpkg retries cleanly.
+                # apt-get install with local .deb paths resolves depends
+                # against the configured repos (e.g. pulls libwrap0),
+                # The pin file written earlier by ChatmailDeployer prevents apt
+                # from installing a 'wrong' version
                 server.shell(
                     name="Install dovecot packages",
                     commands=[
-                        f"dpkg --force-confdef --force-confold -i {deb_list} 2> /dev/null || true",
-                        "DEBIAN_FRONTEND=noninteractive apt-get -y --fix-broken install",
-                        f"dpkg --force-confdef --force-confold -i {deb_list}",
+                        "DEBIAN_FRONTEND=noninteractive apt-get install -y "
+                        '-o Dpkg::Options::="--force-confdef" '
+                        '-o Dpkg::Options::="--force-confold" '
+                        f"--allow-downgrades {deb_list}",
                     ],
                 )
                 self.need_restart = True
-        self.put_file(
-            src=io.StringIO(
-                "Package: dovecot-*\n"
-                "Pin: version *\n"
-                "Pin-Priority: -1\n"
-            ),
-            dest="/etc/apt/preferences.d/pin-dovecot",
-        )
 
     def configure(self):
         configure_remote_units(self, self.config.mail_domain_bare, self.units)
@@ -78,7 +81,7 @@ class DovecotDeployer(Deployer):
         if not self.disable_mail and not self.need_restart:
             stale = host.get_fact(
                 Command,
-                'pid=$(systemctl show -p MainPID --value dovecot.service 2>/dev/null);'
+                "pid=$(systemctl show -p MainPID --value dovecot.service 2>/dev/null);"
                 ' [ "${pid:-0}" != "0" ] && readlink "/proc/$pid/exe" 2>/dev/null | grep -q "(deleted)"'
                 " && echo STALE || true",
             )
@@ -102,13 +105,13 @@ def _pick_url(primary, fallback):
         return fallback
 
 
-def _download_dovecot_package(package: str, arch: str) -> tuple[str | None, bool]:
+def _download_dovecot_package(package: str, arch: str, codename: str) -> tuple[str | None, bool]:
     """Download a dovecot .deb if needed, return (path, changed)."""
     arch = "amd64" if arch == "x86_64" else arch
     arch = "arm64" if arch == "aarch64" else arch
 
     pkg_name = f"dovecot-{package}"
-    sha256 = DOVECOT_SHA256.get((package, arch))
+    sha256 = DOVECOT_SHA256.get((arch, codename, package))
     if sha256 is None:
         op = apt.packages(packages=[pkg_name])
         return None, bool(getattr(op, "changed", False))
@@ -119,8 +122,10 @@ def _download_dovecot_package(package: str, arch: str) -> tuple[str | None, bool
 
     url_version = DOVECOT_ARCHIVE_VERSION.replace("+", "%2B")
     deb_base = f"{pkg_name}_{url_version}_{arch}.deb"
-    primary_url = f"https://download.delta.chat/dovecot/{deb_base}"
-    fallback_url = f"https://github.com/chatmail/dovecot/releases/download/upstream%2F{url_version}/{deb_base}"
+    primary_url = f"https://download.delta.chat/dovecot/{codename}/{url_version}/{deb_base}"
+    upstream_version = DOVECOT_ARCHIVE_VERSION.rsplit("-", 1)[0].replace("+", "%2B")
+    fallback_deb = f"{pkg_name}_{url_version}_{arch}_{codename}.deb"
+    fallback_url = f"https://github.com/chatmail/dovecot/releases/download/upstream%2F{upstream_version}/{fallback_deb}"
     url = _pick_url(primary_url, fallback_url)
     deb_filename = f"/root/{deb_base}"
 
@@ -134,6 +139,7 @@ def _download_dovecot_package(package: str, arch: str) -> tuple[str | None, bool
 
     return deb_filename, True
 
+
 def _configure_dovecot(deployer, config: Config, debug: bool = False):
     """Configures Dovecot IMAP server."""
     deployer.put_template(
@@ -144,9 +150,7 @@ def _configure_dovecot(deployer, config: Config, debug: bool = False):
         disable_ipv6=config.disable_ipv6,
     )
     deployer.put_file("dovecot/auth.conf", "/etc/dovecot/auth.conf")
-    deployer.put_file(
-        "dovecot/push_notification.lua", "/etc/dovecot/push_notification.lua"
-    )
+    deployer.put_file("dovecot/push_notification.lua", "/etc/dovecot/push_notification.lua")
 
     # as per https://doc.dovecot.org/2.3/configuration_manual/os/
     # it is recommended to set the following inotify limits
