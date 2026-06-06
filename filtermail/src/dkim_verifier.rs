@@ -95,6 +95,12 @@ impl LookupTxt for CachedResolver {
                 lookup
                     .answers()
                     .iter()
+                    .filter(|record| {
+                        // Select only TXT records.
+                        // When resolving TXT query, CNAMEs are also returned as answers.
+                        // We want to filter out CNAMEs first.
+                        matches!(record.data, hickory_resolver::proto::rr::RData::TXT(_))
+                    })
                     // We don't check all records, as this can be a DoS attack vector.
                     // In theory, selector domains should only have a single TXT record.
                     // In practice, we check at most 3, just in case of weird configuration.
