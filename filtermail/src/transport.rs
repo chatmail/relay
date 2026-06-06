@@ -38,8 +38,10 @@ struct HttpsClient {
 
 impl HttpsClient {
     /// Creates a new `[HttpsClient]`.
-    pub fn new(tls_resumption_store: Arc<rustls::client::ClientSessionMemoryCache>) -> Self {
-        let tls_client_config = tls::configure_rustls(tls_resumption_store.clone(), false);
+    pub fn new(
+        tls_resumption_store: Arc<rustls::client::ClientSessionMemoryCache>,
+    ) -> Result<Self, crate::error::Error> {
+        let tls_client_config = tls::configure_rustls(tls_resumption_store.clone(), false)?;
         let https_connector = hyper_rustls::HttpsConnectorBuilder::new()
             .with_tls_config(tls_client_config)
             .https_only()
@@ -50,7 +52,7 @@ impl HttpsClient {
             hyper_util::client::legacy::Client::builder(hyper_util::rt::TokioExecutor::new())
                 .build(https_connector);
 
-        let tls_client_config_relaxed = tls::configure_rustls(tls_resumption_store, true);
+        let tls_client_config_relaxed = tls::configure_rustls(tls_resumption_store, true)?;
         let https_connector_relaxed = hyper_rustls::HttpsConnectorBuilder::new()
             .with_tls_config(tls_client_config_relaxed)
             .https_only()
@@ -61,10 +63,10 @@ impl HttpsClient {
             hyper_util::client::legacy::Client::builder(hyper_util::rt::TokioExecutor::new())
                 .build(https_connector_relaxed);
 
-        Self {
+        Ok(Self {
             secure: https_client,
             relaxed: https_client_relaxed,
-        }
+        })
     }
 }
 
@@ -82,7 +84,7 @@ impl TransportHandler {
     pub fn new(config: Config) -> Result<Self, crate::error::Error> {
         let dns_resolver = Arc::new(build_resolver()?);
         let tls_resumption_store = Arc::new(rustls::client::ClientSessionMemoryCache::new(256));
-        let https_client = HttpsClient::new(tls_resumption_store.clone());
+        let https_client = HttpsClient::new(tls_resumption_store.clone())?;
 
         let mxdeliv_cache = Arc::new(retainer::Cache::new());
         let mxdeliv_cache_clone = mxdeliv_cache.clone();
