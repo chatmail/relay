@@ -24,7 +24,7 @@ impl rustls::client::danger::ServerCertVerifier for NoCertificateVerification {
         cert: &CertificateDer<'_>,
         dss: &rustls::DigitallySignedStruct,
     ) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> {
-        let provider = rustls::crypto::ring::default_provider();
+        let provider = rustls::crypto::aws_lc_rs::default_provider();
         let supported_schemes = &provider.signature_verification_algorithms;
         rustls::crypto::verify_tls12_signature(message, cert, dss, supported_schemes)
     }
@@ -35,13 +35,13 @@ impl rustls::client::danger::ServerCertVerifier for NoCertificateVerification {
         cert: &CertificateDer<'_>,
         dss: &rustls::DigitallySignedStruct,
     ) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> {
-        let provider = rustls::crypto::ring::default_provider();
+        let provider = rustls::crypto::aws_lc_rs::default_provider();
         let supported_schemes = &provider.signature_verification_algorithms;
         rustls::crypto::verify_tls13_signature(message, cert, dss, supported_schemes)
     }
 
     fn supported_verify_schemes(&self) -> Vec<rustls::SignatureScheme> {
-        let provider = rustls::crypto::ring::default_provider();
+        let provider = rustls::crypto::aws_lc_rs::default_provider();
         provider
             .signature_verification_algorithms
             .supported_schemes()

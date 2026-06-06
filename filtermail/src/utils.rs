@@ -1,4 +1,3 @@
-use hickory_resolver::config::ResolverOpts;
 use hickory_resolver::{TokioResolver, proto::dnssec::TrustAnchors};
 use mailparse::MailAddr;
 use std::path::PathBuf;

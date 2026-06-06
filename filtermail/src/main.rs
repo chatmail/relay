@@ -81,7 +81,7 @@ async fn main() -> Result<(), error::Error> {
         .format_timestamp(None)
         .init();
 
-    tokio_rustls::rustls::crypto::ring::default_provider()
+    tokio_rustls::rustls::crypto::aws_lc_rs::default_provider()
         .install_default()
         .expect("Failed to set up rustls crypto provider.");
 
