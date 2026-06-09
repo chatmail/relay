@@ -32,6 +32,26 @@ stream {
         }
 
         server {
+                listen {{ config.smtp_port }};
+                proxy_pass 127.0.0.1:587;
+        }
+
+        server {
+                listen {{ config.imap_port }};
+                proxy_pass 127.0.0.1:143;
+        }
+
+        server {
+                listen {{ config.smtps_port }};
+                proxy_pass 127.0.0.1:465;
+        }
+
+        server {
+                listen {{ config.imaps_port }};
+                proxy_pass 127.0.0.1:993;
+        }
+
+        server {
                 listen 443;
                 {% if not disable_ipv6 %}
                 listen [::]:443;
