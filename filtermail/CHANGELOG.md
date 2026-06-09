@@ -1,3 +1,19 @@
+## 0.7.1 - 2026-06-09
+
+### Bug Fixes
+
+- Switch ratelimiter to MonotonicClock (#167)
+- *(smtp-server)* Correct error when EOF while reading DATA (#168)
+- *(resolver)* Disable negative caching (#170)
+- Ignore CNAME records when resolving TXT records (#177)
+
+### Features
+
+- Switch to aws-lc-rs cryptography provider (#178)
+
+### Miscellaneous Tasks
+
+- Add filtermail.mtail so filtermail failures can be monitored (#169)
 ## 0.7.0 - 2026-05-26
 
 ### Bug Fixes
