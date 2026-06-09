@@ -1,5 +1,6 @@
 import ipaddress
 from pathlib import Path
+from random import randint
 
 import iniconfig
 
@@ -41,6 +42,11 @@ class Config:
         self.username_max_length = int(params.pop("username_max_length", 9))
         self.password_min_length = int(params.pop("password_min_length", 9))
         self.www_folder = params.pop("www_folder", "")
+
+        self.imap_port = int(params.pop("imap_port", 143))
+        self.imaps_port = int(params.pop("imaps_port", 993))
+        self.smtp_port = int(params.pop("smtp_port", 587))
+        self.smtps_port = int(params.pop("smtps_port", 465))
         self.filtermail_smtp_port = int(params.pop("filtermail_smtp_port", "10080"))
         self.filtermail_smtp_port_incoming = int(
             params.pop("filtermail_smtp_port_incoming", "10081")
@@ -138,8 +144,15 @@ def parse_size_mb(limit):
 
 def write_initial_config(inipath, mail_domain, overrides):
     """Write out default config file, using the specified config value overrides."""
-    content = get_default_config_content(mail_domain, **overrides)
-    inipath.write_text(content)
+    content = get_default_config_content(mail_domain, **overrides).splitlines()
+    used_ports = [25, 53, 80, 143, 402, 443, 465, 587, 993, 3340, 3903, 3904, 8443, 10080, 10081, 10082, 10083, 10025, 10026]
+    for config_key in ["smtp_port", "imap_port", "smtps_port", "imaps_port"]:
+        value = randint(1, 65536)
+        while value in used_ports:
+            value = randint(65535)
+        used_ports.append(value)
+        content.append(f"{config_key} = {value}")
+    inipath.write_text("\n".join(content))
 
 
 def get_default_config_content(mail_domain, **overrides):
