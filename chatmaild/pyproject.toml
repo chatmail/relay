@@ -9,7 +9,7 @@ dependencies = [
   "iniconfig",
   "filelock",
   "requests",
-  "crypt-r >= 3.13.1 ; python_version >= '3.11'",
+  "crypt-r >= 3.13.1 ; python_version >= '3.13'",
 ]
 
 [tool.setuptools]
