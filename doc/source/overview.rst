@@ -225,21 +225,6 @@ Accepting and delivering mail
         nginx -.SMTP inet:465.-> smtpd-smtps
         mta2[Remote relay] -.SMTP inet:25.-> smtpd-smtp
         mta2 -.HTTPS /mxdeliv.-> nginx
-        style postfix fill:#363
-        style qmgr fill:#252
-        style authclean fill:#252
-        style cleanup fill:#252
-        style lmtp-filtermail fill:#252
-        style lmtp fill:#252
-        style bounce fill:#252
-        style smtpd-submission fill:#252
-        style smtpd-smtps fill:#252
-        style smtpd-reinject-outgoing fill:#252
-        style smtpd-reinject-incoming fill:#252
-        style smtpd-smtp fill:#252
-        style filtermail-outgoing fill:#225
-        style filtermail-incoming fill:#225
-        style filtermail-transport fill:#225
 
 Operational details of a chatmail relay
 ----------------------------------------
