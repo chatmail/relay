@@ -34,12 +34,6 @@ flowchart LR
     end
     mta[Sender's relay] -.SMTP :25.-> smtpd1
     mta -.HTTPS /mxdeliv.-> nginx
-
-    style postfix fill:#363
-    style smtpd1 fill:#252
-    style smtpd2 fill:#252
-    style queue fill:#252
-    style filtermail fill:#225
 ```
 
 Filtermail in incoming mode acts as a proxy filter
@@ -82,12 +76,6 @@ flowchart LR
         open-dkim[OpenDKIM] <--milter--> smtpd2
     end
     client[Client] --SMTP :587--> smtpd1
-
-    style postfix fill:#363
-    style smtpd1 fill:#252
-    style smtpd2 fill:#252
-    style queue fill:#252
-    style filtermail fill:#225
 ```
 
 Filtermail in outgoing mode acts as a proxy filter
@@ -115,11 +103,6 @@ flowchart LR
     end
     filtermail -.SMTP :25.-> mta[Recipient's relay]
     filtermail -.HTTPS /mxdeliv.-> mta
-    
-    style postfix fill:#363
-    style qmgr fill:#252
-    style lmtp fill:#252
-    style filtermail fill:#225
 ```
 
 Filtermail in transport mode is used for final delivery to remote MTAs.
