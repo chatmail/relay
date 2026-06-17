@@ -10,7 +10,7 @@ Chatmail relay servers are interoperable Mail Transport Agents (MTAs) designed f
 
 -  **Security Enforcement**: Only connections with strict TLS are accepted;
    all messages must be correctly signed with DKIM and OpenPGP-encrypted with minimized metadata.
-   There are exceptions for no-DNS relays,
+   There are experimental exceptions for no-DNS relays,
    which are allowed use self-signed TLS certificates
    and which do not need to DKIM-sign their messages.
    Unencrypted messages are allowed in neither case.
