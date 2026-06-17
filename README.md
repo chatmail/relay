@@ -8,7 +8,7 @@ Chatmail relay servers are interoperable Mail Transport Agents (MTAs) designed f
 -  **Instant/Realtime:** sub-second message delivery, realtime P2P
    streaming, privacy-preserving Push Notifications for Apple, Google, and Huawei;
 
--  **Security Enforcement**: only strict TLS, DKIM and OpenPGP with minimized metadata accepted
+-  **Security Enforcement**: only connections with strict TLS are accepted; all messages must be corrently signed with DKIM and OpenPGP-encrypted with minimized metadata
 
 -  **Reliable Federation and Decentralization:** No spam or IP reputation checks, federating
    depends on established IETF standards and protocols.
