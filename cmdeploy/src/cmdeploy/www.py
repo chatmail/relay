@@ -94,15 +94,12 @@ def _build_webpages(src_dir, build_dir, config):
     for path in src_dir.iterdir():
         if path.suffix == ".md":
             render_vars, content = prepare_template(path)
-            render_vars["username_min_length"] = int_to_english(
-                config.username_min_length
-            )
-            render_vars["username_max_length"] = int_to_english(
-                config.username_max_length
-            )
-            render_vars["password_min_length"] = int_to_english(
-                config.password_min_length
-            )
+            if config.privacy_mail.startswith("https://"):
+                render_vars["admin_contact"] = f"<a href='{config.privacy_mail}'>{config.privacy_mail}</a>"
+            elif "@" in config.privacy_mail:
+                render_vars["admin_contact"] = f"<a href='mailto:{config.privacy_mail}'>{config.privacy_mail}</a>"
+            else:
+                render_vars["admin_contact"] = config.privacy_mail
             target = build_dir.joinpath(path.stem + ".html")
 
             # recursive jinja2 rendering

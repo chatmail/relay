@@ -71,7 +71,7 @@ class Config:
             self.iroh_relay = iroh_relay.strip()
             self.enable_iroh_relay = False
         self.privacy_postal = params.pop("privacy_postal", None)
-        self.privacy_mail = params.pop("privacy_mail", None)
+        self.privacy_mail = params.pop("admin_contact", params.pop("privacy_mail", None))
         self.privacy_pdo = params.pop("privacy_pdo", None)
         self.privacy_supervisor = params.pop("privacy_supervisor", None)
 

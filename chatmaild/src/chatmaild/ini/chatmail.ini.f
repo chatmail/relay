@@ -109,8 +109,8 @@ mail_domain = {mail_domain}
 # postal address of privacy contact
 privacy_postal =
 
-# email address of privacy contact
-privacy_mail =
+# email address or invite link of admin contact
+admin_contact =
 
 # postal address of the privacy data officer
 privacy_pdo =

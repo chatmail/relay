@@ -48,7 +48,7 @@ Responsible for the processing of your personal data is:
 {{ config.privacy_postal }}
 ```
 
-E-mail: {{ config.privacy_mail }}
+E-mail: {{ admin_contact }}
 
 We have appointed a data protection officer:
 
