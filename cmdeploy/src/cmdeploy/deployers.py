@@ -495,15 +495,15 @@ def deploy_chatmail(config_path: Path, disable_mail: bool, website_only: bool) -
         if config.tls_cert_mode == "acme":
             port_services.append(("acmetool", 402))
         port_services += [
-            (["imap-login", "dovecot"], config.imap_port),
+            (["imap-login", "dovecot", "nginx"], config.imap_port),
             # acmetool previously listened on port 80,
             # so don't complain during upgrade that moved it to port 402
             # and gave the port to nginx.
             (["acmetool", "nginx"], 80),
             ("nginx", 443),
-            (["master", "smtpd"], config.smtp_port),
-            (["master", "smtpd"], config.smtps_port),
-            (["imap-login", "dovecot"], config.imaps_port),
+            (["master", "smtpd", "nginx"], config.smtp_port),
+            (["master", "smtpd", "nginx"], config.smtps_port),
+            (["imap-login", "dovecot", "nginx"], config.imaps_port),
             ("iroh-relay", 3340),
             ("mtail", 3903),
             ("stats", 3904),
