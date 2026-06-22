@@ -1,0 +1,64 @@
+---
+source: src/transport.rs
+expression: "format!(\"[postfix -> filtermail-transport]\\r\\n{record}\\r\\n\\\n            [filtermail-transport -> destination A]\\r\\n{}\\r\\n\\\n            [filtermail-transport -> destination B]\\r\\n{}\",\nremote_records[0], remote_records[1])"
+---
+[postfix -> filtermail-transport]
+< 220 filtermail SMTP
+> LHLO postfix
+< 250-filtermail
+250-8BITMIME
+250 OK
+> MAIL FROM:<sender@here>
+< 250 OK
+> RCPT TO:<a1@localhost>
+< 250 OK
+> RCPT TO:<a2@localhost>
+< 250 OK
+> RCPT TO:<b1@[127.0.0.1]>
+< 250 OK
+> RCPT TO:<b2@[127.0.0.1]>
+< 250 OK
+> DATA
+< 354 End data with <CR><LF>.<CR><LF>
+> message
+> .
+< 250 OK (SMTP)
+250 OK (SMTP)
+250 OK (SMTP)
+250 OK (SMTP)
+
+[filtermail-transport -> destination A]
+< 220 filtermail SMTP
+> EHLO example.org
+< 250-filtermail
+250-8BITMIME
+250 OK
+> MAIL FROM:<sender@here>
+< 250 OK
+> RCPT TO:<a1@localhost>
+< 250 OK
+> RCPT TO:<a2@localhost>
+< 250 OK
+> DATA
+< 354 End data with <CR><LF>.<CR><LF>
+> message
+.
+< 250 OK
+
+[filtermail-transport -> destination B]
+< 220 filtermail SMTP
+> EHLO example.org
+< 250-filtermail
+250-8BITMIME
+250 OK
+> MAIL FROM:<sender@here>
+< 250 OK
+> RCPT TO:<b1@[127.0.0.1]>
+< 250 OK
+> RCPT TO:<b2@[127.0.0.1]>
+< 250 OK
+> DATA
+< 354 End data with <CR><LF>.<CR><LF>
+> message
+.
+< 250 OK

@@ -35,6 +35,7 @@ pub(crate) mod outbound;
 pub(crate) mod smtp_client;
 mod smtp_responses;
 pub(crate) mod smtp_server;
+mod tcp;
 mod tls;
 mod transport;
 pub(crate) mod utils;
@@ -50,6 +51,7 @@ use std::env;
 use std::process;
 use std::str::FromStr;
 use std::sync::Arc;
+use tokio::net::TcpStream;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 enum Mode {
@@ -120,7 +122,9 @@ async fn main() -> Result<(), error::Error> {
     match mode {
         Mode::Outgoing => {
             let addr = (config.filtermail_host, config.filtermail_smtp_port);
-            let handler = Arc::new(OutgoingBeforeQueueHandler::new(config.clone())?);
+            let handler = Arc::new(OutgoingBeforeQueueHandler::<TcpStream>::new(
+                config.clone(),
+            )?);
             let max_size = config.max_message_size;
             log::debug!("Outgoing SMTP server listening on {}:{}", addr.0, addr.1);
 
@@ -139,7 +143,10 @@ async fn main() -> Result<(), error::Error> {
                 log::warn!("DKIM verification DISABLED! This should not be used in production.");
             }
 
-            let handler = Arc::new(IncomingBeforeQueueHandler::new(config.clone(), skip_dkim)?);
+            let handler = Arc::new(IncomingBeforeQueueHandler::<TcpStream>::new(
+                config.clone(),
+                skip_dkim,
+            )?);
             let max_size = config.max_message_size;
 
             let mut server_set = tokio::task::JoinSet::new();
@@ -177,7 +184,7 @@ async fn main() -> Result<(), error::Error> {
                 config.filtermail_host,
                 config.filtermail_lmtp_port_transport,
             );
-            let handler = Arc::new(TransportHandler::new(config.clone())?);
+            let handler = Arc::new(TransportHandler::<TcpStream>::new(config.clone())?);
             let max_size = config.max_message_size;
             log::debug!("Transport SMTP server listening on {}:{}", addr.0, addr.1);
 

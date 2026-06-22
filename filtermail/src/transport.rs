@@ -4,6 +4,7 @@ mod worker;
 use crate::config::Config;
 use crate::smtp_responses::{LOCAL_ERROR_451, WORKER_BUSY_421};
 use crate::smtp_server::{SmtpHandler, Transaction};
+use crate::tcp::{TcpConnect, TcpStreamTrait};
 use crate::utils::AddressDomain;
 use async_trait::async_trait;
 use std::collections::BTreeMap;
@@ -15,11 +16,15 @@ use worker::{WorkerMessage, WorkerPool};
 pub const HEADER_MAIL_FROM: &str = "X-MAIL-FROM";
 pub const HEADER_RCPT_TO: &str = "X-MAIL-TO";
 
-pub struct TransportHandler {
-    workers: WorkerPool,
+pub struct TransportHandler<S: TcpConnect> {
+    workers: WorkerPool<S>,
 }
 
-impl TransportHandler {
+impl<S> TransportHandler<S>
+where
+    S: TcpStreamTrait + TcpConnect,
+    S::ConnectionContext: Default,
+{
     /// Creates a new [`TransportHandler`].
     pub fn new(config: Config) -> Result<Self, crate::error::Error> {
         let workers = WorkerPool::new(config)?;
@@ -44,7 +49,11 @@ pub struct TransactionState {
 }
 
 #[async_trait]
-impl SmtpHandler for TransportHandler {
+impl<S> SmtpHandler for TransportHandler<S>
+where
+    S: TcpStreamTrait + TcpConnect,
+    S::ConnectionContext: Default,
+{
     type State = TransactionState;
 
     fn handle_rcpt_to(
@@ -190,8 +199,90 @@ impl SmtpHandler for TransportHandler {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::smtp_client::SmtpConnectionPool;
+    use crate::smtp_server::{Envelope, MockHandler, run_smtp_server};
+    use crate::tcp::rec_stream::RecTcpStream;
     use rstest::{fixture, rstest};
+    use serial_test::serial;
+    use std::sync::Arc;
+    use std::time::Duration;
     use testresult::TestResult;
+    use tokio::net::{TcpSocket, TcpStream};
+    use tokio::sync::mpsc::Receiver;
+
+    const FILTERMAIL_IP: &str = "127.0.0.1";
+    const FILTERMAIL_PORT: u16 = 10083;
+    const FILTERMAIL_ADDR: (&str, u16) = (FILTERMAIL_IP, FILTERMAIL_PORT);
+
+    /// Spawns a mockup SMTP server that accepts anything on `localhost:10025`.
+    ///
+    /// Returns a receiver that receives records of SMTP conversations.
+    fn spawn_mock_mta() -> TestResult<Receiver<String>> {
+        let socket = TcpSocket::new_v4()?;
+        socket.set_nodelay(true)?;
+        socket.set_reuseport(true)?;
+        socket.bind("127.0.0.1:10025".parse()?)?;
+        let remote_listener = socket.listen(8)?;
+        let (tx, rx) = tokio::sync::mpsc::channel(128);
+        tokio::spawn(async move {
+            while let Ok((stream, _)) = remote_listener.accept().await {
+                let tx_clone = tx.clone();
+                let rec_stream = RecTcpStream::new(stream, tx_clone, true);
+                tokio::spawn(async move {
+                    crate::smtp_server::handle_connection(
+                        rec_stream,
+                        Arc::new(MockHandler),
+                        9999, // arbitrary
+                        true,
+                    )
+                    .await
+                    .unwrap();
+                });
+            }
+        });
+        Ok(rx)
+    }
+
+    /// Spawns filtermail-transport.
+    ///
+    /// Returns a pointer to the underlying handler.
+    fn spawn_filtermail_transport() -> TestResult<Arc<TransportHandler<TcpStream>>> {
+        let config = Config::default();
+        let transport = Arc::new(TransportHandler::with_queue_size(config.clone(), 1)?);
+        tokio::spawn(run_smtp_server(
+            &FILTERMAIL_ADDR,
+            transport.clone(),
+            config.max_message_size,
+        ));
+        Ok(transport)
+    }
+
+    /// Sends envelope over LMTP.
+    ///
+    /// Returns a recorded LMTP conversation.
+    ///
+    /// Does not fail on negative response.
+    async fn lmtp_send(envelope: &Envelope) -> TestResult<String> {
+        let (tx, mut rx) = tokio::sync::mpsc::channel(128);
+        let client_config = crate::smtp_client::ClientConfig {
+            client_hostname: "postfix",
+            tls_config: None,
+            lmtp: true,
+        };
+        let _ = crate::smtp_client::send(
+            FILTERMAIL_IP,
+            FILTERMAIL_PORT,
+            envelope,
+            client_config,
+            Arc::new(crate::utils::build_resolver()?),
+            SmtpConnectionPool::<RecTcpStream>::new(tx),
+        )
+        .await;
+
+        let record = rx.recv().await.unwrap();
+
+        Ok(record)
+    }
 
     #[fixture]
     fn addrs1() -> Vec<String> {
@@ -214,7 +305,8 @@ mod tests {
     #[rstest]
     #[tokio::test]
     async fn test_rcpt_to_and_start_data(addrs1: Vec<String>, addrs2: Vec<String>) -> TestResult {
-        let transport_handler = TransportHandler::with_queue_size(Config::default(), 1)?;
+        let transport_handler =
+            TransportHandler::<TcpStream>::with_queue_size(Config::default(), 1)?;
         let domain1 = AddressDomain::from_str(addrs1.first().unwrap())?;
         let domain2 = AddressDomain::from_str(addrs2.first().unwrap())?;
 
@@ -260,6 +352,92 @@ mod tests {
         transport_handler.handle_rcpt_to(addrs2.first().unwrap(), &mut trans_4)?;
         assert!(trans_4.state.permits.contains_key(&domain1));
         assert!(trans_4.state.permits.contains_key(&domain2));
+
+        Ok(())
+    }
+
+    #[rstest]
+    #[serial]
+    #[tokio::test]
+    async fn test_smtp_send_mail() -> TestResult {
+        let mut remote_mta = spawn_mock_mta()?;
+        spawn_filtermail_transport()?;
+
+        let envelope = Envelope {
+            mail_from: "sender@here".to_string(),
+            rcpt_to: vec![
+                // Taking advantage of the fact that localhost and [127.0.0.1] are recognized as
+                // different destinations.
+                "a1@localhost".to_string(),
+                "a2@localhost".to_string(),
+                "b1@[127.0.0.1]".to_string(),
+                "b2@[127.0.0.1]".to_string(),
+            ],
+            data: "message\r\n".as_bytes().to_vec(),
+        };
+
+        let record = lmtp_send(&envelope).await?;
+
+        let mut remote_records = [
+            remote_mta.recv().await.unwrap(),
+            remote_mta.recv().await.unwrap(),
+        ];
+        remote_records.sort_by_key(|s| s.contains("b1@[127.0.0.1]"));
+        tokio::time::sleep(Duration::from_secs(1)).await;
+        assert!(remote_mta.is_empty());
+
+        insta::assert_snapshot!(format!(
+            "[postfix -> filtermail-transport]\r\n{record}\r\n\
+            [filtermail-transport -> destination A]\r\n{}\r\n\
+            [filtermail-transport -> destination B]\r\n{}",
+            remote_records[0], remote_records[1]
+        ));
+
+        Ok(())
+    }
+
+    #[rstest]
+    #[serial]
+    #[tokio::test]
+    async fn test_smtp_send_mail_defer() -> TestResult {
+        let mut remote_mta = spawn_mock_mta()?;
+        let transport = spawn_filtermail_transport()?;
+
+        let mut envelope = Envelope {
+            mail_from: "sender@here".to_string(),
+            rcpt_to: vec!["a1@localhost".to_string(), "b1@[127.0.0.1]".to_string()],
+            data: "message\r\n".as_bytes().to_vec(),
+        };
+
+        let (record_postfix_1, record_filtermail_1) = {
+            // simulate full queue on [127.0.0.1] worker
+            let _permit = transport
+                .workers
+                .get_permit(&AddressDomain::Literal("127.0.0.1".to_string()));
+
+            let record_postfix = lmtp_send(&envelope).await?;
+
+            let record_filtermail = remote_mta.recv().await.unwrap();
+            tokio::time::sleep(Duration::from_secs(1)).await;
+            assert!(remote_mta.is_empty());
+            (record_postfix, record_filtermail)
+        };
+
+        // retry deferred
+        envelope.rcpt_to.remove(0);
+        let record_postfix_2 = lmtp_send(&envelope).await?;
+        let record_filtermail_2 = remote_mta.recv().await.unwrap();
+        tokio::time::sleep(Duration::from_secs(1)).await;
+        assert!(remote_mta.is_empty());
+
+        insta::assert_snapshot!(format!(
+            "TRANSACTION 1\r\n\
+            [postfix -> filtermail-transport]\r\n{record_postfix_1}\r\n\
+            [filtermail-transport -> destination A]\r\n{record_filtermail_1}\r\n\r\n\
+            TRANSACTION 2\r\n\
+            [postfix -> filtermail-transport]\r\n{record_postfix_2}\r\n\
+            [filtermail-transport -> destination B]\r\n{record_filtermail_2}",
+        ));
 
         Ok(())
     }

@@ -54,6 +54,8 @@ hyper-rustls = { version = "0.27.9", default-features = false, features = [
 [dev-dependencies]
 rstest = "0.26.1"
 testresult = "0.4.1"
+insta = "1.48.0"
+serial_test = "3.5.0"
 
 [profile.release]
 lto = "thin"

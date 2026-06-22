@@ -7,6 +7,7 @@ use crate::smtp_client::SmtpConnectionPool;
 use crate::smtp_responses::ENCRYPTION_NEEDED_523;
 pub use crate::smtp_server::Envelope;
 use crate::smtp_server::{SmtpHandler, Transaction};
+use crate::tcp::{TcpConnect, TcpStreamTrait};
 use crate::utils::{AddressDomain, build_resolver, extract_address, log_eml};
 use async_trait::async_trait;
 use hickory_resolver::TokioResolver;
@@ -15,15 +16,19 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 /// Handler for incoming SMTP messages.
-pub struct IncomingBeforeQueueHandler {
+pub struct IncomingBeforeQueueHandler<S: TcpConnect> {
     config: Config,
     dns_resolver: Arc<TokioResolver>,
     dkim_verifier: DkimVerifier,
     skip_dkim: bool,
-    smtp_connection_pool: Arc<SmtpConnectionPool>,
+    smtp_connection_pool: Arc<SmtpConnectionPool<S>>,
 }
 
-impl IncomingBeforeQueueHandler {
+impl<S> IncomingBeforeQueueHandler<S>
+where
+    S: TcpStreamTrait + TcpConnect,
+    S::ConnectionContext: Default,
+{
     pub fn new(config: Config, skip_dkim: bool) -> Result<Self, crate::error::Error> {
         let dns_resolver = Arc::new(build_resolver()?);
         Ok(Self {
@@ -31,7 +36,7 @@ impl IncomingBeforeQueueHandler {
             dns_resolver: dns_resolver.clone(),
             dkim_verifier: DkimVerifier::new(dns_resolver),
             skip_dkim,
-            smtp_connection_pool: SmtpConnectionPool::new(),
+            smtp_connection_pool: SmtpConnectionPool::new(Default::default()),
         })
     }
 
@@ -68,7 +73,11 @@ impl IncomingBeforeQueueHandler {
 }
 
 #[async_trait]
-impl SmtpHandler for IncomingBeforeQueueHandler {
+impl<S> SmtpHandler for IncomingBeforeQueueHandler<S>
+where
+    S: TcpStreamTrait + TcpConnect,
+    S::ConnectionContext: Default,
+{
     type State = ();
 
     async fn check_data(&self, transaction: &mut Transaction<Self::State>) -> Result<(), String> {
@@ -151,12 +160,16 @@ impl SmtpHandler for IncomingBeforeQueueHandler {
     async fn reinject_mail(&self, transaction: &Transaction<Self::State>) -> Result<(), String> {
         log::debug!("Re-injecting the mail that passed checks");
         let hostname = format!("[{}]", self.config.filtermail_host);
+        let client_config = crate::smtp_client::ClientConfig {
+            client_hostname: &hostname,
+            tls_config: None,
+            lmtp: false,
+        };
         crate::smtp_client::send(
             &self.config.postfix_host,
             self.config.postfix_reinject_port_incoming,
             &transaction.envelope,
-            &hostname,
-            None,
+            client_config,
             self.dns_resolver.clone(),
             self.smtp_connection_pool.clone(),
         )
@@ -175,6 +188,7 @@ mod tests {
     use super::*;
     use rstest::{fixture, rstest};
     use testresult::TestResult;
+    use tokio::net::TcpStream;
 
     #[fixture]
     fn config() -> Config {
@@ -191,7 +205,7 @@ mod tests {
         #[case] address: &str,
         config: Config,
     ) -> TestResult {
-        let handler = IncomingBeforeQueueHandler::new(config, false)?;
+        let handler = IncomingBeforeQueueHandler::<TcpStream>::new(config, false)?;
         let mut transaction = Transaction {
             envelope: Envelope {
                 mail_from: address.to_string(),

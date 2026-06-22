@@ -6,6 +6,7 @@ use crate::smtp_client::SmtpConnectionPool;
 use crate::smtp_responses::ENCRYPTION_NEEDED_523;
 use crate::smtp_responses::OK_250;
 use crate::smtp_server::{SmtpHandler, Transaction};
+use crate::tcp::{TcpConnect, TcpStreamTrait};
 use crate::utils::{build_resolver, extract_address};
 use async_trait::async_trait;
 use governor::clock::MonotonicClock;
@@ -16,7 +17,7 @@ use mailparse::{MailHeaderMap, parse_mail};
 use std::sync::Arc;
 
 /// Handler for outgoing SMTP messages.
-pub struct OutgoingBeforeQueueHandler {
+pub struct OutgoingBeforeQueueHandler<S: TcpConnect> {
     config: Config,
     dns_resolver: Arc<TokioResolver>,
 
@@ -33,10 +34,14 @@ pub struct OutgoingBeforeQueueHandler {
         MonotonicClock,
         NoOpMiddleware<std::time::Instant>,
     >,
-    smtp_connection_pool: Arc<SmtpConnectionPool>,
+    smtp_connection_pool: Arc<SmtpConnectionPool<S>>,
 }
 
-impl OutgoingBeforeQueueHandler {
+impl<S> OutgoingBeforeQueueHandler<S>
+where
+    S: TcpStreamTrait + TcpConnect,
+    S::ConnectionContext: Default,
+{
     pub fn new(config: Config) -> Result<Self, crate::error::Error> {
         let quota = Quota::per_minute(config.max_user_send_per_minute)
             .allow_burst(config.max_user_send_burst_size);
@@ -46,13 +51,16 @@ impl OutgoingBeforeQueueHandler {
             config,
             dns_resolver,
             send_rate_limiter,
-            smtp_connection_pool: SmtpConnectionPool::new(),
+            smtp_connection_pool: SmtpConnectionPool::new(Default::default()),
         })
     }
 }
 
 #[async_trait]
-impl SmtpHandler for OutgoingBeforeQueueHandler {
+impl<S> SmtpHandler for OutgoingBeforeQueueHandler<S>
+where
+    S: TcpStreamTrait + TcpConnect,
+{
     type State = ();
 
     fn handle_mail_from(&self, address: &str) -> Result<(), String> {
@@ -161,12 +169,16 @@ impl SmtpHandler for OutgoingBeforeQueueHandler {
     async fn reinject_mail(&self, transaction: &Transaction<Self::State>) -> Result<(), String> {
         log::debug!("Re-injecting the mail that passed checks");
         let hostname = format!("[{}]", self.config.filtermail_host);
+        let client_config = crate::smtp_client::ClientConfig {
+            client_hostname: &hostname,
+            tls_config: None,
+            lmtp: false,
+        };
         crate::smtp_client::send(
             &self.config.postfix_host,
             self.config.postfix_reinject_port,
             &transaction.envelope,
-            &hostname,
-            None,
+            client_config,
             self.dns_resolver.clone(),
             self.smtp_connection_pool.clone(),
         )
