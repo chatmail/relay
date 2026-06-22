@@ -7,8 +7,8 @@ use memchr::{Memchr, memmem};
 use std::fmt::Debug;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, BufWriter};
-use tokio::net::{TcpListener, TcpStream};
+use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufStream};
+use tokio::net::TcpListener;
 
 /// Represents an SMTP envelope with sender, recipients, and raw message data.
 #[derive(Debug, Default, Clone)]
@@ -139,8 +139,17 @@ pub trait SmtpHandler: Send + Sync {
             log::warn!("Failed to reinject mail: {e}");
             e
         })?;
-        Ok("OK_250".to_string())
+        Ok(OK_250.to_string())
     }
+}
+
+/// A mockup handler that does nothing.
+#[cfg(test)]
+pub struct MockHandler;
+
+#[cfg(test)]
+impl SmtpHandler for MockHandler {
+    type State = ();
 }
 
 /// Runs the SMTP server on the specified address with the given handler and maximum message size.
@@ -164,7 +173,7 @@ where
 
                 let handler = handler.clone();
                 tokio::spawn(async move {
-                    if let Err(e) = handle_connection(socket, handler, max_size).await {
+                    if let Err(e) = handle_connection(socket, handler, max_size, false).await {
                         log::error!("Error handling connection: {e}");
                     }
                 });
@@ -180,27 +189,36 @@ where
 }
 
 /// Handles an individual SMTP connection.
-async fn handle_connection<H>(
-    socket: TcpStream,
+///
+/// Setting `auto_quit` to `true` will automatically close connection after receiving the first
+/// message. Should be used only for tests, it's not a behavior described by SMTP spec.
+pub(crate) async fn handle_connection<S, H>(
+    stream: S,
     handler: Arc<H>,
     max_size: usize,
+    auto_quit: bool,
 ) -> Result<(), Box<dyn std::error::Error>>
 where
+    S: AsyncWrite + AsyncRead + Unpin,
     H: SmtpHandler,
 {
-    let (reader, writer) = socket.into_split();
-    let mut reader = BufReader::new(reader);
-    let mut writer = BufWriter::new(writer);
+    let mut bufstream = BufStream::new(stream);
     let mut line = String::new();
 
-    writer.write_all(b"220 filtermail SMTP\r\n").await?;
-    writer.flush().await?;
+    macro_rules! smtp_write {
+        ($($arg:tt)*) => {
+            bufstream.write_all(format!($($arg)*).as_bytes()).await?;
+            bufstream.flush().await?;
+        };
+    }
+
+    smtp_write!("220 filtermail SMTP\r\n");
 
     let mut transaction = Transaction::default();
 
     'connection: loop {
         line.clear();
-        let n = reader.read_line(&mut line).await?;
+        let n = bufstream.read_line(&mut line).await?;
         if n == 0 {
             break 'connection;
         }
@@ -218,66 +236,50 @@ where
         log::debug!("Received: {cmd}");
 
         if cmd.to_uppercase().starts_with("HELO") {
-            writer.write_all(b"250-filtermail\r\n250 OK\r\n").await?;
-            writer.flush().await?;
+            smtp_write!("250-filtermail\r\n250 OK\r\n");
         } else if cmd.to_uppercase().starts_with("EHLO")
             // We support LMTP, but it's not validated;
             // service that expects LMTP will send LMTP responses no matter the greeting.
             // Sufficient for our internal use case.
             || cmd.to_uppercase().starts_with("LHLO")
         {
-            writer
-                .write_all(b"250-filtermail\r\n250-8BITMIME\r\n250 OK\r\n")
-                .await?;
-            writer.flush().await?;
+            smtp_write!("250-filtermail\r\n250-8BITMIME\r\n250 OK\r\n");
         } else if cmd.to_uppercase().starts_with("MAIL FROM:<>") {
             // bounce message
             transaction.envelope.mail_from = String::new();
-            writer.write_all(format!("{OK_250}\r\n").as_bytes()).await?;
-            writer.flush().await?;
+            smtp_write!("{OK_250}\r\n");
         } else if cmd.to_uppercase().starts_with("MAIL FROM:") {
             if let Some(from) = extract_address(cmd) {
                 if let Err(e) = handler.handle_mail_from(&from) {
-                    writer.write_all(format!("{}\r\n", e).as_bytes()).await?;
-                    writer.flush().await?;
+                    smtp_write!("{}\r\n", e);
                     continue 'connection;
                 }
                 transaction.envelope.mail_from = from;
-                writer.write_all(format!("{OK_250}\r\n").as_bytes()).await?;
-                writer.flush().await?;
+                smtp_write!("{OK_250}\r\n");
             } else {
                 log::warn!("Invalid MAIL FROM command. Can't extract address. Received: {cmd}");
-                writer
-                    .write_all(b"500 Invalid address in MAIL FROM\r\n")
-                    .await?;
-                writer.flush().await?;
+                smtp_write!("500 Invalid address in MAIL FROM\r\n");
             }
         } else if cmd.to_uppercase().starts_with("RCPT TO:") {
             if let Some(to) = extract_address(cmd) {
                 if let Err(e) = handler.handle_rcpt_to(&to, &mut transaction) {
-                    writer.write_all(format!("{}\r\n", e).as_bytes()).await?;
-                    writer.flush().await?;
+                    smtp_write!("{}\r\n", e);
                     continue 'connection;
                 }
                 transaction.envelope.rcpt_to.push(to);
-                writer.write_all(format!("{OK_250}\r\n").as_bytes()).await?;
-                writer.flush().await?;
+                smtp_write!("{OK_250}\r\n");
             }
         } else if cmd.to_uppercase().starts_with("DATA") {
             if let Err(e) = handler.handle_data_start(&transaction) {
-                writer.write_all(format!("{}\r\n", e).as_bytes()).await?;
-                writer.flush().await?;
+                smtp_write!("{}\r\n", e);
                 continue 'connection;
             }
-            writer
-                .write_all(b"354 End data with <CR><LF>.<CR><LF>\r\n")
-                .await?;
-            writer.flush().await?;
+            smtp_write!("354 End data with <CR><LF>.<CR><LF>\r\n");
             let mut data = Vec::new();
             let mut data_line = String::new();
             'data_read: loop {
                 data_line.clear();
-                if reader.read_line(&mut data_line).await? == 0 {
+                if bufstream.read_line(&mut data_line).await? == 0 {
                     log::warn!("Unexpected EoF while receiving DATA! Closing connection.");
                     break 'connection;
                 }
@@ -303,10 +305,7 @@ where
                 data.extend_from_slice(data_line.as_bytes());
 
                 if data.len() > max_size {
-                    writer
-                        .write_all(b"552 Message exceeds maximum size\r\n")
-                        .await?;
-                    writer.flush().await?;
+                    smtp_write!("552 Message exceeds maximum size\r\n");
                     continue 'connection;
                 }
             }
@@ -317,33 +316,27 @@ where
             match handler.handle_data_dot(&mut transaction).await {
                 Ok(response) => {
                     log::debug!("Sent: {response}");
-                    writer
-                        .write_all(format!("{}\r\n", response).as_bytes())
-                        .await?;
-                    writer.flush().await?;
+                    smtp_write!("{}\r\n", response);
                 }
                 Err(e) => {
                     log::debug!("Sent: {e}");
-                    writer.write_all(format!("{}\r\n", e).as_bytes()).await?;
-                    writer.flush().await?;
+                    smtp_write!("{}\r\n", e);
                 }
             }
-
+            if auto_quit {
+                break 'connection;
+            }
             transaction = Transaction::default();
         } else if cmd.to_uppercase().starts_with("QUIT") {
-            writer.write_all(b"221 OK\r\n").await?;
-            writer.flush().await?;
+            smtp_write!("221 OK\r\n");
             break 'connection;
         } else if cmd.to_uppercase().starts_with("RSET") {
             transaction = Transaction::default();
-            writer.write_all(format!("{OK_250}\r\n").as_bytes()).await?;
-            writer.flush().await?;
+            smtp_write!("{OK_250}\r\n");
         } else if cmd.to_uppercase().starts_with("NOOP") {
-            writer.write_all(format!("{OK_250}\r\n").as_bytes()).await?;
-            writer.flush().await?;
+            smtp_write!("{OK_250}\r\n");
         } else {
-            writer.write_all(b"500 Command not recognized\r\n").await?;
-            writer.flush().await?;
+            smtp_write!("500 Command not recognized\r\n");
         }
     }
 

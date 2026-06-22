@@ -2,6 +2,7 @@ use crate::config::Config;
 use crate::smtp_client::{SmtpConnectionPool, TlsConfig};
 use crate::smtp_responses::{OK_HTTPS_250, OK_SMTP_250};
 use crate::smtp_server::Envelope;
+use crate::tcp::{TcpConnect, TcpStreamTrait};
 use crate::transport::{HEADER_MAIL_FROM, HEADER_RCPT_TO, https_client::HttpsClient};
 use crate::utils::{AddressDomain, build_resolver};
 use hickory_resolver::TokioResolver;
@@ -18,6 +19,16 @@ use tokio::task;
 use tokio::task::JoinHandle;
 use tokio_rustls::rustls;
 
+#[cfg(not(test))]
+const SMTP_PORT: u16 = 25;
+#[cfg(not(test))]
+const SMTP_SKIP_TLS: bool = false;
+
+#[cfg(test)]
+const SMTP_PORT: u16 = 10025;
+#[cfg(test)]
+const SMTP_SKIP_TLS: bool = true;
+
 /// Message queue size per [`Worker`].
 ///
 /// If a queue to a single destination reaches this limit,
@@ -26,17 +37,21 @@ const PER_DESTINATION_QUEUE_SIZE: usize = 30;
 
 type SMTPResponse = Result<String, String>;
 
-pub struct WorkerPool {
+pub struct WorkerPool<S: TcpConnect> {
     inner: RwLock<BTreeMap<AddressDomain, Arc<Worker>>>,
     client_hostname: String,
-    smtp_connection_pool: Arc<SmtpConnectionPool>,
+    smtp_connection_pool: Arc<SmtpConnectionPool<S>>,
     mxdeliv_unsupported_hosts: Arc<retainer::Cache<String, ()>>,
     monitor_handle: JoinHandle<()>,
     dns_resolver: Arc<TokioResolver>,
     queue_size: usize,
 }
 
-impl WorkerPool {
+impl<S> WorkerPool<S>
+where
+    S: TcpStreamTrait + TcpConnect,
+    S::ConnectionContext: Default,
+{
     pub fn new(config: Config) -> Result<Self, crate::error::Error> {
         let dns_resolver = Arc::new(build_resolver()?);
 
@@ -53,7 +68,7 @@ impl WorkerPool {
             inner: Default::default(),
             client_hostname: config.mail_domain,
             dns_resolver,
-            smtp_connection_pool: SmtpConnectionPool::new(),
+            smtp_connection_pool: SmtpConnectionPool::<S>::new(Default::default()),
             mxdeliv_unsupported_hosts: mxdeliv_cache,
             monitor_handle,
             queue_size: PER_DESTINATION_QUEUE_SIZE,
@@ -131,7 +146,7 @@ impl WorkerPool {
     }
 }
 
-impl Drop for WorkerPool {
+impl<S: TcpConnect> Drop for WorkerPool<S> {
     fn drop(&mut self) {
         self.monitor_handle.abort();
     }
@@ -150,14 +165,17 @@ impl Drop for Worker {
 }
 
 impl Worker {
-    pub async fn run(
+    pub async fn run<S>(
         destination: AddressDomain,
         mut rx: mpsc::Receiver<WorkerMessage>,
         client_hostname: String,
-        smtp_connection_pool: Arc<SmtpConnectionPool>,
+        smtp_connection_pool: Arc<SmtpConnectionPool<S>>,
         mxdeliv_unsupported_hosts: Arc<retainer::Cache<String, ()>>,
         dns_resolver: Arc<TokioResolver>,
-    ) -> Result<(), crate::error::Error> {
+    ) -> Result<(), crate::error::Error>
+    where
+        S: TcpStreamTrait + TcpConnect,
+    {
         let worker_id = task::try_id()
             .map(|id| id.to_string())
             .unwrap_or("?".to_string());
@@ -199,18 +217,21 @@ impl Worker {
 
     /// Handles a single email transaction for a single recipient domain.
     #[expect(clippy::too_many_arguments)]
-    async fn handle_single_domain(
+    async fn handle_single_domain<S>(
         tls_resumption_store: Arc<rustls::client::ClientSessionMemoryCache>,
-        smtp_connection_pool: Arc<SmtpConnectionPool>,
+        smtp_connection_pool: Arc<SmtpConnectionPool<S>>,
         mxdeliv_unsupported_hosts: Arc<retainer::Cache<String, ()>>,
         https_client: HttpsClient,
         dns_resolver: Arc<TokioResolver>,
         domain: AddressDomain,
         envelope: Envelope,
         client_hostname: String,
-    ) -> Result<String, String> {
+    ) -> Result<String, String>
+    where
+        S: TcpStreamTrait + TcpConnect,
+    {
         let mut allow_invalid_cert = false;
-        let mut skip_tls = false; // only respected by smtp channel
+        let mut skip_tls = SMTP_SKIP_TLS; // only respected by smtp channel
 
         let mx_hosts = match domain {
             // no-DNS setup; assume the ip from email address is the destination.
@@ -316,12 +337,16 @@ impl Worker {
             }
 
             // SMTP channel (fallback)
+            let client_config = crate::smtp_client::ClientConfig {
+                client_hostname: &client_hostname,
+                tls_config: tls_config.clone(),
+                lmtp: false,
+            };
             match crate::smtp_client::send(
                 &mx_host,
-                25,
+                SMTP_PORT,
                 &envelope,
-                &client_hostname,
-                tls_config.clone(),
+                client_config,
                 dns_resolver.clone(),
                 smtp_connection_pool.clone(),
             )
