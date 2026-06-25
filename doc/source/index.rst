@@ -15,6 +15,7 @@ Contributions and feedback welcome through the https://github.com/chatmail/relay
     getting_started
     proxy
     migrate
+    remove
     overview
     reverse_dns
     related
