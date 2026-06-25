@@ -47,6 +47,50 @@ class TestCmdline:
         out, err = capsys.readouterr()
         assert out == "[WARNING] 1.3.3.7 is not a domain, skipping DNS checks.\n"
 
+    def test_remove_cancelled_on_wrong_confirmation(self, tmp_path, monkeypatch):
+        monkeypatch.delenv("CHATMAIL_INI", raising=False)
+        inipath = tmp_path / "chatmail.ini"
+        assert main(["init", "--config", str(inipath), "chat.example.org"]) == 0
+
+        def check_call(self, arg, env=None, quiet=False):
+            raise AssertionError("remove command should not run after cancellation")
+
+        monkeypatch.setattr("cmdeploy.cmdeploy.Out.check_call", check_call)
+        monkeypatch.setattr("builtins.input", lambda prompt: "wrong.example.org")
+        assert main(["remove", "--config", str(inipath)]) == 1
+
+    def test_remove_dry_run_local(self, tmp_path, monkeypatch):
+        monkeypatch.delenv("CHATMAIL_INI", raising=False)
+        inipath = tmp_path / "chatmail.ini"
+        assert main(["init", "--config", str(inipath), "chat.example.org"]) == 0
+
+        calls = []
+
+        def check_call(self, arg, env=None, quiet=False):
+            calls.append((arg, env))
+
+        monkeypatch.setattr("cmdeploy.cmdeploy.Out.check_call", check_call)
+        assert (
+            main(
+                [
+                    "remove",
+                    "--config",
+                    str(inipath),
+                    "--ssh-host",
+                    "localhost",
+                    "--dry-run",
+                    "--yes",
+                    "--keep-packages",
+                ]
+            )
+            == 0
+        )
+        cmd, env = calls[0]
+        assert cmd.startswith("pyinfra --dry @local ")
+        assert "remove.py -y" in cmd
+        assert env["CHATMAIL_INI"] == str(inipath)
+        assert env["CHATMAIL_KEEP_PACKAGES"] == "True"
+
 
 def test_www_folder(example_config, tmp_path):
     reporoot = importlib.resources.files(__package__).joinpath("../../../../").resolve()

@@ -104,7 +104,9 @@ def run_cmd(args, out):
         args.dns_check_disabled = True
     if not args.dns_check_disabled:
         remote_data = dns.get_initial_remote_data(sshexec, args.config.mail_domain)
-        if not dns.check_initial_remote_data(remote_data, strict_tls=strict_tls, print=out.red):
+        if not dns.check_initial_remote_data(
+            remote_data, strict_tls=strict_tls, print=out.red
+        ):
             return 1
 
     env = os.environ.copy()
@@ -127,7 +129,11 @@ def run_cmd(args, out):
         out.check_call(cmd, env=env)
         if args.website_only:
             out.green("Website deployment completed.")
-        elif not args.dns_check_disabled and strict_tls and not remote_data["acme_account_url"]:
+        elif (
+            not args.dns_check_disabled
+            and strict_tls
+            and not remote_data["acme_account_url"]
+        ):
             out.red("Deploy completed but letsencrypt not configured")
             out.red("Run 'cmdeploy run' again")
         elif args.config.ipv4_relay:
@@ -138,6 +144,88 @@ def run_cmd(args, out):
         return 0
     except subprocess.CalledProcessError:
         out.red("Deploy failed")
+        return 1
+
+
+def remove_cmd_options(parser):
+    parser.add_argument(
+        "--dry-run",
+        dest="dry_run",
+        action="store_true",
+        help="show what would be removed without modifying the server",
+    )
+    parser.add_argument(
+        "--yes",
+        "-y",
+        dest="yes",
+        action="store_true",
+        help="do not ask for confirmation before removing chatmail data",
+    )
+    parser.add_argument(
+        "--keep-packages",
+        action="store_true",
+        help="remove chatmail files and users but do not purge installed packages",
+    )
+    add_ssh_host_option(parser)
+
+
+def _confirm_remove(args, out):
+    if args.yes:
+        return True
+
+    domain = args.config.mail_domain_bare
+    out.red(
+        "WARNING: this removes chatmail services, configuration, package state, "
+        f"and mailbox data for {domain!r}."
+    )
+    if args.config.tls_cert_mode == "acme":
+        out.red(
+            "DNS records are not removed. If your DNS has a CAA record with "
+            "a Let's Encrypt accounturi, remove or relax it before deploying "
+            "this relay again."
+        )
+    out.red("Type the chatmail domain to continue.")
+    try:
+        answer = input(f"remove {domain}: ")
+    except EOFError:
+        answer = ""
+
+    if answer != domain:
+        out.red("Remove cancelled.")
+        return False
+    return True
+
+
+def remove_cmd(args, out):
+    """Remove chatmail services, configuration, state, users and packages."""
+
+    if not _confirm_remove(args, out):
+        return 1
+
+    ssh_host = args.ssh_host if args.ssh_host else args.config.mail_domain_bare
+    env = os.environ.copy()
+    env["CHATMAIL_INI"] = str(args.inipath)
+    env["CHATMAIL_KEEP_PACKAGES"] = "True" if args.keep_packages else ""
+    remove_path = importlib.resources.files(__package__).joinpath("remove.py").resolve()
+    pyinf = "pyinfra --dry" if args.dry_run else "pyinfra"
+
+    cmd = f"{pyinf} --ssh-user root {ssh_host} {remove_path} -y"
+    if ssh_host == "localhost":
+        cmd = f"{pyinf} @local {remove_path} -y"
+
+    if version.parse(pyinfra.__version__) < version.parse("3"):
+        out.red("Please re-run scripts/initenv.sh to update pyinfra to version 3.")
+        return 1
+
+    try:
+        out.check_call(cmd, env=env)
+        if args.dry_run:
+            out.green("Remove dry run completed.")
+        else:
+            out.green("Remove completed.")
+        return 0
+    except subprocess.CalledProcessError:
+        out.red("Remove failed")
         return 1
 
 
