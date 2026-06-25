@@ -1,6 +1,7 @@
 from pyinfra.operations import apt, server
 
 from cmdeploy.basedeploy import Deployer
+from cmdeploy.constants import CONFIG_FILES
 
 
 class PostfixDeployer(Deployer):
@@ -21,39 +22,43 @@ class PostfixDeployer(Deployer):
 
         self.put_template(
             "postfix/main.cf.j2",
-            "/etc/postfix/main.cf",
+            CONFIG_FILES["postfix_main"],
             config=config,
             disable_ipv6=config.disable_ipv6,
         )
 
         self.put_template(
             "postfix/master.cf.j2",
-            "/etc/postfix/master.cf",
+            CONFIG_FILES["postfix_master"],
             debug=False,
             config=config,
         )
 
         self.put_file(
             "postfix/submission_header_cleanup",
-            "/etc/postfix/submission_header_cleanup",
+            CONFIG_FILES["postfix_submission_header_cleanup"],
         )
-        self.put_file("postfix/lmtp_header_cleanup", "/etc/postfix/lmtp_header_cleanup")
+        self.put_file(
+            "postfix/lmtp_header_cleanup",
+            CONFIG_FILES["postfix_lmtp_header_cleanup"],
+        )
 
         res = self.put_file(
-            "postfix/smtp_tls_policy_map", "/etc/postfix/smtp_tls_policy_map"
+            "postfix/smtp_tls_policy_map",
+            CONFIG_FILES["postfix_smtp_tls_policy_map"],
         )
         tls_policy_changed = res.changed
         if tls_policy_changed:
             server.shell(
-                commands=["postmap /etc/postfix/smtp_tls_policy_map"],
+                commands=[f"postmap {CONFIG_FILES['postfix_smtp_tls_policy_map']}"],
             )
 
         # Login map that 1:1 maps email address to login.
-        self.put_file("postfix/login_map", "/etc/postfix/login_map")
+        self.put_file("postfix/login_map", CONFIG_FILES["postfix_login_map"])
 
         self.put_file(
             "service/10_restart_on_failure.conf",
-            "/etc/systemd/system/postfix@.service.d/10_restart.conf",
+            CONFIG_FILES["systemd_postfix_restart"],
         )
 
         # Validate postfix configuration before restart

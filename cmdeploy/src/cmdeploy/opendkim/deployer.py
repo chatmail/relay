@@ -7,6 +7,7 @@ from pyinfra.facts.files import File
 from pyinfra.operations import apt, files, server
 
 from cmdeploy.basedeploy import Deployer
+from cmdeploy.constants import CONFIG_DIRS, CONFIG_FILES, STATE_DIRS
 
 
 class OpendkimDeployer(Deployer):
@@ -28,43 +29,44 @@ class OpendkimDeployer(Deployer):
 
         self.put_template(
             "opendkim/opendkim.conf",
-            "/etc/opendkim.conf",
+            CONFIG_FILES["opendkim_conf"],
             config={"domain_name": domain, "opendkim_selector": dkim_selector},
         )
 
-        self.remove_file("/etc/opendkim/screen.lua")
-        self.remove_file("/etc/opendkim/final.lua")
+        self.remove_file(f"{CONFIG_DIRS['opendkim']}/screen.lua")
+        self.remove_file(f"{CONFIG_DIRS['opendkim']}/final.lua")
 
         self.ensure_directory(
-            "/etc/opendkim",
+            CONFIG_DIRS["opendkim"],
             owner="opendkim",
             mode="750",
         )
 
         self.put_template(
             "opendkim/KeyTable",
-            "/etc/dkimkeys/KeyTable",
+            f"{CONFIG_DIRS['dkimkeys']}/KeyTable",
             owner="opendkim",
             config={"domain_name": domain, "opendkim_selector": dkim_selector},
         )
 
         self.put_template(
             "opendkim/SigningTable",
-            "/etc/dkimkeys/SigningTable",
+            f"{CONFIG_DIRS['dkimkeys']}/SigningTable",
             owner="opendkim",
             config={"domain_name": domain, "opendkim_selector": dkim_selector},
         )
         self.ensure_directory(
-            "/var/spool/postfix/opendkim",
+            f"{STATE_DIRS['var_spool_postfix']}/opendkim",
             owner="opendkim",
             mode="750",
         )
 
-        if not host.get_fact(File, f"/etc/dkimkeys/{dkim_selector}.private"):
+        dkim_private_key = f"{CONFIG_DIRS['dkimkeys']}/{dkim_selector}.private"
+        if not host.get_fact(File, dkim_private_key):
             server.shell(
                 name="Generate OpenDKIM domain keys",
                 commands=[
-                    f"/usr/sbin/opendkim-genkey -D /etc/dkimkeys -d {domain} -s {dkim_selector}"
+                    f"/usr/sbin/opendkim-genkey -D {CONFIG_DIRS['dkimkeys']} -d {domain} -s {dkim_selector}"
                 ],
                 _use_su_login=True,
                 _su_user="opendkim",
@@ -72,12 +74,12 @@ class OpendkimDeployer(Deployer):
 
         self.put_file(
             "opendkim/systemd.conf",
-            "/etc/systemd/system/opendkim.service.d/10-prevent-memory-leak.conf",
+            CONFIG_FILES["systemd_opendkim_restart"],
         )
 
         files.file(
-            name="chown opendkim: /etc/dkimkeys/opendkim.private",
-            path="/etc/dkimkeys/opendkim.private",
+            name=f"chown opendkim: {dkim_private_key}",
+            path=dkim_private_key,
             user="opendkim",
             group="opendkim",
         )

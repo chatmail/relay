@@ -3,12 +3,13 @@ import os
 from pyinfra import facts, host
 
 from cmdeploy.basedeploy import Deployer
+from cmdeploy.constants import BINARY_PATHS, CHATMAILD_PATHS
 
 
 class FiltermailDeployer(Deployer):
     services = ["filtermail", "filtermail-incoming", "filtermail-transport"]
-    bin_path = "/usr/local/bin/filtermail"
-    config_path = "/usr/local/lib/chatmaild/chatmail.ini"
+    bin_path = BINARY_PATHS["filtermail"]
+    config_path = CHATMAILD_PATHS["config"]
 
     def install(self):
         local_bin = os.environ.get("CHATMAIL_FILTERMAIL_BINARY")

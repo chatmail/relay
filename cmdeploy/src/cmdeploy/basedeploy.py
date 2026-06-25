@@ -8,6 +8,8 @@ from pyinfra.facts.files import Sha256File
 from pyinfra.facts.server import Command
 from pyinfra.operations import files, server, systemd
 
+from cmdeploy.constants import CHATMAILD_PATHS
+
 
 def has_systemd():
     """Returns False during Docker image builds or any other non-systemd environment."""
@@ -52,9 +54,8 @@ def get_resource(arg, pkg=__package__):
 
 
 def configure_remote_units(deployer, mail_domain, units) -> None:
-    remote_base_dir = "/usr/local/lib/chatmaild"
-    remote_venv_dir = f"{remote_base_dir}/venv"
-    remote_chatmail_inipath = f"{remote_base_dir}/chatmail.ini"
+    remote_venv_dir = CHATMAILD_PATHS["venv_dir"]
+    remote_chatmail_inipath = CHATMAILD_PATHS["config"]
 
     # install systemd units
     for fn in units:

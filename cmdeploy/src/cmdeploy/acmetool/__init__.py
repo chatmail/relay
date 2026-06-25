@@ -1,5 +1,7 @@
 from pyinfra.operations import apt, server
 
+from cmdeploy.constants import ACME_PATHS, CONFIG_FILES
+
 from ..basedeploy import Deployer
 
 
@@ -14,30 +16,30 @@ class AcmetoolDeployer(Deployer):
             packages=["acmetool"],
         )
 
-        self.remove_file("/etc/cron.d/acmetool")
+        self.remove_file(CONFIG_FILES["cron_acmetool"])
 
-        self.put_executable("acmetool/acmetool.hook", "/etc/acme/hooks/nginx")
-        self.remove_file("/usr/lib/acme/hooks/nginx")
+        self.put_executable("acmetool/acmetool.hook", ACME_PATHS["hook_nginx"])
+        self.remove_file(ACME_PATHS["legacy_hook_nginx"])
 
     def configure(self):
         self.put_template(
             "acmetool/response-file.yaml.j2",
-            "/var/lib/acme/conf/responses",
+            ACME_PATHS["responses"],
             email=self.email,
         )
 
         self.put_template(
             "acmetool/target.yaml.j2",
-            "/var/lib/acme/conf/target",
+            ACME_PATHS["target"],
         )
 
         server.shell(
             name=f"Remove old acmetool desired files for {self.domains[0]}",
-            commands=[f"rm -f /var/lib/acme/desired/{self.domains[0]}-*"],
+            commands=[f"rm -f {ACME_PATHS['desired_dir']}/{self.domains[0]}-*"],
         )
         self.put_template(
             "acmetool/desired.yaml.j2",
-            f"/var/lib/acme/desired/{self.domains[0]}",
+            f"{ACME_PATHS['desired_dir']}/{self.domains[0]}",
             domains=self.domains,
         )
 

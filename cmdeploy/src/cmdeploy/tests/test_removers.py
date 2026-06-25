@@ -1,6 +1,14 @@
 from unittest.mock import call
 
 from cmdeploy import removers
+from cmdeploy.constants import (
+    ACME_PATHS,
+    CHATMAILD_PATHS,
+    CONFIG_DIRS,
+    CONFIG_FILES,
+    STATE_DIRS,
+    TLS_PATHS,
+)
 
 
 def test_remove_chatmail_purges_packages_and_state(make_config, monkeypatch):
@@ -28,20 +36,20 @@ def test_remove_chatmail_purges_packages_and_state(make_config, monkeypatch):
             "purge": True,
         }
     ]
-    assert call(path="/usr/local/lib/chatmaild", present=False) in [
+    assert call(path=CHATMAILD_PATHS["base_dir"], present=False) in [
         call(path=entry["path"], present=entry["present"]) for entry in dir_calls
     ]
     assert call(path=str(config.mailboxes_dir), present=False) in [
         call(path=entry["path"], present=entry["present"]) for entry in dir_calls
     ]
-    assert any(entry["path"] == "/var/lib/acme" for entry in dir_calls)
+    assert any(entry["path"] == ACME_PATHS["var_dir"] for entry in dir_calls)
     assert any(
         entry["path"] == "/etc/systemd/system/doveauth.service" for entry in file_calls
     )
-    assert any(entry["path"] == "/etc/postfix/main.cf" for entry in file_calls)
-    assert any(entry["path"] == "/etc/opendkim.conf" for entry in file_calls)
-    assert any(entry["path"] == "/etc/postfix" for entry in dir_calls)
-    assert any(entry["path"] == "/var/log/nginx" for entry in dir_calls)
+    assert any(entry["path"] == CONFIG_FILES["postfix_main"] for entry in file_calls)
+    assert any(entry["path"] == CONFIG_FILES["opendkim_conf"] for entry in file_calls)
+    assert any(entry["path"] == CONFIG_DIRS["postfix"] for entry in dir_calls)
+    assert any(entry["path"] == STATE_DIRS["var_log_nginx"] for entry in dir_calls)
     assert any(
         "userdel -r vmail" in command
         for entry in shell_calls
@@ -73,13 +81,13 @@ def test_remove_chatmail_keep_packages_and_external_tls(make_config, monkeypatch
     removed_dirs = {entry["path"] for entry in dir_calls}
     assert "/certs/fullchain.pem" not in removed_files
     assert "/certs/privkey.pem" not in removed_files
-    assert "/var/lib/acme" not in removed_dirs
-    assert "/etc/nginx" not in removed_dirs
-    assert "/etc/unbound" not in removed_dirs
-    assert "/etc/postfix" not in removed_dirs
-    assert "/etc/dovecot" not in removed_dirs
-    assert "/etc/nginx/nginx.conf" in removed_files
-    assert "/etc/unbound/unbound.conf.d/chatmail.conf" in removed_files
+    assert ACME_PATHS["var_dir"] not in removed_dirs
+    assert CONFIG_DIRS["nginx"] not in removed_dirs
+    assert CONFIG_DIRS["unbound"] not in removed_dirs
+    assert CONFIG_DIRS["postfix"] not in removed_dirs
+    assert CONFIG_DIRS["dovecot"] not in removed_dirs
+    assert CONFIG_FILES["nginx_conf"] in removed_files
+    assert CONFIG_FILES["unbound_chatmail"] in removed_files
 
 
 def test_remove_chatmail_removes_self_signed_tls(make_config, monkeypatch):
@@ -95,5 +103,5 @@ def test_remove_chatmail_removes_self_signed_tls(make_config, monkeypatch):
     removers.remove_chatmail(config._inipath)
 
     removed = {entry["path"] for entry in file_calls}
-    assert "/etc/ssl/certs/mailserver.pem" in removed
-    assert "/etc/ssl/private/mailserver.key" in removed
+    assert TLS_PATHS["self_cert"] in removed
+    assert TLS_PATHS["self_key"] in removed

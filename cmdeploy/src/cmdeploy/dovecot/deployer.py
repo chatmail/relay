@@ -14,6 +14,7 @@ from cmdeploy.basedeploy import (
     configure_remote_units,
     is_in_container,
 )
+from cmdeploy.constants import CONFIG_FILES
 
 DOVECOT_ARCHIVE_VERSION = "2.3.21+dfsg1-3"
 DOVECOT_PACKAGE_VERSION = f"1:{DOVECOT_ARCHIVE_VERSION}"
@@ -64,7 +65,7 @@ class DovecotDeployer(Deployer):
                 "Pin: version *\n"
                 "Pin-Priority: -1\n"
             ),
-            dest="/etc/apt/preferences.d/pin-dovecot",
+            dest=CONFIG_FILES["apt_pin_dovecot"],
         )
 
     def configure(self):
@@ -134,18 +135,19 @@ def _download_dovecot_package(package: str, arch: str) -> tuple[str | None, bool
 
     return deb_filename, True
 
+
 def _configure_dovecot(deployer, config: Config, debug: bool = False):
     """Configures Dovecot IMAP server."""
     deployer.put_template(
         "dovecot/dovecot.conf.j2",
-        "/etc/dovecot/dovecot.conf",
+        CONFIG_FILES["dovecot_conf"],
         config=config,
         debug=debug,
         disable_ipv6=config.disable_ipv6,
     )
-    deployer.put_file("dovecot/auth.conf", "/etc/dovecot/auth.conf")
+    deployer.put_file("dovecot/auth.conf", CONFIG_FILES["dovecot_auth"])
     deployer.put_file(
-        "dovecot/push_notification.lua", "/etc/dovecot/push_notification.lua"
+        "dovecot/push_notification.lua", CONFIG_FILES["dovecot_push_notification"]
     )
 
     # as per https://doc.dovecot.org/2.3/configuration_manual/os/
@@ -178,7 +180,7 @@ def _configure_dovecot(deployer, config: Config, debug: bool = False):
 
     deployer.put_file(
         "service/10_restart_on_failure.conf",
-        "/etc/systemd/system/dovecot.service.d/10_restart.conf",
+        CONFIG_FILES["systemd_dovecot_restart"],
     )
 
     # Validate dovecot configuration before restart

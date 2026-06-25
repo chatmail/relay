@@ -2,6 +2,8 @@ import shlex
 
 from pyinfra.operations import server
 
+from cmdeploy.constants import TLS_PATHS
+
 from ..basedeploy import Deployer
 
 
@@ -31,9 +33,8 @@ class SelfSignedTlsDeployer(Deployer):
 
     def __init__(self, mail_domain):
         self.mail_domain = mail_domain
-        self.cert_path = "/etc/ssl/certs/mailserver.pem"
-        self.key_path = "/etc/ssl/private/mailserver.key"
-
+        self.cert_path = TLS_PATHS["self_cert"]
+        self.key_path = TLS_PATHS["self_key"]
 
 
     def configure(self):
@@ -48,5 +49,3 @@ class SelfSignedTlsDeployer(Deployer):
 
     def activate(self):
         pass
-
-

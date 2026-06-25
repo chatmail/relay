@@ -2,6 +2,7 @@ from pyinfra import facts, host
 from pyinfra.operations import apt
 
 from cmdeploy.basedeploy import Deployer
+from cmdeploy.constants import BINARY_PATHS, CONFIG_FILES
 
 
 class MtailDeployer(Deployer):
@@ -24,7 +25,7 @@ class MtailDeployer(Deployer):
         }[host.get_fact(facts.server.Arch)]
         self.download_executable(
             url,
-            "/usr/local/bin/mtail",
+            BINARY_PATHS["mtail"],
             sha256sum,
             extract="gunzip | tar -xf - mtail -O",
         )
@@ -37,7 +38,7 @@ class MtailDeployer(Deployer):
             address=self.mtail_address or "127.0.0.1",
             port=3903,
         )
-        self.put_file("mtail/delivered_mail.mtail", "/etc/mtail/delivered_mail.mtail")
+        self.put_file("mtail/delivered_mail.mtail", CONFIG_FILES["mtail_program"])
 
     def activate(self):
         active = bool(self.mtail_address)

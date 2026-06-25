@@ -16,6 +16,14 @@ from pyinfra.facts.systemd import SystemdEnabled
 from pyinfra.operations import apt, files, pip, server, systemd
 
 from cmdeploy.cmdeploy import Out
+from cmdeploy.constants import (
+    BINARY_PATHS,
+    CHATMAILD_PATHS,
+    CONFIG_DIRS,
+    CONFIG_FILES,
+    STATE_DIRS,
+    WEB_PATHS,
+)
 
 from .acmetool import AcmetoolDeployer
 from .basedeploy import (
@@ -83,16 +91,15 @@ def remove_legacy_artifacts():
 def _install_remote_venv_with_chatmaild(deployer) -> None:
     remove_legacy_artifacts()
     dist_file = _build_chatmaild(dist_dir=Path("chatmaild/dist"))
-    remote_base_dir = "/usr/local/lib/chatmaild"
-    remote_dist_file = f"{remote_base_dir}/dist/{dist_file.name}"
-    remote_venv_dir = f"{remote_base_dir}/venv"
+    remote_dist_file = f"{CHATMAILD_PATHS['dist_dir']}/{dist_file.name}"
+    remote_venv_dir = CHATMAILD_PATHS["venv_dir"]
 
     apt.packages(
         name="apt install python3-virtualenv",
         packages=["python3-virtualenv"],
     )
 
-    deployer.ensure_directory(f"{remote_base_dir}/dist")
+    deployer.ensure_directory(CHATMAILD_PATHS["dist_dir"])
     deployer.put_file(
         src=dist_file.open("rb"),
         dest=remote_dist_file,
@@ -118,16 +125,15 @@ def _install_remote_venv_with_chatmaild(deployer) -> None:
 
 
 def _configure_remote_venv_with_chatmaild(deployer, config) -> None:
-    remote_base_dir = "/usr/local/lib/chatmaild"
-    remote_chatmail_inipath = f"{remote_base_dir}/chatmail.ini"
+    remote_chatmail_inipath = CHATMAILD_PATHS["config"]
 
     deployer.put_file(
         src=config._getbytefile(),
         dest=remote_chatmail_inipath,
     )
 
-    deployer.remove_file("/etc/cron.d/chatmail-metrics")
-    deployer.remove_file("/var/www/html/metrics")
+    deployer.remove_file(CONFIG_FILES["cron_chatmail_metrics"])
+    deployer.remove_file(WEB_PATHS["metrics"])
 
 
 class UnboundDeployer(Deployer):
@@ -169,15 +175,15 @@ class UnboundDeployer(Deployer):
         server.shell(
             name="Generate root keys for validating DNSSEC",
             commands=[
-                "unbound-anchor -a /var/lib/unbound/root.key || true",
+                f"unbound-anchor -a {STATE_DIRS['var_lib_unbound']}/root.key || true",
             ],
         )
         self.ensure_directory(
-            path="/etc/unbound/unbound.conf.d",
+            path=f"{CONFIG_DIRS['unbound']}/unbound.conf.d",
         )
         self.put_template(
             "unbound/unbound.conf.j2",
-            "/etc/unbound/unbound.conf.d/chatmail.conf",
+            CONFIG_FILES["unbound_chatmail"],
             disable_ipv6=self.config.disable_ipv6,
         )
 
@@ -201,9 +207,9 @@ class UnboundDeployer(Deployer):
 class MtastsDeployer(Deployer):
     def configure(self):
         # Remove configuration.
-        self.remove_file("/etc/mta-sts-daemon.yml")
-        self.remove_directory("/usr/local/lib/postfix-mta-sts-resolver")
-        self.remove_file("/etc/systemd/system/mta-sts-daemon.service")
+        self.remove_file(CONFIG_FILES["mtasts_daemon"])
+        self.remove_directory(STATE_DIRS["postfix_mta_sts_resolver"])
+        self.remove_file(CONFIG_FILES["systemd_mtasts_daemon"])
 
     def activate(self):
         self.ensure_service(
@@ -218,7 +224,7 @@ class WebsiteDeployer(Deployer):
         self.config = config
 
     def install(self):
-        self.ensure_directory("/var/www")
+        self.ensure_directory(str(Path(WEB_PATHS["html_dir"]).parent))
 
     def configure(self):
         www_path, src_dir, build_dir = get_paths(self.config)
@@ -238,7 +244,9 @@ class WebsiteDeployer(Deployer):
                     return
             # if it is not a hugo page, upload it as is
             files.rsync(
-                f"{www_path}/", "/var/www/html", flags=["-avz", "--chown=www-data"]
+                f"{www_path}/",
+                WEB_PATHS["html_dir"],
+                flags=["-avz", "--chown=www-data"],
             )
 
 
@@ -248,10 +256,10 @@ class LegacyRemoveDeployer(Deployer):
 
         # remove historic expunge script
         # which is now implemented through a systemd timer (chatmail-expire)
-        self.remove_file("/etc/cron.d/expunge")
+        self.remove_file(CONFIG_FILES["cron_expunge"])
 
         # Remove OBS repository key that is no longer used.
-        self.remove_file("/etc/apt/keyrings/obs-home-deltachat.gpg")
+        self.remove_file(CONFIG_FILES["apt_obs_keyring"])
         self.ensure_line(
             path="/etc/apt/sources.list",
             line="deb [signed-by=/etc/apt/keyrings/obs-home-deltachat.gpg] https://download.opensuse.org/repositories/home:/deltachat/Debian_12/ ./",
@@ -302,7 +310,7 @@ class TurnDeployer(Deployer):
                 "0fb3e792419494e21ecad536464929dba706bb2c88884ed8f1788141d26fc756",
             ),
         }[host.get_fact(facts.server.Arch)]
-        self.download_executable(url, "/usr/local/bin/chatmail-turn", sha256sum)
+        self.download_executable(url, BINARY_PATHS["chatmail_turn"], sha256sum)
 
     def configure(self):
         configure_remote_units(self, self.mail_domain, self.units)
@@ -328,14 +336,14 @@ class IrohDeployer(Deployer):
         }[host.get_fact(facts.server.Arch)]
         self.download_executable(
             url,
-            "/usr/local/bin/iroh-relay",
+            BINARY_PATHS["iroh_relay"],
             sha256sum,
             extract="gunzip | tar -xf - ./iroh-relay -O",
         )
 
     def configure(self):
         self.ensure_systemd_unit("iroh-relay.service")
-        self.put_file("iroh-relay.toml", "/etc/iroh-relay.toml")
+        self.put_file("iroh-relay.toml", CONFIG_FILES["iroh_relay"])
 
     def activate(self):
         self.ensure_service(
@@ -346,7 +354,7 @@ class IrohDeployer(Deployer):
 
 class JournaldDeployer(Deployer):
     def configure(self):
-        self.put_file("journald.conf", "/etc/systemd/journald.conf")
+        self.put_file("journald.conf", CONFIG_FILES["journald"])
 
     def activate(self):
         self.ensure_service("systemd-journald.service")
@@ -388,7 +396,7 @@ class ChatmailDeployer(Deployer):
     def install(self):
         self.put_file(
             src=BytesIO(b'APT::Install-Recommends "false";\n'),
-            dest="/etc/apt/apt.conf.d/00InstallRecommends",
+            dest=CONFIG_FILES["apt_install_recommends"],
         )
         apt.update(name="apt update", cache_time=24 * 3600)
         apt.upgrade(name="upgrade apt packages", auto_remove=True)
@@ -414,9 +422,10 @@ class ChatmailDeployer(Deployer):
         # This file is used by auth proxy.
         # https://wiki.debian.org/EtcMailName
         server.shell(
-            name="Setup /etc/mailname",
+            name=f"Setup {CONFIG_FILES['mailname']}",
             commands=[
-                f"echo {self.mail_domain} >/etc/mailname; chmod 644 /etc/mailname"
+                f"echo {self.mail_domain} >{CONFIG_FILES['mailname']}; "
+                f"chmod 644 {CONFIG_FILES['mailname']}"
             ],
         )
 
@@ -442,7 +451,9 @@ class GithashDeployer(Deployer):
             git_diff = subprocess.check_output(["git", "diff"]).decode()
         except Exception:
             git_diff = ""
-        self.put_file(src=StringIO(git_hash + git_diff), dest="/etc/chatmail-version")
+        self.put_file(
+            src=StringIO(git_hash + git_diff), dest=CONFIG_FILES["chatmail_version"]
+        )
 
 
 def get_tls_deployer(config, mail_domain):

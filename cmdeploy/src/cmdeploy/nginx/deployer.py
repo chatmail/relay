@@ -5,6 +5,7 @@ from cmdeploy.basedeploy import (
     Deployer,
     get_resource,
 )
+from cmdeploy.constants import CONFIG_FILES, WEB_PATHS
 
 
 class NginxDeployer(Deployer):
@@ -31,14 +32,14 @@ class NginxDeployer(Deployer):
         # For documentation about policy-rc.d, see:
         # https://people.debian.org/~hmh/invokerc.d-policyrc.d-specification.txt
         #
-        self.put_executable(src="policy-rc.d", dest="/usr/sbin/policy-rc.d")
+        self.put_executable(src="policy-rc.d", dest=CONFIG_FILES["policy_rc_d"])
 
         apt.packages(
             name="Install nginx",
             packages=["nginx", "libnginx-mod-stream"],
         )
 
-        self.remove_file("/usr/sbin/policy-rc.d")
+        self.remove_file(CONFIG_FILES["policy_rc_d"])
 
     def configure(self):
         _configure_nginx(self, self.config)
@@ -52,29 +53,29 @@ def _configure_nginx(deployer, config: Config, debug: bool = False):
 
     deployer.put_template(
         "nginx/nginx.conf.j2",
-        "/etc/nginx/nginx.conf",
+        CONFIG_FILES["nginx_conf"],
         config=config,
         disable_ipv6=config.disable_ipv6,
     )
 
     deployer.put_template(
         "nginx/autoconfig.xml.j2",
-        "/var/www/html/.well-known/autoconfig/mail/config-v1.1.xml",
+        WEB_PATHS["autoconfig"],
         config=config,
     )
 
     deployer.put_template(
         "nginx/mta-sts.txt.j2",
-        "/var/www/html/.well-known/mta-sts.txt",
+        WEB_PATHS["mta_sts"],
         config=config,
     )
 
     # install CGI newemail script
     #
-    cgi_dir = "/usr/lib/cgi-bin"
+    cgi_dir = WEB_PATHS["newemail_cgi"].rsplit("/", 1)[0]
     deployer.ensure_directory(cgi_dir)
 
     deployer.put_executable(
         src=get_resource("newemail.py", pkg="chatmaild").open("rb"),
-        dest=f"{cgi_dir}/newemail.py",
+        dest=WEB_PATHS["newemail_cgi"],
     )

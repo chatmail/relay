@@ -4,6 +4,17 @@ from pathlib import Path
 from chatmaild.config import read_config
 from pyinfra.operations import apt, files, server
 
+from cmdeploy.constants import (
+    ACME_PATHS,
+    BINARY_PATHS,
+    CHATMAILD_PATHS,
+    CONFIG_DIRS,
+    CONFIG_FILES,
+    STATE_DIRS,
+    TLS_PATHS,
+    WEB_PATHS,
+)
+
 CHATMAIL_UNITS = [
     "doveauth.service",
     "lastlogin.service",
@@ -63,66 +74,66 @@ PACKAGE_NAMES = [
 ]
 
 RELAY_FILES = [
-    "/etc/apt/apt.conf.d/00InstallRecommends",
-    "/etc/apt/keyrings/obs-home-deltachat.gpg",
-    "/etc/apt/preferences.d/pin-dovecot",
-    "/etc/chatmail-nocreate",
-    "/etc/chatmail-version",
-    "/etc/cron.d/acmetool",
-    "/etc/cron.d/chatmail-metrics",
-    "/etc/cron.d/expunge",
-    "/etc/dovecot/auth.conf",
-    "/etc/dovecot/dovecot.conf",
-    "/etc/dovecot/push_notification.lua",
-    "/etc/iroh-relay.toml",
-    "/etc/mailname",
-    "/etc/mta-sts-daemon.yml",
-    "/etc/mtail/delivered_mail.mtail",
-    "/etc/nginx/nginx.conf",
-    "/etc/opendkim.conf",
-    "/etc/postfix/lmtp_header_cleanup",
-    "/etc/postfix/login_map",
-    "/etc/postfix/main.cf",
-    "/etc/postfix/master.cf",
-    "/etc/postfix/smtp_tls_policy_map",
-    "/etc/postfix/smtp_tls_policy_map.db",
-    "/etc/postfix/submission_header_cleanup",
-    "/etc/systemd/journald.conf",
-    "/etc/systemd/system/mta-sts-daemon.service",
-    "/etc/systemd/system/dovecot.service.d/10_restart.conf",
-    "/etc/systemd/system/opendkim.service.d/10-prevent-memory-leak.conf",
-    "/etc/systemd/system/postfix@.service.d/10_restart.conf",
-    "/etc/unbound/unbound.conf.d/chatmail.conf",
-    "/usr/lib/cgi-bin/newemail.py",
-    "/usr/local/bin/chatmail-turn",
-    "/usr/local/bin/filtermail",
-    "/usr/local/bin/iroh-relay",
-    "/usr/local/bin/mtail",
-    "/usr/sbin/policy-rc.d",
-    "/var/www/html/metrics",
+    CONFIG_FILES["apt_install_recommends"],
+    CONFIG_FILES["apt_obs_keyring"],
+    CONFIG_FILES["apt_pin_dovecot"],
+    CONFIG_FILES["chatmail_nocreate"],
+    CONFIG_FILES["chatmail_version"],
+    CONFIG_FILES["cron_acmetool"],
+    CONFIG_FILES["cron_chatmail_metrics"],
+    CONFIG_FILES["cron_expunge"],
+    CONFIG_FILES["dovecot_auth"],
+    CONFIG_FILES["dovecot_conf"],
+    CONFIG_FILES["dovecot_push_notification"],
+    CONFIG_FILES["iroh_relay"],
+    CONFIG_FILES["journald"],
+    CONFIG_FILES["mailname"],
+    CONFIG_FILES["mtail_program"],
+    CONFIG_FILES["mtasts_daemon"],
+    CONFIG_FILES["nginx_conf"],
+    CONFIG_FILES["opendkim_conf"],
+    CONFIG_FILES["policy_rc_d"],
+    CONFIG_FILES["postfix_lmtp_header_cleanup"],
+    CONFIG_FILES["postfix_login_map"],
+    CONFIG_FILES["postfix_main"],
+    CONFIG_FILES["postfix_master"],
+    CONFIG_FILES["postfix_smtp_tls_policy_map"],
+    CONFIG_FILES["postfix_smtp_tls_policy_map_db"],
+    CONFIG_FILES["postfix_submission_header_cleanup"],
+    CONFIG_FILES["systemd_dovecot_restart"],
+    CONFIG_FILES["systemd_mtasts_daemon"],
+    CONFIG_FILES["systemd_opendkim_restart"],
+    CONFIG_FILES["systemd_postfix_restart"],
+    CONFIG_FILES["unbound_chatmail"],
+    WEB_PATHS["metrics"],
+    WEB_PATHS["newemail_cgi"],
+    BINARY_PATHS["chatmail_turn"],
+    BINARY_PATHS["filtermail"],
+    BINARY_PATHS["iroh_relay"],
+    BINARY_PATHS["mtail"],
 ]
 
 PACKAGE_CONFIG_DIRS = [
-    "/etc/dkimkeys",
-    "/etc/dovecot",
-    "/etc/nginx",
-    "/etc/opendkim",
-    "/etc/postfix",
-    "/etc/unbound",
+    CONFIG_DIRS["dkimkeys"],
+    CONFIG_DIRS["dovecot"],
+    CONFIG_DIRS["nginx"],
+    CONFIG_DIRS["opendkim"],
+    CONFIG_DIRS["postfix"],
+    CONFIG_DIRS["unbound"],
 ]
 
 RELAY_DIRS = [
-    "/etc/mtail",
-    "/root/from-cmdeploy",
-    "/usr/local/lib/chatmaild",
-    "/usr/local/lib/postfix-mta-sts-resolver",
-    "/var/lib/dovecot",
-    "/var/lib/nginx",
-    "/var/lib/postfix",
-    "/var/lib/unbound",
-    "/var/log/nginx",
-    "/var/spool/postfix",
-    "/var/www/html",
+    CONFIG_DIRS["mtail"],
+    STATE_DIRS["from_cmdeploy"],
+    CHATMAILD_PATHS["base_dir"],
+    STATE_DIRS["postfix_mta_sts_resolver"],
+    STATE_DIRS["var_lib_dovecot"],
+    STATE_DIRS["var_lib_nginx"],
+    STATE_DIRS["var_lib_postfix"],
+    STATE_DIRS["var_lib_unbound"],
+    STATE_DIRS["var_log_nginx"],
+    STATE_DIRS["var_spool_postfix"],
+    WEB_PATHS["html_dir"],
 ]
 
 EMPTY_SYSTEMD_DIRS = [
@@ -220,11 +231,11 @@ def _remove_dynamic_state(config, keep_packages: bool):
         _remove_dir(str(home_vmail))
 
     if config.tls_cert_mode == "self":
-        _remove_file("/etc/ssl/certs/mailserver.pem")
-        _remove_file("/etc/ssl/private/mailserver.key")
+        _remove_file(TLS_PATHS["self_cert"])
+        _remove_file(TLS_PATHS["self_key"])
     elif config.tls_cert_mode == "acme":
-        _remove_dir("/etc/acme")
-        _remove_dir("/var/lib/acme")
+        _remove_dir(ACME_PATHS["etc_dir"])
+        _remove_dir(ACME_PATHS["var_dir"])
 
 
 def _restore_basic_resolver():
