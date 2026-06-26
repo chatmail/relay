@@ -1,3 +1,21 @@
+## 0.7.2 - 2026-06-26
+
+### Documentation
+
+- *(readme)* Disable colors in mermaid diagrams (#180)
+- *(readme)* Update Transport mode doc
+
+### Features
+
+- *(transport)* Destination worker pool
+
+### Refactor
+
+- Implement Display for AddressDomain
+
+### Testing
+
+- Test filtermail-transport
 ## 0.7.1 - 2026-06-09
 
 ### Bug Fixes
