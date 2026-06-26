@@ -100,10 +100,7 @@ where
             if let Some(w) = &worker
                 && w.handle.is_finished()
             {
-                log::error!(
-                    "Worker for destination {} crashed! Restarting...",
-                    destination.as_ref()
-                );
+                log::error!("Worker for destination {destination} crashed! Restarting...",);
                 worker = None;
                 {
                     let mut map = self.inner.write();
@@ -180,10 +177,7 @@ impl Worker {
             .map(|id| id.to_string())
             .unwrap_or("?".to_string());
 
-        log::info!(
-            "Starting worker {worker_id} for destination {}",
-            destination.as_ref()
-        );
+        log::info!("Starting worker {worker_id} for destination {destination}");
 
         let tls_resumption_store = Arc::new(rustls::client::ClientSessionMemoryCache::new(256));
         let https_client = HttpsClient::new(tls_resumption_store.clone())?;
@@ -206,8 +200,7 @@ impl Worker {
             .await;
             if message.response_tx.send(result).is_err() {
                 log::error!(
-                    "Worker {worker_id} ({}) failed to send response to transport handler.",
-                    destination.as_ref()
+                    "Worker {worker_id} ({destination}) failed to send response to transport handler."
                 );
             };
         }

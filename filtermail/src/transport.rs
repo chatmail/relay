@@ -68,10 +68,7 @@ where
             return Ok(());
         }
 
-        log::trace!(
-            "Trying to acquire a permit for {} worker...",
-            domain.as_ref()
-        );
+        log::trace!("Trying to acquire a permit for {domain} worker...",);
         if let Some(permit) = self.workers.get_permit(&domain) {
             transaction.state.permits.insert(domain, permit);
         }
