@@ -1,5 +1,6 @@
 use hickory_resolver::{TokioResolver, proto::dnssec::TrustAnchors};
 use mailparse::MailAddr;
+use std::fmt::{Display, Formatter};
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -88,6 +89,24 @@ impl AsRef<str> for AddressDomain {
     }
 }
 
+impl Display for AddressDomain {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AddressDomain::Literal(addr) => {
+                // naive check, but should be enough as long as `AddressDomain`
+                // is constructed using parse/from_str.
+                write!(f, "[")?;
+                if addr.contains(':') {
+                    write!(f, "IPv6:")?;
+                }
+                write!(f, "{addr}]")?;
+            }
+            AddressDomain::Name(domain) => write!(f, "{domain}")?,
+        };
+        Ok(())
+    }
+}
+
 /// Logs email to `/tmp/filtermail-rejected/<reason>/<timestamp>.eml`
 /// and returns the file path.
 ///
@@ -159,5 +178,21 @@ mod tests {
     fn test_get_domain_from_address(#[case] input: &str, #[case] expected: Option<AddressDomain>) {
         let result = AddressDomain::from_str(input).ok();
         assert_eq!(result, expected);
+    }
+
+    #[rstest]
+    #[case::domain(AddressDomain::Name("example.org".to_string()), "example.org")]
+    #[case::ipv4(AddressDomain::Literal("192.0.2.0".to_string()), "192.0.2.0")]
+    #[case::ipv6(AddressDomain::Literal("2001:db8::1".to_string()), "2001:db8::1")]
+    fn test_address_domain_as_ref(#[case] input: AddressDomain, #[case] expected: &str) {
+        assert_eq!(input.as_ref(), expected);
+    }
+
+    #[rstest]
+    #[case::domain(AddressDomain::Name("example.org".to_string()), "example.org")]
+    #[case::ipv4(AddressDomain::Literal("192.0.2.0".to_string()), "[192.0.2.0]")]
+    #[case::ipv6(AddressDomain::Literal("2001:db8::1".to_string()), "[IPv6:2001:db8::1]")]
+    fn test_address_domain_display(#[case] input: AddressDomain, #[case] expected: &str) {
+        assert_eq!(&format!("{input}"), expected);
     }
 }
