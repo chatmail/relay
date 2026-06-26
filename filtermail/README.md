@@ -110,9 +110,19 @@ As opposed to incoming/outgoing, it accepts connections from postfix over LMTP i
 to allow returning per-recipient status back to postfix.
 Received message is split per-domain and sent to recipients' MX servers over HTTP and SMTP,
 enforcing TLS.
+
 As opposed to postfix, IPv4 and IPv6 connections are tried in parallel and first successful connection is used.
 HTTP delivery channel is preferred,
 and SMTP is used only if HTTP delivery fails.
+
+Filtermail spawns a separate worker for each destination
+(distinguished by [domain][RFC5322_3_4_1] part of the recipient's [addr-spec][RFC5322_3_4_1],
+NOT the actual MX server).
+Only messages to the same destination are guaranteed to be sent in-order
+(if not deferred and sent over the same LMTP connection);
+messages to different destinations are NOT synchronized.
+
+[RFC5322_3_4_1]: https://datatracker.ietf.org/doc/html/rfc5322#section-3.4.1
 
 ## Configuration
 
