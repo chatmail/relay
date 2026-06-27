@@ -17,6 +17,7 @@ use tokio::sync::mpsc::OwnedPermit;
 use tokio::sync::{mpsc, oneshot};
 use tokio::task;
 use tokio::task::JoinHandle;
+use tokio::time::timeout;
 use tokio_rustls::rustls;
 
 #[cfg(not(test))]
@@ -35,16 +36,25 @@ const SMTP_SKIP_TLS: bool = true;
 /// all new messages will be immediately deferred.
 const PER_DESTINATION_QUEUE_SIZE: usize = 30;
 
+/// Max number of [`Worker`]s operating at the same time.
+const MAX_WORKERS: usize = 500;
+
+/// How long a worker can stay idle.
+///
+/// Exceeding this value will cause a worker shutdown.
+const WORKER_KEEPALIVE_DURATION: Duration = Duration::from_secs(60);
+
 type SMTPResponse = Result<String, String>;
 
 pub struct WorkerPool<S: TcpConnect> {
-    inner: RwLock<BTreeMap<AddressDomain, Arc<Worker>>>,
+    inner: Arc<RwLock<BTreeMap<AddressDomain, Arc<Worker>>>>,
     client_hostname: String,
     smtp_connection_pool: Arc<SmtpConnectionPool<S>>,
     mxdeliv_unsupported_hosts: Arc<retainer::Cache<String, ()>>,
     monitor_handle: JoinHandle<()>,
     dns_resolver: Arc<TokioResolver>,
     queue_size: usize,
+    capacity: usize,
 }
 
 impl<S> WorkerPool<S>
@@ -72,48 +82,61 @@ where
             mxdeliv_unsupported_hosts: mxdeliv_cache,
             monitor_handle,
             queue_size: PER_DESTINATION_QUEUE_SIZE,
+            capacity: MAX_WORKERS,
         })
     }
 
-    /// Same as [`Self::new`], but lets you set the size of the queue.
+    /// Same as [`Self::new`], but lets you set the size of the queue and pool capacity.
     ///
     /// Used only for tests.
     #[cfg(test)]
-    pub fn with_queue_size(config: Config, queue_size: usize) -> Result<Self, crate::error::Error> {
+    pub fn with_queue_size_and_pool_capacity(
+        config: Config,
+        queue_size: usize,
+        pool_capacity: usize,
+    ) -> Result<Self, crate::error::Error> {
         let mut this = Self::new(config)?;
         this.queue_size = queue_size;
+        this.capacity = pool_capacity;
         Ok(this)
     }
 
-    fn get_or_create_worker(&self, destination: &AddressDomain) -> Arc<Worker> {
+    /// Gets a worker for provided `destination`,
+    /// spawning a new one if required.
+    ///
+    /// Returns [`None`], if operation requires spawning a new worker,
+    /// but pool already operates at maximum worker capacity.
+    fn get_or_create_worker(&self, destination: &AddressDomain) -> Option<Arc<Worker>> {
         // NOTE: these locks are blocking, but critical section here is quite small and
         // shouldn't cause issues in async code.
         // NOTE: read() returns a guard that is dropped before the match statement.
         // This must be ensured or else, the write() line would cause a deadlock.
         let worker = {
-            let mut worker = {
-                let map = self.inner.read();
-                map.get(destination).cloned()
-            };
-            // Remove (and re-create) worker if it finished/crashed.
-            // In reality, this should never happen.
-            if let Some(w) = &worker
-                && w.handle.is_finished()
-            {
-                log::error!("Worker for destination {destination} crashed! Restarting...",);
-                worker = None;
-                {
-                    let mut map = self.inner.write();
-                    map.remove(destination);
-                }
-            };
-            worker
+            let map = self.inner.read();
+            map.get(destination).cloned()
         };
 
         match worker {
-            Some(worker) => worker,
+            Some(worker) => Some(worker),
             None => {
                 // Worker for this destination wasn't spawned yet.
+                let mut map = self.inner.write();
+
+                // we check if it wasn't spawned in the meantime first
+                if let Some(worker) = map.get(destination)
+                    && !worker.handle.is_finished()
+                {
+                    return Some(worker.clone());
+                }
+
+                if map.len() >= self.capacity {
+                    log::warn!(
+                        "Worker pool operating at maximum capacity! \
+                        Messages to new destinations will be deferred."
+                    );
+                    return None;
+                }
+
                 let (tx, rx) = mpsc::channel(self.queue_size);
                 let handle = tokio::spawn(Worker::run(
                     destination.clone(),
@@ -122,24 +145,47 @@ where
                     self.smtp_connection_pool.clone(),
                     self.mxdeliv_unsupported_hosts.clone(),
                     self.dns_resolver.clone(),
+                    self.inner.clone(),
                 ));
                 log::trace!("Worker {} spawned", handle.id());
                 let worker = Arc::new(Worker { tx, handle });
 
-                self.inner
-                    .write()
-                    .insert(destination.clone(), worker.clone());
-                worker
+                map.insert(destination.clone(), worker.clone());
+                Some(worker)
             }
         }
     }
 
     /// Tries to get an [`OwnedPermit`] to the worker for specified destination.
     ///
-    /// Returns [`None`] if the worker's queue is full.
+    /// Returns [`None`] if:
+    ///
+    /// - the worker's queue is full,
+    /// - operation requires spawning a new worker,
+    ///   but pool already operates at maximum worker capacity.
     pub fn get_permit(&self, destination: &AddressDomain) -> Option<OwnedPermit<WorkerMessage>> {
-        let worker = self.get_or_create_worker(destination);
-        worker.tx.clone().try_reserve_owned().ok()
+        if let Some(worker) = self.get_or_create_worker(destination) {
+            return worker.tx.clone().try_reserve_owned().ok();
+        }
+        None
+    }
+
+    /// Informs pool that a worker has exited unexpectedly.
+    ///
+    /// Such worker will be removed from the pool,
+    /// and re-created on the next [`Self::get_permit`] call.
+    pub fn cleanup(&self, destination: &AddressDomain) {
+        let mut map = self.inner.write();
+        // we first check in case other task already removed/re-created it
+        if let Some(worker) = map.get(destination)
+            && worker.handle.is_finished()
+        {
+            log::info!(
+                "Removing a dead worker {} for destination {destination}",
+                worker.handle.id()
+            );
+            map.remove(destination);
+        }
     }
 }
 
@@ -169,6 +215,7 @@ impl Worker {
         smtp_connection_pool: Arc<SmtpConnectionPool<S>>,
         mxdeliv_unsupported_hosts: Arc<retainer::Cache<String, ()>>,
         dns_resolver: Arc<TokioResolver>,
+        worker_pool: Arc<RwLock<BTreeMap<AddressDomain, Arc<Worker>>>>,
     ) -> Result<(), crate::error::Error>
     where
         S: TcpStreamTrait + TcpConnect,
@@ -182,7 +229,7 @@ impl Worker {
         let tls_resumption_store = Arc::new(rustls::client::ClientSessionMemoryCache::new(256));
         let https_client = HttpsClient::new(tls_resumption_store.clone())?;
 
-        while let Some(message) = rx.recv().await {
+        while let Ok(Some(message)) = timeout(WORKER_KEEPALIVE_DURATION, rx.recv()).await {
             log::trace!(
                 "Worker {worker_id} received a message from {}",
                 message.envelope.mail_from
@@ -204,6 +251,9 @@ impl Worker {
                 );
             };
         }
+
+        log::info!("Worker {worker_id} for domain {destination} shutting down...");
+        worker_pool.write().remove(&destination);
 
         Ok(())
     }

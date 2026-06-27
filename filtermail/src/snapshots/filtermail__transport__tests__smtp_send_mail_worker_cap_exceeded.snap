@@ -1,0 +1,51 @@
+---
+source: src/transport.rs
+expression: "format!(\"TRANSACTION 1\\r\\n\\\n            [postfix -> filtermail-transport]\\r\\n{record_postfix_1}\\r\\n\\\n            [filtermail-transport -> destination A]\\r\\n{record_filtermail_1}\\r\\n\\r\\n\\\n            TRANSACTION 2\\r\\n\\\n            [postfix -> filtermail-transport]\\r\\n{record_postfix_2}\")"
+---
+TRANSACTION 1
+[postfix -> filtermail-transport]
+< 220 filtermail SMTP
+> LHLO postfix
+< 250-filtermail
+250-8BITMIME
+250 OK
+> MAIL FROM:<sender@here>
+< 250 OK
+> RCPT TO:<a1@localhost>
+< 250 OK
+> DATA
+< 354 End data with <CR><LF>.<CR><LF>
+> message
+> .
+< 250 OK (SMTP)
+
+[filtermail-transport -> destination A]
+< 220 filtermail SMTP
+> EHLO example.org
+< 250-filtermail
+250-8BITMIME
+250 OK
+> MAIL FROM:<sender@here>
+< 250 OK
+> RCPT TO:<a1@localhost>
+< 250 OK
+> DATA
+< 354 End data with <CR><LF>.<CR><LF>
+> message
+.
+< 250 OK
+
+
+TRANSACTION 2
+[postfix -> filtermail-transport]
+< 220 filtermail SMTP
+> LHLO postfix
+< 250-filtermail
+250-8BITMIME
+250 OK
+> MAIL FROM:<sender@here>
+< 250 OK
+> RCPT TO:<b1@[127.0.0.1]>
+< 250 OK
+> DATA
+< 421 Transport busy

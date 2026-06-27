@@ -20,7 +20,7 @@ TRANSACTION 1
 > message
 > .
 < 250 OK (SMTP)
-421 Worker for this destination is busy
+421 Transport busy
 
 [filtermail-transport -> destination A]
 < 220 filtermail SMTP
