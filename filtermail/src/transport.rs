@@ -2,7 +2,7 @@ mod https_client;
 mod worker;
 
 use crate::config::Config;
-use crate::smtp_responses::{LOCAL_ERROR_451, WORKER_BUSY_421};
+use crate::smtp_responses::{LOCAL_ERROR_451, TRANSPORT_BUSY_421};
 use crate::smtp_server::{SmtpHandler, Transaction};
 use crate::tcp::{TcpConnect, TcpStreamTrait};
 use crate::utils::AddressDomain;
@@ -32,12 +32,17 @@ where
         Ok(Self { workers })
     }
 
-    /// Same as [`Self::new`], but lets you set worker queue size.
+    /// Same as [`Self::new`], but lets you set worker queue size and pool capacity.
     ///
     /// Only used for tests.
     #[cfg(test)]
-    pub fn with_queue_size(config: Config, queue_size: usize) -> Result<Self, crate::error::Error> {
-        let workers = WorkerPool::with_queue_size(config, queue_size)?;
+    pub fn with_queue_size_and_pool_capacity(
+        config: Config,
+        queue_size: usize,
+        pool_capacity: usize,
+    ) -> Result<Self, crate::error::Error> {
+        let workers =
+            WorkerPool::with_queue_size_and_pool_capacity(config, queue_size, pool_capacity)?;
 
         Ok(Self { workers })
     }
@@ -94,7 +99,7 @@ where
         // deferred mails to be constantly retried.
 
         if transaction.state.permits.is_empty() {
-            return Err(WORKER_BUSY_421.to_string());
+            return Err(TRANSPORT_BUSY_421.to_string());
         }
 
         Ok(())
@@ -133,11 +138,10 @@ where
                 if let Some(permit) = transaction.state.permits.remove(rcpt_domain) {
                     let (message, receiver) = WorkerMessage::new(domain_envelope);
                     permit.send(message);
-                    // todo: receiver timeout?
                     transactions.spawn(receiver).id()
                 } else {
                     transactions
-                        .spawn(async move { Ok(Err(WORKER_BUSY_421.to_string())) })
+                        .spawn(async move { Ok(Err(TRANSPORT_BUSY_421.to_string())) })
                         .id()
                 };
             task_id_domain_map.insert(receiver_task_id, rcpt_domain);
@@ -152,11 +156,14 @@ where
 
             let smtp_response = match result {
                 Ok((_, Ok(Ok(resp)))) | Ok((_, Ok(Err(resp)))) => resp,
-                Ok((_, Err(e))) => {
+                Ok((_, Err(_))) => {
                     log::error!(
-                        "Worker task failed while delivering to {}: {e}",
+                        "Delivery to {} failed due to a dead worker!",
                         domain.map(AsRef::as_ref).unwrap_or("<unknown>")
                     );
+                    if let Some(domain) = domain {
+                        self.workers.cleanup(domain);
+                    }
                     LOCAL_ERROR_451.to_string()
                 }
                 Err(e) => {
@@ -243,9 +250,16 @@ mod tests {
     /// Spawns filtermail-transport.
     ///
     /// Returns a pointer to the underlying handler.
-    fn spawn_filtermail_transport() -> TestResult<Arc<TransportHandler<TcpStream>>> {
+    fn spawn_filtermail_transport(
+        queue_size: usize,
+        pool_capacity: usize,
+    ) -> TestResult<Arc<TransportHandler<TcpStream>>> {
         let config = Config::default();
-        let transport = Arc::new(TransportHandler::with_queue_size(config.clone(), 1)?);
+        let transport = Arc::new(TransportHandler::with_queue_size_and_pool_capacity(
+            config.clone(),
+            queue_size,
+            pool_capacity,
+        )?);
         tokio::spawn(run_smtp_server(
             &FILTERMAIL_ADDR,
             transport.clone(),
@@ -302,8 +316,11 @@ mod tests {
     #[rstest]
     #[tokio::test]
     async fn test_rcpt_to_and_start_data(addrs1: Vec<String>, addrs2: Vec<String>) -> TestResult {
-        let transport_handler =
-            TransportHandler::<TcpStream>::with_queue_size(Config::default(), 1)?;
+        let transport_handler = TransportHandler::<TcpStream>::with_queue_size_and_pool_capacity(
+            Config::default(),
+            1,
+            500,
+        )?;
         let domain1 = AddressDomain::from_str(addrs1.first().unwrap())?;
         let domain2 = AddressDomain::from_str(addrs2.first().unwrap())?;
 
@@ -358,7 +375,7 @@ mod tests {
     #[tokio::test]
     async fn test_smtp_send_mail() -> TestResult {
         let mut remote_mta = spawn_mock_mta()?;
-        spawn_filtermail_transport()?;
+        spawn_filtermail_transport(1, 2)?;
 
         let envelope = Envelope {
             mail_from: "sender@here".to_string(),
@@ -398,7 +415,7 @@ mod tests {
     #[tokio::test]
     async fn test_smtp_send_mail_defer() -> TestResult {
         let mut remote_mta = spawn_mock_mta()?;
-        let transport = spawn_filtermail_transport()?;
+        let transport = spawn_filtermail_transport(1, 500)?;
 
         let mut envelope = Envelope {
             mail_from: "sender@here".to_string(),
@@ -434,6 +451,50 @@ mod tests {
             TRANSACTION 2\r\n\
             [postfix -> filtermail-transport]\r\n{record_postfix_2}\r\n\
             [filtermail-transport -> destination B]\r\n{record_filtermail_2}",
+        ));
+
+        Ok(())
+    }
+
+    #[rstest]
+    #[serial]
+    #[tokio::test]
+    async fn test_smtp_send_mail_worker_cap_exceeded() -> TestResult {
+        let mut remote_mta = spawn_mock_mta()?;
+        spawn_filtermail_transport(30, 1)?;
+
+        let envelope_1 = Envelope {
+            mail_from: "sender@here".to_string(),
+            rcpt_to: vec!["a1@localhost".to_string()],
+            data: "message\r\n".as_bytes().to_vec(),
+        };
+
+        let envelope_2 = Envelope {
+            mail_from: "sender@here".to_string(),
+            rcpt_to: vec!["b1@[127.0.0.1]".to_string()],
+            data: "message\r\n".as_bytes().to_vec(),
+        };
+
+        // 1
+        let (record_postfix_1, record_filtermail_1) = {
+            let record_postfix = lmtp_send(&envelope_1).await?;
+            let record_filtermail = remote_mta.recv().await.unwrap();
+            tokio::time::sleep(Duration::from_secs(1)).await;
+            assert!(remote_mta.is_empty());
+            (record_postfix, record_filtermail)
+        };
+
+        // 2
+        let record_postfix_2 = lmtp_send(&envelope_2).await?;
+        tokio::time::sleep(Duration::from_secs(1)).await;
+        assert!(remote_mta.is_empty());
+
+        insta::assert_snapshot!(format!(
+            "TRANSACTION 1\r\n\
+            [postfix -> filtermail-transport]\r\n{record_postfix_1}\r\n\
+            [filtermail-transport -> destination A]\r\n{record_filtermail_1}\r\n\r\n\
+            TRANSACTION 2\r\n\
+            [postfix -> filtermail-transport]\r\n{record_postfix_2}"
         ));
 
         Ok(())
