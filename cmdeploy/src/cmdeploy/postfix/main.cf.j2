@@ -85,6 +85,14 @@ inet_protocols = all
 
 lmtp_header_checks = regexp:/etc/postfix/lmtp_header_cleanup
 
+# Do not apply header checks to MIME headers
+# and other headers that are actually part of the message body.
+# Reference:
+# <https://www.postfix.org/postconf.5.html#disable_mime_input_processing>
+# <https://www.postfix.org/header_checks.5.html>
+# <https://stump.io/blog/2020/11/29/a-little-gotcha-with-postfixs-header_checks/>
+disable_mime_input_processing = yes
+
 mua_client_restrictions = permit_sasl_authenticated, reject
 mua_sender_restrictions = reject_sender_login_mismatch, permit_sasl_authenticated, reject
 mua_helo_restrictions = permit_mynetworks, reject_invalid_helo_hostname, reject_non_fqdn_helo_hostname, permit
