@@ -136,15 +136,16 @@ where
             return self.verify_origin(&transaction.envelope, &from_addr).await;
         }
 
-        log::info!("Incoming: Filtering unencrypted mail.");
-
         // Allow cleartext mailer-daemon messages
         if let Some(auto_submitted) = message.headers.get_first_value("Auto-Submitted")
             && !auto_submitted.is_empty()
             && from_addr.to_lowercase().starts_with("mailer-daemon@")
             && message.ctype.mimetype == "multipart/report"
         {
+            log::info!("Incoming: Filtering mailer-daemon message from <{from_addr}>");
             return self.verify_origin(&transaction.envelope, &from_addr).await;
+        } else {
+            log::info!("Incoming: Filtering unencrypted mail.");
         }
 
         for recipient in &transaction.envelope.rcpt_to {
