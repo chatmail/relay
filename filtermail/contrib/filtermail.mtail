@@ -30,7 +30,7 @@ counter filtermail_smtp_error_total by reason
 # filtermail::transport
 #
 
-/filtermail\[\d+\]: \[WARN\s+filtermail::transport\] Connection error relaying to mail server \S+: / {
+/filtermail\[\d+\]: \[WARN\s+filtermail::transport::worker\] Connection error relaying to mail server \S+: / {
     /timed out/ {
         filtermail_transport_error_total["connection_timeout"]++
     } otherwise {
@@ -52,7 +52,7 @@ counter filtermail_smtp_error_total by reason
         filtermail_transport_error_total["other"]++
     }}}}}}}
 
-/filtermail\[\d+\]: \[WARN\s+filtermail::transport\] Unexpected error while delivering/ {
+/filtermail\[\d+\]: \[WARN\s+filtermail::transport::worker\] Unexpected error while delivering/ {
     filtermail_transport_unexpected_total++
 }
 
