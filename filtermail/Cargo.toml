@@ -1,6 +1,6 @@
 [package]
 name = "filtermail"
-version = "0.7.3"
+version = "0.7.4"
 edition = "2024"
 license = "MIT"
 readme = "README.md"

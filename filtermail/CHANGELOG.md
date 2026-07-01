@@ -1,3 +1,16 @@
+## 0.7.4 - 2026-07-01
+
+### Features
+
+- *(logs)* Log incoming mailer-daemon message sources (#191)
+
+### Miscellaneous Tasks
+
+- Update filtermail.mtail (#190)
+
+### Testing
+
+- Place #[tokio::test] after rstest case macros (#192)
 ## 0.7.3 - 2026-06-27
 
 ### Features
