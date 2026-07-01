@@ -271,18 +271,20 @@ mod tests {
     use rstest::rstest;
 
     #[rstest]
-    #[tokio::test]
     #[case::simple_simple_canonicalization(
         r#"v=DKIM1;k=rsa;p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA5krC4Xi5Wkr6eMlla38LCFmV645E3FLAgsRl2YJ0SrZ4N2Vw1/yH0mefvtk7HYE7ytV7RQl/er2CkSsaHLJSYLmPCBw5CO6PSsBSXuh6DBqdylh/1t9vVQ9p38fTwn9gU1QvplcpRQL9eepRra1k24VMIaVy2ZZcu3LI9zkPsR7o7TyNaeMhsL8ouWInWc1NSid+p0SgliQuwHIejZhlTPE60JLbJE0OR9I4wmq3377H6z/QrO8XeabCgtmTuzE/hTRyIyNS40jql/99pjlhIcjM2U+P2B0FjwYt7BwLHsgANr74ctlnKY+SdH25rNwVpPmkotaULG5SJCByKBkfCwIDAQAB;s=email;t=s"#,
-        include_bytes!("../test_data/dkim-abjadiyah.eml")
+        include_bytes!("../test_data/dkim-abjadiyah.eml"),
+        "abjadiyah.xyz"
     )]
     #[case::txt_escaped_quotes(
         r#"v=DKIM1;k=rsa;p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAu1giTh8KDkEchWhrAB6hGnb+V87kTezkt5I3SP7BGNg8wpv0yAuj/SUmnsttYmcEU+zmNAPqxePmCNvmjLYi/c3YyWEBwHcLyZE9OlS9W4enPdsoCuEN3DayzN4JCV3MsXMedCORvLFXmIARDXDLJUSJeqCeQoudXa9GmF1CrCmx70YyTtV0xOIxEzo7z0DkUL9" "7vGmNJCv6EMpi9wccMKKu8NSmOv+DBw1MLIJqChSZMCs8CYZ5i0KT/+Lijtn6B7wyOcAuQsVL+zr7DWYrFdrePe0wGuivfJ3SvUEfUo1SIykl0nvm0iLGhjNmNa1e/tUw4ULXhQ12Qw685+sq7wIDAQAB;s=email;t=s"#,
-        include_bytes!("../test_data/dkim-privitty.eml")
+        include_bytes!("../test_data/dkim-privitty.eml"),
+        "chat.privittytech.com"
     )]
-    async fn test_dkim_verifier(#[case] txt: &str, #[case] message: &[u8]) {
+    #[tokio::test]
+    async fn test_dkim_verifier(#[case] txt: &str, #[case] message: &[u8], #[case] domain: &str) {
         let verifier = DkimVerifier::mock(txt.to_string());
-        verifier.verify(message, "abjadiyah.xyz").await.unwrap();
+        verifier.verify(message, domain).await.unwrap();
     }
 
     #[rstest]
