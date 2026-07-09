@@ -300,8 +300,10 @@ where
 
     macro_rules! smtp_write {
         ($command: expr) => {
-            log::trace!("Sending: {}", String::from_utf8_lossy($command));
-            buf_stream.write_all($command).await?;
+            let command = $command;
+            let bytes: &[u8] = command.as_ref();
+            log::trace!("Sending: {}", String::from_utf8_lossy(bytes));
+            buf_stream.write_all(bytes).await?;
             buf_stream.flush().await?;
         };
     }
@@ -375,7 +377,7 @@ where
         smtp_read!("initial greeting", "220")?;
 
         smtp_cmd!(
-            format!("{greeting} {}\r\n", { config.client_hostname }).as_bytes(),
+            format!("{greeting} {}\r\n", { config.client_hostname }),
             greeting,
             "250"
         )?;
@@ -421,7 +423,7 @@ where
             buf_stream = BufStream::new(smtp_stream);
 
             smtp_cmd!(
-                format!("EHLO {}\r\n", config.client_hostname).as_bytes(),
+                format!("EHLO {}\r\n", config.client_hostname),
                 "EHLO after STARTTLS",
                 "250"
             )?;
@@ -429,14 +431,14 @@ where
     }
 
     // MAIL FROM
-    smtp_write!(format!("MAIL FROM:<{}>\r\n", envelope.mail_from).as_bytes());
+    smtp_write!(format!("MAIL FROM:<{}>\r\n", envelope.mail_from));
     if !pipelining {
         smtp_read!("MAIL FROM", "250")?;
     }
 
     // RCPT TO
     for rcpt in &envelope.rcpt_to {
-        smtp_write!(format!("RCPT TO:<{}>\r\n", rcpt).as_bytes());
+        smtp_write!(format!("RCPT TO:<{}>\r\n", rcpt));
         if !pipelining {
             smtp_read!("RCPT TO", "250")?;
         }
