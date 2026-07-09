@@ -73,6 +73,11 @@ counter incoming_unencrypted_mail_count
   filtered_incoming_mail_count++
 }
 
+counter incoming_mailer_daemon_mail_count
+/Incoming: Filtering mailer-daemon message from/ {
+  incoming_mailer_daemon_mail_count++
+  filtered_incoming_mail_count++
+}
 
 counter rejected_unencrypted_mail_count
 /Rejected unencrypted mail/ {
