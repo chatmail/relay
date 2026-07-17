@@ -20,6 +20,10 @@ def make_config(tmp_path):
         basedir.mkdir(parents=True, exist_ok=True)
         overrides = settings.copy() if settings else {}
         overrides["mailboxes_dir"] = str(basedir)
+        # permissive resource limits so tests never depend on host load/memory/disk
+        overrides.setdefault("max_load_1m", "99999")
+        overrides.setdefault("min_available_memory", "0")
+        overrides.setdefault("min_free_disk_space", "0")
         write_initial_config(inipath, mail_domain, overrides=overrides)
         return read_config(inipath)
 

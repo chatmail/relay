@@ -18,7 +18,7 @@ smtp      inet  n       -       y       -       -       smtpd
   -o smtpd_tls_mandatory_protocols=>=TLSv1.2
   -o smtpd_proxy_filter=127.0.0.1:{{ config.filtermail_smtp_port_incoming }}
   -o smtpd_relay_restrictions=reject_unauth_destination
-submission inet n       -       y       -       5000    smtpd
+submission inet n       -       y       -       {{ config.max_smtp_connections }}    smtpd
   -o syslog_name=postfix/submission
   -o smtpd_tls_security_level=encrypt
   -o smtpd_tls_mandatory_protocols=>=TLSv1.3
@@ -32,9 +32,9 @@ submission inet n       -       y       -       5000    smtpd
   -o smtpd_sender_restrictions=$mua_sender_restrictions
   -o smtpd_recipient_restrictions=
   -o smtpd_relay_restrictions=permit_sasl_authenticated,reject
-  -o smtpd_client_connection_count_limit=1000
+  -o smtpd_client_connection_count_limit={{ config.max_smtp_connections // 5 }}
   -o smtpd_proxy_filter=127.0.0.1:{{ config.filtermail_smtp_port }}
-smtps     inet  n       -       y       -       5000    smtpd
+smtps     inet  n       -       y       -       {{ config.max_smtp_connections }}    smtpd
   -o syslog_name=postfix/smtps
   -o smtpd_tls_wrappermode=yes
   -o smtpd_tls_security_level=encrypt
@@ -48,7 +48,7 @@ smtps     inet  n       -       y       -       5000    smtpd
   -o smtpd_sender_restrictions=$mua_sender_restrictions
   -o smtpd_recipient_restrictions=
   -o smtpd_relay_restrictions=permit_sasl_authenticated,reject
-  -o smtpd_client_connection_count_limit=1000
+  -o smtpd_client_connection_count_limit={{ config.max_smtp_connections // 5 }}
   -o smtpd_proxy_filter=127.0.0.1:{{ config.filtermail_smtp_port }}
 #628       inet  n       -       y       -       -       qmqpd
 pickup    unix  n       -       y       60      1       pickup

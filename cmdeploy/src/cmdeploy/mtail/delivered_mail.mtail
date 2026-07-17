@@ -28,6 +28,13 @@ counter created_nonci_accounts
   }
 }
 
+# doveauth refusing new addresses because a chatmail.ini
+# system resource limit is exceeded.
+counter rejected_registrations
+/registration rejected: / {
+  rejected_registrations++
+}
+
 counter postfix_timeouts
 /timeout after DATA/ {
   postfix_timeouts++

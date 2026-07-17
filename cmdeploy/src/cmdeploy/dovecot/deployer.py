@@ -34,7 +34,7 @@ class DovecotDeployer(Deployer):
     def __init__(self, config, disable_mail):
         self.config = config
         self.disable_mail = disable_mail
-        self.units = ["doveauth"]
+        self.units = []
 
     def install(self):
         arch = host.get_fact(Arch)

@@ -202,3 +202,17 @@ def test_50_concurrent_lookups_different_accounts(gencreds, dictproxy):
         res = results.get()
         if res is not None:
             pytest.fail(f"concurrent lookup failed\n{res}")
+
+
+def test_insufficient_resources_block_creation_not_existing_logins(
+    dictproxy, gencreds, monkeypatch
+):
+    addr, password = gencreds()
+    assert dictproxy.lookup_passdb(addr, password)
+
+    monkeypatch.setattr(
+        chatmaild.doveauth, "has_sufficient_resources", lambda config: False
+    )
+    newaddr, newpassword = gencreds()
+    assert not dictproxy.lookup_passdb(newaddr, newpassword)
+    assert dictproxy.lookup_passdb(addr, password)

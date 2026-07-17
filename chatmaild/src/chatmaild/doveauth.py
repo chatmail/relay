@@ -14,6 +14,7 @@ except ImportError:
 from .config import Config, read_config
 from .dictproxy import DictProxy
 from .migrate_db import migrate_from_db_to_maildir
+from .syslimits import has_sufficient_resources
 
 NOCREATE_FILE = "/etc/chatmail-nocreate"
 VALID_LOCALPART_RE = re.compile(r"^[a-z0-9._-]+$")
@@ -146,6 +147,8 @@ class AuthDictProxy(DictProxy):
         if userdata:
             return userdata
         if not is_allowed_to_create(self.config, addr, cleartext_password):
+            return
+        if not has_sufficient_resources(self.config):
             return
 
         lock = filelock.FileLock(str(user.password_path) + ".lock", timeout=5)

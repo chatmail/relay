@@ -42,6 +42,33 @@ mail_domain = {mail_domain}
 # minimum length a password must have
 #password_min_length = 9
 
+#
+# System resource limits
+#
+
+# The following three limits refuse creation of new addresses
+# while existing addresses keep working.
+# Rejections are logged by the doveauth service.
+
+# Maximum 1-minute load average, as reported by "uptime";
+# it counts processes waiting for disk I/O as well as for CPU.
+#max_load_1m = 5
+
+# Minimum memory available without swapping.
+#min_available_memory = 200M
+
+# Minimum free disk space on the file system holding the mailboxes.
+#min_free_disk_space = 1G
+
+# Maximum number of concurrent IMAP connections
+# (the Dovecot imap process limit).
+#max_imap_connections = 10000
+
+# Maximum number of concurrent SMTP connections
+# on each of the submission and smtps ports (the Postfix process limit).
+# A single client IP may use up to a fifth of this.
+#max_smtp_connections = 1000
+
 # Use externally managed TLS certificates instead of built-in acmetool.
 # Paths refer to files on the deployment server (not the build machine).
 # Both files must already exist before running cmdeploy.

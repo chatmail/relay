@@ -37,7 +37,7 @@ default_client_limit = 20000
 # the following warning will be logged:
 #   Warning: service(imap): process_limit (1024) reached, client connections are being dropped
 service imap {
-  process_limit = 50000
+  process_limit = {{ config.max_imap_connections }}
 }
 
 {% if config.privacy_mail %}

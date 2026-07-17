@@ -356,6 +356,8 @@ class ChatmailVenvDeployer(Deployer):
     def __init__(self, config):
         self.config = config
         self.units = (
+            # doveauth must restart when chatmaild/ini file changes
+            "doveauth",
             "chatmail-metadata",
             "lastlogin",
             "chatmail-expire",

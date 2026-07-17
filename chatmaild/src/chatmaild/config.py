@@ -75,6 +75,16 @@ class Config:
         self.privacy_pdo = params.pop("privacy_pdo", None)
         self.privacy_supervisor = params.pop("privacy_supervisor", None)
 
+        self.max_load_1m = float(params.pop("max_load_1m", 5))
+        self.min_available_memory_mb = parse_size_mb(
+            params.pop("min_available_memory", "200M")
+        )
+        self.min_free_disk_space_mb = parse_size_mb(
+            params.pop("min_free_disk_space", "1G")
+        )
+        self.max_imap_connections = int(params.pop("max_imap_connections", 10000))
+        self.max_smtp_connections = int(params.pop("max_smtp_connections", 1000))
+
         # TLS certificate management.
         # If tls_external_cert_and_key is set, use externally managed certs.
         # Otherwise derived from the domain name:
