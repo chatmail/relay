@@ -147,7 +147,7 @@ def write_initial_config(inipath, mail_domain, overrides):
     content = get_default_config_content(mail_domain, **overrides).splitlines()
     used_ports = [25, 53, 80, 143, 402, 443, 465, 587, 993, 3340, 3903, 3904, 8443, 10080, 10081, 10082, 10083, 10025, 10026]
     for config_key in ["smtp_port", "imap_port", "smtps_port", "imaps_port"]:
-        value = randint(1, 65536)
+        value = randint(1024, 65536)
         while value in used_ports:
             value = randint(65535)
         used_ports.append(value)
