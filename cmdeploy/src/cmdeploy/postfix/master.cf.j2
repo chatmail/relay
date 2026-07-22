@@ -76,7 +76,6 @@ lmtp      unix  -       -       y       -       -       lmtp
 anvil     unix  -       -       y       -       1       anvil
 scache    unix  -       -       y       -       1       scache
 postlog   unix-dgram n  -       n       -       1       postlogd
-filter    unix -        n       n       -       -       lmtp
 # Local SMTP server for reinjecting outgoing filtered mail.
 127.0.0.1:{{ config.postfix_reinject_port }} inet  n       -       n       -       100      smtpd
   -o syslog_name=postfix/reinject
