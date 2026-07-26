@@ -1,0 +1,47 @@
+DKIM-Signature: v=1; a=rsa-sha256; c=simple/simple; d=abjadiyah.xyz;
+	s=default; t=1771356412;
+	bh=EVfAHeUMDygbJe0SkMWJHjgXGjtiTLZnMQbyWqzsrCY=;
+	h=From:To:Subject:Date:From;
+	b=3GHd4aCp7sjNR7RfHzLUUQ0PLk4FM8WLlOO5d8BXvpa6oCjERP0vsP545EDo4lBFC
+	 xg9dlSrhIwEWsrJDXSFStA7VU1WmWBVTzKoN8bZk5w/2HJf7BcB1BG2SQ0tyu2iEtl
+	 sv21HCXLw1IAMd2IiZNPQRlk0PgrKDqFmgULbktIWkc917GNAWhJaVCQhk+YF6cfql
+	 AKP3i8NPK53JY6vsMBO3YuYb/DcRGyvhUUJGofgG2+NwESA20ayI85EPiUzbzGpx0z
+	 r5IsLwiMApO5W0svfzgU52VhtkAqVyi38ZvjYsCJlKXB885SRsHsojCCSIznvFSmNw
+	 pWF4qKBvNrQpQ==
+From: <deltatest@abjadiyah.xyz>
+To: "hidden-recipients": ;
+Subject: [...]
+Date: Sat, 14 Feb 2026 21:13:38 +0000
+X-Last-TLS-Session-Version: TLSv1.3
+X-Spamd-Result: default: False [5.18 / 15.00];
+	MISSING_MID(2.50)[];
+	FORGED_RECIPIENTS(2.00)[m:,s:link2xt@testrun.org];
+	DATE_IN_PAST(1.00)[70];
+	DMARC_POLICY_ALLOW(-0.50)[abjadiyah.xyz,reject];
+	R_MISSING_CHARSET(0.50)[];
+	R_DKIM_ALLOW(-0.20)[abjadiyah.xyz:s=default];
+	R_SPF_ALLOW(-0.20)[+mx];
+	MIME_GOOD(-0.10)[text/plain];
+	FISHY_TLD(0.10)[abjadiyah.xyz];
+	ONCE_RECEIVED(0.10)[];
+	IP_REPUTATION_HAM(-0.01)[asn: 29670(0.00), country: DE(-0.01), ip: 2001:67c:1400:21d0::(0.00)];
+	MX_GOOD(-0.01)[];
+	MISSING_XM_UA(0.00)[];
+	RCPT_COUNT_ONE(0.00)[1];
+	BCC(0.00)[];
+	ARC_NA(0.00)[];
+	MIME_TRACE(0.00)[0:+];
+	DWL_DNSWL_BLOCKED(0.00)[abjadiyah.xyz:dkim];
+	DKIM_TRACE(0.00)[abjadiyah.xyz:+];
+	RCPT_MAILCOW_DOMAIN(0.00)[testrun.org];
+	SINGLE_SHORT_PART(0.00)[];
+	ARC_SIGNED(0.00)[testrun.org:s=dkim:i=1];
+	RCVD_COUNT_ZERO(0.00)[0];
+	TO_DN_ALL(0.00)[];
+	ASN(0.00)[asn:29670, ipnet:2001:67c:1400::/45, country:DE];
+	FROM_NO_DN(0.00)[];
+	FROM_EQ_ENVFROM(0.00)[]
+X-Rspamd-Queue-Id: E471A4105C
+
+Hello!
+
