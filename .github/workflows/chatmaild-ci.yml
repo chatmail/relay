@@ -1,0 +1,43 @@
+name: chatmaild CI
+
+on:
+  # Triggers when a PR is merged into main or a direct push occurs
+  push:
+    branches: [ "main" ]
+    
+  # Triggers for any PR (and its subsequent commits) targeting the main branch
+  pull_request:
+    branches: [ "main" ]
+
+permissions: {}
+
+# Newest push wins: Prevents multiple runs from clashing and wasting runner efforts
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tox:
+    name: isolated chatmaild tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        # Checkout pull request HEAD commit instead of merge commit
+        # Otherwise `test_deployed_state` will be unhappy.
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - name: compile filtermail
+        run: |
+          sudo apt-get update && sudo apt-get install -y musl-tools
+          rustup target add x86_64-unknown-linux-musl
+          cd filtermail && CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER=musl-gcc RUSTFLAGS="-Ctarget-feature=+crt-static -Clink-self-contained=yes" cargo build --release --target x86_64-unknown-linux-musl
+          mv target/x86_64-unknown-linux-musl/release/filtermail /usr/local/bin/filtermail && chmod +x /usr/local/bin/filtermail
+      - name: run chatmaild tests 
+        working-directory: chatmaild
+        run: pipx run tox
+
