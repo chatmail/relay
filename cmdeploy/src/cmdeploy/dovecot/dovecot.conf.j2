@@ -40,8 +40,12 @@ service imap {
   process_limit = 50000
 }
 
-mail_server_admin = mailto:root@{{ config.mail_domain }}
-mail_server_comment = Chatmail server
+{% if config.privacy_mail %}
+# Advertised to clients as IMAP METADATA /shared/admin (RFC 5464).
+# The privacy_mail contact from chatmail.ini is used because it is
+# the only address set by an operator.
+mail_server_admin = mailto:{{ config.privacy_mail }}
+{% endif %}
 
 # `zlib` enables compressing messages stored in the maildir.
 # See
