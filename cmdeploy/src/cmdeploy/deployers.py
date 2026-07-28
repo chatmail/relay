@@ -138,9 +138,22 @@ class UnboundDeployer(Deployer):
         # On an IPv4-only system, if unbound is started but not configured,
         # it causes subsequent steps to fail to resolve hosts.
         with blocked_service_startup():
+            # dns-root-data is an optional package
+            # that contains /usr/share/dns/root.key
+            #
+            # This file is copied into /var/lib/unbound/root.key
+            # at the start of "unbound" systemd unit
+            # by /usr/libexec/unbound-helper shell script
+            # from the "unbound" package as of version 1.17.1-2+deb12u4
+            #
+            # The same /var/lib/unbound/root.key can be retrieved directly
+            # following the procedure from
+            # <https://www.rfc-editor.org/info/rfc7958/#section-3.1>
+            # with "unbound-anchor -a /var/lib/unbound/root.key"
+            # We don't install and use "unbound-anchor".
             apt.packages(
                 name="Install unbound",
-                packages=["unbound", "unbound-anchor", "dnsutils"],
+                packages=["unbound", "dns-root-data", "dnsutils"],
             )
 
     def configure(self):
@@ -165,12 +178,6 @@ class UnboundDeployer(Deployer):
             src=BytesIO(b"nameserver 127.0.0.1\nnameserver 9.9.9.9\n"),
             dest="/etc/resolv.conf",
             force=True,
-        )
-        server.shell(
-            name="Generate root keys for validating DNSSEC",
-            commands=[
-                "unbound-anchor -a /var/lib/unbound/root.key || true",
-            ],
         )
         self.ensure_directory(
             path="/etc/unbound/unbound.conf.d",
@@ -245,6 +252,13 @@ class WebsiteDeployer(Deployer):
 class LegacyRemoveDeployer(Deployer):
     def install(self):
         apt.packages(name="Remove rspamd", packages="rspamd", present=False)
+
+        # unbound-anchor was used to download /var/lib/unbound/root.key
+        # It is replaced by dns-root-data which contains /usr/share/dns/root.key.
+        # unbound systemd unit copies /usr/share/dns/root.key
+        # into /var/lib/unbound/root.key automatically on start
+        # as long as /usr/share/dns/root.key is present.
+        apt.packages(name="Remove unbound-anchor", packages="unbound-anchor", present=False)
 
         # remove historic expunge script
         # which is now implemented through a systemd timer (chatmail-expire)
