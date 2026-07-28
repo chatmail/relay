@@ -166,12 +166,6 @@ class UnboundDeployer(Deployer):
             dest="/etc/resolv.conf",
             force=True,
         )
-        server.shell(
-            name="Generate root keys for validating DNSSEC",
-            commands=[
-                "unbound-anchor -a /var/lib/unbound/root.key || true",
-            ],
-        )
         self.ensure_directory(
             path="/etc/unbound/unbound.conf.d",
         )
