@@ -128,7 +128,10 @@ http {
                         proxy_set_header Connection "upgrade";
                 }
 
-		location /relay/probe {
+		# Endpoints Iroh uses for net_report probes and that clients
+		# probe to tell whether this relay works. Both paths are served
+		# by iroh-relay 0.35 and by the 1.0 line.
+		location /ping {
                         proxy_pass http://127.0.0.1:3340;
                         proxy_http_version 1.1;
 		}
