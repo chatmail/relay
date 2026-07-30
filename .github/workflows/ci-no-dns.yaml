@@ -20,8 +20,6 @@ concurrency:
 jobs:
   no-dns:
     name: LXC deploy and test
-    permissions:
-      contents: read
     uses: chatmail/cmlxc/.github/workflows/lxc-test.yml@main
     with:
       cmlxc_version: main
