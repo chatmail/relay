@@ -5,6 +5,9 @@
 ### Breaking Changes
 
 - [**breaking**] Introduce configurable system limits to reject new address creation and limit imap/smtp connections.
+  Dovecot default connection limit lowered from 50k to 10k,
+  Postfix default connection limit lowered from 5k to 1k,
+  larger relays need to adjust their settings.
 
 ### Features
 
@@ -23,7 +26,7 @@
 - Always deploy unbound.conf.d/chatmail.conf (#993)
 - Expire empty directories (#994)
 - Crypt-r dependency was declared for wrong Python version
-- Still overwrite /etc/resolv.conf if it is a symbolic link
+- Always overwrite /etc/resolv.conf, even if it is a symbolic link
 - Pass kwargs to files.put()
 - List Iroh proxy endpoints used by 0.35 and 1.0, drop stale /relay/probe from earlier versions
 - Fix port discovery when ss -tulpn shows dovecot before stats
@@ -37,11 +40,10 @@
 
 ### Miscellaneous Tasks
 
-- Auto-trigger docker build on release tag push
-- *(acmetool)* Update let's encrypt ToS link
-- Update Let's Encrypt Subscriber Agreement to 1.8
+- *(ci)* Auto-trigger docker build on release tag push
+- *(acmetool)* Update let's encrypt ToS link to 1.8
 - *(ci)* Update doc staging upload path
-- Fix docs upload path
+- *(ci)* Fix docs upload path
 
 ### Refactor
 
