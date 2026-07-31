@@ -3,6 +3,7 @@ from types import SimpleNamespace
 
 import pytest
 from pyinfra.facts.deb import DebPackages
+from pyinfra.facts.server import Command
 
 from cmdeploy.dovecot import deployer as dovecot_deployer
 
@@ -19,7 +20,7 @@ def make_host(*fact_pairs):
     """
     facts = dict(fact_pairs)
 
-    def get_fact(cls):
+    def get_fact(cls, *args):
         if cls not in facts:
             registered = ", ".join(c.__name__ for c in facts)
             raise LookupError(
@@ -82,7 +83,9 @@ def test_download_dovecot_package_skips_epoch_matched_install(monkeypatch):
         lambda **kwargs: downloads.append(kwargs),
     )
 
-    deb, changed = dovecot_deployer._download_dovecot_package("core", "amd64")
+    deb, changed = dovecot_deployer._download_dovecot_package(
+        "core", "amd64", codename="bookworm"
+    )
 
     assert deb is None, f"expected no deb path when version matches, got {deb!r}"
     assert changed is False, "should not flag changed when version already installed"
@@ -109,7 +112,9 @@ def test_download_dovecot_package_uses_archive_version_for_url_and_filename(
         lambda **kwargs: downloads.append(kwargs),
     )
 
-    deb, changed = dovecot_deployer._download_dovecot_package("core", "amd64")
+    deb, changed = dovecot_deployer._download_dovecot_package(
+        "core", "amd64", codename="bookworm"
+    )
 
     archive_version = dovecot_deployer.DOVECOT_ARCHIVE_VERSION.replace("+", "%2B")
     expected_deb = f"/root/dovecot-core_{archive_version}_amd64.deb"
@@ -139,6 +144,7 @@ def test_install_skips_dpkg_path_when_epoch_matched_packages_present(
                 },
             ),
             (dovecot_deployer.Arch, "x86_64"),
+            (Command, "bookworm"),
         ),
     )
     downloads = []
@@ -160,11 +166,13 @@ def test_install_skips_dpkg_path_when_epoch_matched_packages_present(
 def test_install_unsupported_arch_falls_back_to_apt(
     deployer, patch_blocked, mock_files_put, track_shell, monkeypatch
 ):
-    # For unsupported architectures, all fact lookups return the arch string.
     monkeypatch.setattr(
         dovecot_deployer,
         "host",
-        SimpleNamespace(get_fact=lambda cls: "riscv64"),
+        make_host(
+            (dovecot_deployer.Arch, "riscv64"),
+            (Command, "bookworm"),
+        ),
     )
     apt_calls = []
 
@@ -198,6 +206,7 @@ def test_install_runs_dpkg_when_packages_need_download(
         make_host(
             (dovecot_deployer.DebPackages, {}),
             (dovecot_deployer.Arch, "x86_64"),
+            (Command, "bookworm"),
         ),
     )
     monkeypatch.setattr(
@@ -217,10 +226,12 @@ def test_install_runs_dpkg_when_packages_need_download(
         f"expected one server.shell() call for dpkg install, got {len(track_shell)}"
     )
     cmds = track_shell[0]["commands"]
-    assert len(cmds) == 3, f"expected 3 dpkg/apt commands, got: {cmds}"
-    assert cmds[0].startswith("dpkg --force-confdef --force-confold -i ")
-    assert "apt-get -y --fix-broken install" in cmds[1]
-    assert cmds[2].startswith("dpkg --force-confdef --force-confold -i ")
+    assert len(cmds) == 1, f"expected single apt-get install command, got: {cmds}"
+    assert "apt-get install -y" in cmds[0]
+    assert '-o Dpkg::Options::="--force-confdef"' in cmds[0]
+    assert '-o Dpkg::Options::="--force-confold"' in cmds[0]
+    assert "--allow-downgrades" in cmds[0]
+    assert ".deb" in cmds[0]
     assert deployer.need_restart is True, (
         "need_restart should be True after dpkg install"
     )
@@ -235,3 +246,19 @@ def test_pick_url_falls_back_on_primary_error(monkeypatch):
     assert result == "http://fallback", (
         f"should fall back when primary fails, got {result!r}"
     )
+
+
+def test_install_fails_on_unsupported_debian_version(
+    deployer, patch_blocked, monkeypatch
+):
+    monkeypatch.setattr(
+        dovecot_deployer,
+        "host",
+        make_host(
+            (dovecot_deployer.Arch, "x86_64"),
+            (Command, "sid"),
+        ),
+    )
+
+    with pytest.raises(ValueError, match="Unsupported Debian codename"):
+        deployer.install()
