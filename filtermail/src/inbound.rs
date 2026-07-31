@@ -1,0 +1,222 @@
+//! Module for handling incoming SMTP messages.
+
+use crate::config::Config;
+use crate::dkim_verifier::DkimVerifier;
+use crate::message::{check_encrypted, is_securejoin};
+use crate::smtp_client::SmtpConnectionPool;
+use crate::smtp_responses::ENCRYPTION_NEEDED_523;
+pub use crate::smtp_server::Envelope;
+use crate::smtp_server::{SmtpHandler, Transaction};
+use crate::tcp::{TcpConnect, TcpStreamTrait};
+use crate::utils::{AddressDomain, build_resolver, extract_address, log_eml};
+use async_trait::async_trait;
+use hickory_resolver::TokioResolver;
+use mailparse::{MailHeaderMap, parse_mail};
+use std::str::FromStr;
+use std::sync::Arc;
+
+/// Handler for incoming SMTP messages.
+pub struct IncomingBeforeQueueHandler<S: TcpConnect> {
+    config: Config,
+    dns_resolver: Arc<TokioResolver>,
+    dkim_verifier: DkimVerifier,
+    skip_dkim: bool,
+    smtp_connection_pool: Arc<SmtpConnectionPool<S>>,
+}
+
+impl<S> IncomingBeforeQueueHandler<S>
+where
+    S: TcpStreamTrait + TcpConnect,
+    S::ConnectionContext: Default,
+{
+    pub fn new(config: Config, skip_dkim: bool) -> Result<Self, crate::error::Error> {
+        let dns_resolver = Arc::new(build_resolver()?);
+        Ok(Self {
+            config,
+            dns_resolver: dns_resolver.clone(),
+            dkim_verifier: DkimVerifier::new(dns_resolver),
+            skip_dkim,
+            smtp_connection_pool: SmtpConnectionPool::new(Default::default()),
+        })
+    }
+
+    /// Verify the origin of the email by performing a DKIM verification on a regular domain.
+    ///
+    /// Currently a no-op for valid domain-literals.
+    async fn verify_origin(&self, envelope: &Envelope, from_addr: &str) -> Result<(), String> {
+        let from_domain = AddressDomain::from_str(from_addr).map_err(|e| e.smtp_response())?;
+
+        match from_domain {
+            AddressDomain::Literal(_) => {
+                // Subject to change: we currently don't perform any additional authentication
+                // for domain-literals and rely purely on encryption.
+            }
+            AddressDomain::Name(domain) => {
+                if !self.skip_dkim
+                    && let Err(e) = self.dkim_verifier.verify(&envelope.data, &domain).await
+                {
+                    let eml_path = log_eml("dkim-verify", &envelope.data)
+                        .await
+                        .map(|path| path.to_string_lossy().to_string())
+                        .unwrap_or_else(|e| {
+                            log::error!("Failed to save rejected message to file: {e}");
+                            "ERR".to_string()
+                        });
+                    log::info!("Rejected message stored at: {eml_path}");
+                    return Err(e);
+                }
+            }
+        }
+
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl<S> SmtpHandler for IncomingBeforeQueueHandler<S>
+where
+    S: TcpStreamTrait + TcpConnect,
+    S::ConnectionContext: Default,
+{
+    type State = ();
+
+    async fn check_data(&self, transaction: &mut Transaction<Self::State>) -> Result<(), String> {
+        let message = match parse_mail(&transaction.envelope.data) {
+            Ok(m) => m,
+            Err(e) => return Err(format!("500 Failed to parse message: {}", e)),
+        };
+
+        let from_header = message
+            .headers
+            .get_first_value("From")
+            .unwrap_or_default()
+            .trim()
+            .to_string();
+
+        let Some(from_addr) = extract_address(&from_header) else {
+            return Err(format!("500 Invalid FROM header: {from_header}"));
+        };
+
+        log::debug!("Processing DATA message from {from_addr}");
+
+        if !transaction
+            .envelope
+            .mail_from
+            .eq_ignore_ascii_case(&from_addr)
+        {
+            // If the MAIL FROM doesn't match the From header, we do not reject the mail,
+            // as this can be caused by e.g. SRS forwarding.
+            // Instead, we reset the envelope address, so it is reinjected as
+            // `MAIL FROM:<>` to prevent sending a bounce message.
+            // <https://github.com/chatmail/filtermail/issues/67>
+            transaction.envelope.mail_from = String::new();
+        }
+
+        transaction.envelope.rcpt_to = transaction
+            .envelope
+            .rcpt_to
+            .iter()
+            .filter(|s| {
+                let disabled = self.config.is_disabled(s);
+                if disabled {
+                    log::warn!("Disabled recipient: {s}; removing from RCPT TO");
+                }
+                !disabled
+            })
+            .cloned()
+            .collect();
+
+        let mail_encrypted = check_encrypted(&message, false);
+        log::debug!("mail_encrypted: {mail_encrypted}");
+        log::debug!("is_securejoin: {}", is_securejoin(&message));
+
+        // Allow encrypted or securejoin messages
+        if mail_encrypted || is_securejoin(&message) {
+            log::info!("Incoming: Filtering encrypted mail.");
+            return self.verify_origin(&transaction.envelope, &from_addr).await;
+        }
+
+        // Allow cleartext mailer-daemon messages
+        if let Some(auto_submitted) = message.headers.get_first_value("Auto-Submitted")
+            && !auto_submitted.is_empty()
+            && from_addr.to_lowercase().starts_with("mailer-daemon@")
+            && message.ctype.mimetype == "multipart/report"
+        {
+            log::info!("Incoming: Filtering mailer-daemon message from <{from_addr}>");
+            return self.verify_origin(&transaction.envelope, &from_addr).await;
+        } else {
+            log::info!("Incoming: Filtering unencrypted mail.");
+        }
+
+        for recipient in &transaction.envelope.rcpt_to {
+            if !self.config.is_cleartext_ok(recipient) {
+                log::warn!("Rejected unencrypted mail from: {from_addr}");
+                return Err(ENCRYPTION_NEEDED_523.to_string());
+            }
+        }
+
+        self.verify_origin(&transaction.envelope, &from_addr).await
+    }
+
+    async fn reinject_mail(&self, transaction: &Transaction<Self::State>) -> Result<(), String> {
+        log::debug!("Re-injecting the mail that passed checks");
+        let hostname = format!("[{}]", self.config.filtermail_host);
+        let client_config = crate::smtp_client::ClientConfig {
+            client_hostname: &hostname,
+            tls_config: None,
+            lmtp: false,
+        };
+        crate::smtp_client::send(
+            &self.config.postfix_host,
+            self.config.postfix_reinject_port_incoming,
+            &transaction.envelope,
+            client_config,
+            self.dns_resolver.clone(),
+            self.smtp_connection_pool.clone(),
+        )
+        .await
+        .map_err(|e| {
+            log::warn!("Failed to re-inject mail: {}", e);
+            e.smtp_response()
+        })?;
+
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rstest::{fixture, rstest};
+    use testresult::TestResult;
+    use tokio::net::TcpStream;
+
+    #[fixture]
+    fn config() -> Config {
+        Config::default()
+    }
+
+    /// Test that domain-literals are not rejected by origin check.
+    #[rstest]
+    #[case::ipv4(include_bytes!("../test_data/encrypted-ipv4.eml"), "one@[192.0.2.0]")]
+    // Waiting for a release of mailparse with the fix https://github.com/staktrace/mailparse/pull/138
+    // for the issue https://github.com/staktrace/mailparse/issues/137 to be released.
+    //#[case::ipv6(include_bytes!("../test_data/encrypted-ipv6.eml"), "one@[IPv6:2001:db8::1]")]
+    #[tokio::test]
+    async fn test_domain_literals_allowed(
+        #[case] eml: &[u8],
+        #[case] address: &str,
+        config: Config,
+    ) -> TestResult {
+        let handler = IncomingBeforeQueueHandler::<TcpStream>::new(config, false)?;
+        let mut transaction = Transaction {
+            envelope: Envelope {
+                mail_from: address.to_string(),
+                data: eml.to_vec(),
+                rcpt_to: vec!["does.not.matter@example.org".to_string()],
+            },
+            ..Default::default()
+        };
+        Ok(handler.check_data(&mut transaction).await?)
+    }
+}

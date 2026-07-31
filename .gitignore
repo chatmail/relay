@@ -78,6 +78,7 @@ docs/_build/
 # PyBuilder
 .pybuilder/
 target/
+filtermail/target/
 
 # Jupyter Notebook
 .ipynb_checkpoints

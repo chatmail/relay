@@ -1,0 +1,107 @@
+name: CI
+
+permissions: {}
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fmt:
+    name: Check Formatting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
+        with:
+          toolchain: nightly
+          components: rustfmt
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - uses: taiki-e/install-action@2ca9b94c269419b7b0c711c09d0b21c4e1d51145 # v2.83.1
+        with:
+          tool: taplo-cli
+      - run: cd filtermail && taplo format --check && cargo fmt --check
+
+  cargo-machete:
+    name: Check Unused Dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: bnjbvr/cargo-machete@ac30a525c0a8d163a92d727b3ff079ee3f6ecb08 # v0.9.2
+
+  lint-clippy:
+    name: Check Clippy
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        toolchain: ["stable", "beta"]
+    continue-on-error: ${{ matrix.toolchain == 'beta' }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
+        with:
+          toolchain: ${{ matrix.toolchain }}
+          components: clippy
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - run: cd filtermail && cargo clippy
+        env:
+          RUSTUP_TOOLCHAIN: ${{ matrix.toolchain }}
+
+  rust-test:
+    name: Run rust tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - run: cd filtermail && cargo test
+
+  relay-test:
+    name: Test the relay with cmlxc and custom filtermail
+    uses: chatmail/cmlxc/.github/workflows/lxc-test.yml@main
+    with:
+      cmlxc_commands: |
+        sudo apt-get update && sudo apt-get install -y musl-tools
+        rustup target add x86_64-unknown-linux-musl
+        export CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER=musl-gcc
+        cd repo/filtermail && RUSTFLAGS="-Ctarget-feature=+crt-static -Clink-self-contained=yes" cargo build --release --target x86_64-unknown-linux-musl
+        cmlxc init
+        cmlxc -v deploy-cmdeploy --filtermail repo/filtermail/target/x86_64-unknown-linux-musl/release/filtermail cm0
+        cmlxc -v deploy-cmdeploy --filtermail repo/filtermail/target/x86_64-unknown-linux-musl/release/filtermail --type ipv4 cm1
+        cmlxc -v deploy-madmail mad0
+
+        # single-relay tests
+        cmlxc -v test-cmdeploy cm0
+        cmlxc -v test-cmdeploy cm1
+        cmlxc -v test-mini cm0
+        cmlxc -v test-mini cm1
+
+        # cross-relay tests (Standard <-> IP-only <-> Madmail)
+        cmlxc -v test-cmdeploy cm0 cm1
+        cmlxc -v test-cmdeploy cm1 cm0
+        cmlxc -v test-cmdeploy cm0 mad0
+        cmlxc -v test-cmdeploy cm1 mad0
+        cmlxc -v test-mini cm0 mad0
+        cmlxc -v test-mini mad0 cm0
+        cmlxc -v test-mini cm1 mad0
+        cmlxc -v test-mini mad0 cm1
