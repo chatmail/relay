@@ -102,14 +102,18 @@ def _install_remote_venv_with_chatmaild(deployer) -> None:
     # Remove venv if its Python major.minor doesn't match the system Python
     server.shell(
         name="remove stale chatmaild venv if python version changed",
-        commands=["\n".join([
-            f"if [ -d {remote_venv_dir} ]; then",
-            r"  re='[0-9]+\.[0-9]+'",  # match major.minor from 'Python X.Y.Z'"
-            '   SYS_VERSION=$(python3 --version | grep -oE "$re")',
-            f'  VENV_VERSION=$({remote_venv_dir}/bin/python --version 2>/dev/null | grep -oE "$re")',
-            f'  [ "$SYS_VERSION" = "$VENV_VERSION" ] || rm -rf {remote_venv_dir}',
-            "fi",
-        ])],
+        commands=[
+            "\n".join(
+                [
+                    r"re='[0-9]+\.[0-9]+'",  # major.minor out of 'Python X.Y.Z'
+                    'sys_version=$(python3 --version 2>/dev/null | grep -oE "$re")',
+                    f'venv_version=$({remote_venv_dir}/bin/python --version 2>/dev/null | grep -oE "$re")',
+                    # an empty sys_version means we could not tell: keep the venv
+                    f'[ -z "$sys_version" ] || [ "$sys_version" = "$venv_version" ] '
+                    f"|| rm -rf {remote_venv_dir}",
+                ]
+            )
+        ],
     )
 
     pip.virtualenv(
