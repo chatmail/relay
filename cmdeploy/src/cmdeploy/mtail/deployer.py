@@ -2,6 +2,10 @@ from pyinfra import facts, host
 from pyinfra.operations import apt
 
 from cmdeploy.basedeploy import Deployer
+from cmdeploy.filtermail.deployer import (
+    MTAIL_PROGRAM_SHA256 as FILTERMAIL_MTAIL_SHA256,
+    VERSION as FILTERMAIL_VERSION,
+)
 
 
 class MtailDeployer(Deployer):
@@ -42,9 +46,16 @@ class MtailDeployer(Deployer):
             bin_path=self.bin_path,
             progs_dir=self.progs_dir,
         )
-        self.put_file(
-            "mtail/delivered_mail.mtail", f"{self.progs_dir}/delivered_mail.mtail"
-        )
+        if self.mtail_address:
+            self.put_file(
+                "mtail/delivered_mail.mtail", f"{self.progs_dir}/delivered_mail.mtail"
+            )
+            self.download_executable(
+                f"https://raw.githubusercontent.com/chatmail/filtermail/{FILTERMAIL_VERSION}/contrib/filtermail.mtail",
+                f"{self.progs_dir}/filtermail.mtail",
+                FILTERMAIL_MTAIL_SHA256,
+                mode="644",
+            )
 
     def activate(self):
         active = bool(self.mtail_address)

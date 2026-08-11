@@ -227,7 +227,7 @@ class Deployer:
         res = files.directory(name=name, path=path, present=False, **kwargs)
         return self._update_restart_signals(path, res)
 
-    def download_executable(self, url, dest, sha256sum, extract=None):
+    def download_executable(self, url, dest, sha256sum, extract=None, mode="755"):
         existing = host.get_fact(Sha256File, dest)
         if existing == sha256sum:
             return
@@ -244,7 +244,7 @@ class Deployer:
                 f"({dl_cmd}"
                 f" && echo '{sha256sum}  {tmp}' | sha256sum -c"
                 f" && mv {tmp} {dest})",
-                f"chmod 755 {dest}",
+                f"chmod {mode} {dest}",
             ],
         )
         self.need_restart = True
