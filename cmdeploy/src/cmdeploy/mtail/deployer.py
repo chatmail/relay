@@ -1,5 +1,5 @@
 from pyinfra import facts, host
-from pyinfra.operations import apt
+from pyinfra.operations import apt, server
 
 from cmdeploy.basedeploy import Deployer
 from cmdeploy.filtermail.deployer import (
@@ -56,6 +56,17 @@ class MtailDeployer(Deployer):
                 FILTERMAIL_MTAIL_SHA256,
                 mode="644",
             )
+            if self.need_restart:
+                # Check if all installed mtail rules compile or fail early
+                # --one_shot to exit, --port 0 to not clash with running mtail.
+                server.shell(
+                    name="Validate mtail programs",
+                    commands=[
+                        f"timeout 30 {self.bin_path} --compile_only --one_shot"
+                        f" --progs {self.progs_dir} --logs /dev/null"
+                        " --address 127.0.0.1 --port 0"
+                    ],
+                )
 
     def activate(self):
         active = bool(self.mtail_address)
