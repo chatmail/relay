@@ -37,7 +37,9 @@ class MtailDeployer(Deployer):
             address=self.mtail_address or "127.0.0.1",
             port=3903,
         )
-        self.put_file("mtail/delivered_mail.mtail", "/etc/mtail/delivered_mail.mtail")
+        if self.mtail_address:
+            self.put_file("mtail/delivered_mail.mtail", "/etc/mtail/delivered_mail.mtail")
+            self.put_file("mtail/filtermail.mtail", "/etc/mtail/filtermail.mtail")
 
     def activate(self):
         active = bool(self.mtail_address)
