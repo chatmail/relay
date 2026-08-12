@@ -92,3 +92,5 @@ topo_order_commits = true
 sort_commits = "oldest"
 # Process submodules commits
 recurse_submodules = false
+exclude_paths = ["filtermail/"]
+tag_pattern = '^[0-9]+\.[0-9]+\.[0-9]+$'
