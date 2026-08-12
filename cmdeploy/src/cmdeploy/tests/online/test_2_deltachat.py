@@ -1,10 +1,12 @@
 import ipaddress
+import json
 import re
 import time
 
 import imap_tools
 import pytest
 import requests
+from chatmaild.tests.test_appversions import check_appversions
 
 from cmdeploy.cmdeploy import get_sshexec
 from cmdeploy.remote import rshell
@@ -49,6 +51,17 @@ class TestMetadataTokens:
         assert res[:1] == b"*"
         res = client.readline().strip().rstrip(b")")
         assert res == b"1111 2222"
+        assert b"Getmetadata completed" in client.readline()
+
+    def test_get_appversions(self, imap_mailbox):
+        "get app version information shipped with the relay"
+        client = imap_mailbox.client
+        client.send(b'a01 GETMETADATA "" /shared/vendor/deltachat/appversions\n')
+        res = client.readline()
+        assert res[:1] == b"*"
+        res = client.readline().strip().rstrip(b")")
+        # the served value is a single line and passes the shipped file's schema
+        check_appversions(json.loads(res))
         assert b"Getmetadata completed" in client.readline()
 
 

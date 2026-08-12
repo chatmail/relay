@@ -22,6 +22,12 @@ extensions = [
 templates_path = ['_templates']
 exclude_patterns = []
 
+linkcheck_ignore = [
+    # only resolves once the file is merged to main
+    r"https://github\.com/chatmail/relay/blob/main/chatmaild/src/chatmaild/defaults/appversions\.json",
+]
+
+
 
 
 # -- Options for HTML output -------------------------------------------------

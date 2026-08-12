@@ -249,6 +249,33 @@ Fresh chatmail addresses have a mailbox directory that contains:
    directories will typically be empty unless the user of that address
    hasn’t been online for a while.
 
+App version information (experimental)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A chatmail relay ships the
+`appversions.json <https://github.com/chatmail/relay/blob/main/chatmaild/src/chatmaild/defaults/appversions.json>`_
+file of the ``chatmaild`` package
+and serves its content under the IMAP METADATA key
+``/shared/vendor/deltachat/appversions``.
+Chat apps installed outside of app stores read this key
+to learn about updates and where to download them.
+The mechanism is experimental and may change.
+
+The file travels with the normal deploy:
+update the repository checkout and run ``cmdeploy run``.
+Local modifications of ``appversions.json`` are deployed as-is,
+so you can serve your own app version information,
+including links to app downloads.
+There is no automatic refresh:
+version information changes only when you deploy again.
+
+.. note::
+
+   Note that as of August 2026, only Delta Chat Android Google Play version
+   is beginning to support discovering app versions from relays.
+   Generally, consumers of relay-provided app version information
+   need to verify themselves that downloaded app files are valid.
+
 Active ports
 ~~~~~~~~~~~~
 

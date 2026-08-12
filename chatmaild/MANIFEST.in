@@ -1,3 +1,4 @@
+include src/chatmaild/defaults/*.json
 include src/chatmaild/ini/*.ini.f
 include src/chatmaild/ini/*.ini
 include src/chatmaild/tests/mail-data/*

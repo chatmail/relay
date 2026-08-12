@@ -1,8 +1,10 @@
+import json
 import logging
 import socket
 import sys
 import time
 from contextlib import contextmanager
+from importlib.resources import files
 
 from .config import read_config
 from .dictproxy import DictProxy
@@ -16,6 +18,18 @@ def turn_credentials(turn_socket_path):
         client_socket.connect(turn_socket_path)
         with client_socket.makefile("rb") as file:
             return file.readline().decode("utf-8").strip()
+
+
+def read_appversions(path):
+    try:
+        data = json.loads(path.read_bytes())
+    except FileNotFoundError:
+        return None
+    except (OSError, ValueError):
+        logging.exception(f"failed to read {path}")
+        return None
+    # the dict protocol is line-based, keep the value single-line
+    return json.dumps(data, separators=(",", ":"))
 
 
 def _is_valid_token_timestamp(timestamp, now):
@@ -101,6 +115,7 @@ class MetadataDictProxy(DictProxy):
         self.iroh_relay = iroh_relay
         self.turn_hostname = turn_hostname
         self.turn_socket_path = turn_socket_path
+        self.appversions_path = files(__package__).joinpath("defaults/appversions.json")
 
     def handle_lookup(self, parts):
         # Lpriv/43f5f508a7ea0366dff30200c15250e3/devicetoken\tlkj123poi@c2.testrun.org
@@ -125,6 +140,9 @@ class MetadataDictProxy(DictProxy):
                         case "maxsmtprecipients":
                             # postfix default  (see "postconf smtpd_recipient_limit")
                             return "O1000\n"
+                        case "appversions":
+                            value = read_appversions(self.appversions_path)
+                            return f"O{value}\n" if value else "N\n"
 
         logging.warning(f"lookup ignored: {parts!r}")
         return "N\n"

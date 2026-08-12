@@ -5,3 +5,6 @@ We use [git-cliff] to generate the changelog from commit messages before the rel
 
 [Conventional Commits]: https://www.conventionalcommits.org/
 [git-cliff]: https://git-cliff.org/
+
+To update client app version information,
+edit [chatmaild/src/chatmaild/defaults/appversions.json](chatmaild/src/chatmaild/defaults/appversions.json).
