@@ -98,6 +98,23 @@ def _install_remote_venv_with_chatmaild(deployer) -> None:
         dest=remote_dist_file,
     )
 
+    # Remove venv if its Python major.minor doesn't match the system Python
+    server.shell(
+        name="remove stale chatmaild venv if python version changed",
+        commands=[
+            "\n".join(
+                [
+                    r"re='[0-9]+\.[0-9]+'",  # major.minor out of 'Python X.Y.Z'
+                    'sys_version=$(python3 --version 2>/dev/null | grep -oE "$re")',
+                    f'venv_version=$({remote_venv_dir}/bin/python --version 2>/dev/null | grep -oE "$re")',
+                    # an empty sys_version means we could not tell: keep the venv
+                    f'[ -z "$sys_version" ] || [ "$sys_version" = "$venv_version" ] '
+                    f"|| rm -rf {remote_venv_dir}",
+                ]
+            )
+        ],
+    )
+
     pip.virtualenv(
         name=f"chatmaild virtualenv {remote_venv_dir}",
         path=remote_venv_dir,
@@ -405,6 +422,12 @@ class ChatmailDeployer(Deployer):
         self.put_file(
             src=BytesIO(b'APT::Install-Recommends "false";\n'),
             dest="/etc/apt/apt.conf.d/00InstallRecommends",
+        )
+        # Pin dovecot-* to priority -1 before any apt operation, apt should
+        # never manage dovecot as our version might be lower than the distro's.
+        self.put_file(
+            src=StringIO("Package: dovecot-*\nPin: version *\nPin-Priority: -1\n"),
+            dest="/etc/apt/preferences.d/pin-dovecot",
         )
         apt.update(name="apt update", cache_time=24 * 3600)
         apt.upgrade(name="upgrade apt packages", auto_remove=True)
