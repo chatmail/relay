@@ -1,4 +1,4 @@
-name: CI
+name: cmdeploy CI
 
 on:
   # Triggers when a PR is merged into main or a direct push occurs
@@ -18,24 +18,8 @@ concurrency:
 
 
 jobs:
-  tox:
-    name: isolated chatmaild tests
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-        # Checkout pull request HEAD commit instead of merge commit
-        # Otherwise `test_deployed_state` will be unhappy.
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          persist-credentials: false
-      - name: download filtermail
-        run: curl -L https://github.com/chatmail/filtermail/releases/download/v0.7.4/filtermail-x86_64 -o /usr/local/bin/filtermail && chmod +x /usr/local/bin/filtermail
-      - name: run chatmaild tests 
-        working-directory: chatmaild
-        run: pipx run tox
-
-  scripts:
-    name: deploy-chatmail tests 
+  cmdeploy:
+    name: cmdeploy tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -61,14 +45,17 @@ jobs:
     with:
       cmlxc_version: main
       cmlxc_commands: |
+        sudo apt-get update && sudo apt-get install -y musl-tools
+        rustup target add x86_64-unknown-linux-musl
+        cd repo/filtermail && CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER=musl-gcc RUSTFLAGS="-Ctarget-feature=+crt-static -Clink-self-contained=yes" cargo build --release --target x86_64-unknown-linux-musl
         cmlxc init 
         # single cmdeploy relay test
-        cmlxc -v deploy-cmdeploy --source ./repo cm0
+        cmlxc -v deploy-cmdeploy --source ./repo --filtermail repo/filtermail/target/x86_64-unknown-linux-musl/release/filtermail cm0
         cmlxc -v test-mini cm0
         cmlxc -v test-cmdeploy cm0
 
         # cross cmdeploy relay test
-        cmlxc -v deploy-cmdeploy --source ./repo --ipv4-only cm1
+        cmlxc -v deploy-cmdeploy --source ./repo --filtermail repo/filtermail/target/x86_64-unknown-linux-musl/release/filtermail --ipv4-only cm1
         cmlxc -v test-cmdeploy cm0 cm1
 
         # cross cmdeploy/madmail relay tests

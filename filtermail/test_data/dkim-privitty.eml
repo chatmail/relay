@@ -1,0 +1,80 @@
+Received: from chat.privittytech.com (unknown [35.154.144.0])
+	by nine.testrun.org (Postfix) with ESMTPS
+	for <i2kaq7knq@nine.testrun.org>; Sat, 21 Feb 2026 22:17:25 +0100 (CET)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple;
+	d=chat.privittytech.com; s=opendkim; t=1771708644;
+	bh=Qs0Xoe6dH8cM3t3hv45QSkQQe5TLvyJ5R4OGJL9GYUc=;
+	h=Content-Type:From:To:Subject:Date:References:from:reply-to:
+	 subject:date:to:cc:resent-date:resent-from:resent-sender:resent-to:
+	 resent-cc:in-reply-to:references:list-id:list-help:
+	 list-unsubscribe:list-subscribe:list-post:list-owner:list-archive:
+	 autocrypt;
+	b=rsdW71iU79CF0dooc1PnbZsJbWZsnBampamyF3jTWirF8AXBBKeR2JJsxr4km3Vx9
+	 QoT1s7VAyl/hdUBh2tBWT7Kzvw4KJcgkZ7tV/uRcY7edlLoH8TqATeTkWeNX18rL92
+	 F6Vv/6krs/z8Rpz2ZaVkBdLQif0fLQ3e96ODOdpgkLFXWsMVTM5rGepPWYht8yA+BF
+	 /sMopzgHhJaBvDqV42Ep75IK4w3opf9fPTAvtpwKbnDmJQmLSDv1So/Rd4xL3Oj6PX
+	 CSO8dfJSzQ+ukyoDqVMddVCUpgVgFHTXMdxxQVTe54tj2JPZan5ql90SHa3lNFTgN8
+	 hrM8BExznme5Q==
+Content-Type: multipart/encrypted; protocol="application/pgp-encrypted"; 
+	boundary="18965f9fc8f94f5b_d3ca8c34f6c5d05_4df177c93ae6931"
+MIME-Version: 1.0
+From: <8dn75miab@chat.privittytech.com>
+To: "hidden-recipients": ;
+Subject: [...]
+Date: Mon, 16 Feb 2026 06:28:47 +0000
+Message-ID: <0737aaa0-d6f9-4240-9d94-1b73216ca96d@localhost>
+References: <0737aaa0-d6f9-4240-9d94-1b73216ca96d@localhost>
+Chat-Version: 1.0
+
+
+--18965f9fc8f94f5b_d3ca8c34f6c5d05_4df177c93ae6931
+Content-Type: application/pgp-encrypted; charset="utf-8"
+Content-Description: PGP/MIME version identification
+Content-Transfer-Encoding: 7bit
+
+Version: 1
+
+--18965f9fc8f94f5b_d3ca8c34f6c5d05_4df177c93ae6931
+Content-Type: application/octet-stream; name="encrypted.asc"; 
+	charset="utf-8"
+Content-Description: OpenPGP encrypted message
+Content-Disposition: inline; filename="encrypted.asc";
+Content-Transfer-Encoding: 7bit
+
+-----BEGIN PGP MESSAGE-----
+
+wU4DWvqoogTPq7gSAQdAO8msB6rJLzr5isiWx/ZoAHqNnYZTcE4fpjpj8C1+Vhgg
+c3o2P2p9T2GfJ6aa6KqbJQW7VPl8zaaylYCN8JQLKqHBTgPP/P3FoTw8jxIBB0CE
+/iffxyAThaUNNQyp0vmrW9k8v47ll3TBQjCv6K/bbiB7u1vsYbBfl8FQgjDNhHTV
+U+lJQntsqmsn3VmxRjz1vdLD4QGvqJXYHUUyYJ7EetMBHFcmpCLlO14MhvZKw4Gd
+yWhEcgv6fsFpBaTk7Y9MXrflbpSR84aCtNqEKWU6FjjFWoRUzWVV42gI0cXectg6
+Ry2p21EfiBsLLaQdMneep7Hpq/GXccLZcFVVc9VCQq80lq/9GkiDSdA/9JD3gGFu
+NCDMKkgAQRaKVkfGZ7VhQqpkAZeeI3H/kGjzFElcNUqTH1lRgi7OgJuhIA9VeIWb
+ZX677i3tjnNWrAJoIVs+l5I7jWhgE9VMutI4kBA0fxk2QYW++n9TPz2/FbTuFkjZ
+ULXQC8F7CaVdUVb1DIAc7hw8EGFX98LKj04ucBuoe1QfJK6LKbhelSmGYGQbBOOG
+AZSPs/jgH1EkgtIzxD6rTJTFy/+2Y4eOTJaq0F4ZP32+pOVr3Iq2OuSS3LakfCjk
+TPqe9Y1w4q0afQdS2tHlnLGOGrFxoYeRjUnTeeHuH9sSp6G6Lf5751sLVgYUtILo
+Kgaac+gCh0rBK4Ve4LksnY6FUzogLYxIt4NkmDIWDvlDc0RnC+moQ/VaICPYlnMl
+dJB4mVFKefqqQM61rWTZyqHc8tDJj0D1dqpxkYJT+VH+t0RNp6br8I+wQ91BP595
+Usma3Uv1MjLufMFWcTtd72PAfk13uWF2u2dkKO+KR4MUnXm/B3ZSBAUfGfBaH4SP
+mn/dDeNY0c9ya+8l+Nt2lK/3imh3E29z22pnVwTB/PAK1HCxrehw6j/W6cfrylXC
+TcqLJW2K542oy5Q6zE5sU6mYRfOQcoR/s3t7y5ynu3s29kIbUhysPN2qT7YMmTWo
+hSlMHU5oDrzDNKWkE1FsXpTCGTdSvKhQf/HuzmQBXiCQxLlH+55UJPwbf2H95o1A
+cVChQP6vwqBIrB0k1CkJbfqCMPvr7fyNcZNqdk+iyXwPu9vOhE+4k5ybCZ7t/uoY
+DHm05/nj5jqIEG2vV0sTogd8dnu6KiVK+wET4mZwOMmAPp/8ROOmZ2NvEK1iPlgL
+c92u2XLAgZW+AbI93oJARWI8MGT5CfvJcKvjO1Nr4KIjN2G4uMiE//f2hPM676mq
+eeFqFgITGN5ivfwnfdRgEHB63mkNeTVpzrHLNYYH/HVPdjsTqDp0cPCvZxoIDgTj
+/9+uJtfgRekpD0LqOfnUg27TBthFksuFaiMW4cvxgNdqOVbo7RjcSvGg2pd80Bu0
+0gv/47tDGl0Hn9BI+XIbwLRos6dSzxgU6XotjfA31lcSFiP99IkWH4sBFRWVIaEX
+iPqJOmDWsgWjzzgu9JYQ8cZH4BP74Rv8qCC2klP4HfdQuErekNu7vDPLH3iHWpuX
+HcSc6imuNXz45ncwyEsQ+tP4t42SEv0dGRaMpwNIniIiKYAL+dMFNvdqEsKiPRoG
+f7xEuY2sZKoBtNw+gXcGlYs+QhSXJtpAdpHg+Bp0AYUQBU9ciYFfk8ZsEbSdpWGP
+D0+Xd7bWrgUYN0UM0EdtpbyxnH/bFe3Jg5jdDuS43ifhYTEPEdpmG5pnqNk5Yi0Q
+wxN6ntEHbfy3gmhMePOigh09RlwgbdoqurlvlUL2FHEY/Z1P9VI0tHbTXayUcBQk
+3aljbg==
+=wRZT
+-----END PGP MESSAGE-----
+
+
+--18965f9fc8f94f5b_d3ca8c34f6c5d05_4df177c93ae6931--
+
