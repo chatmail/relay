@@ -14,10 +14,11 @@ We know of three work-in-progress alternative implementation efforts:
    it to support all of the features and configuration settings required
    to operate as a chatmail relay.
 
--  `Madmail <https://github.com/themadorg/madmail>`_: an
-   experimental fork of `Maddy Mail Server <https://maddy.email/>`_, modified
-   for chatmail deployments.  It provides a single binary solution
-   for running a chatmail relay.
+-  `Madmail <https://github.com/themadorg/madmail>`_: a Rust-based
+   single-binary chatmail relay.  Madmail v2 is a rewrite of an earlier
+   experimental fork of `Maddy Mail Server <https://maddy.email/>`_.
+   It includes SMTP, IMAP, encryption enforcement, and real-time
+   services (TURN/Iroh), and runs on Linux and Windows.
 
 -  `Chatmail Cookbook <https://github.com/feld/chatmail-cookbook>`_:
    A Chef Cookbook implementing a relay server. The project follows the
