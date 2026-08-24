@@ -211,7 +211,7 @@ class ImapConn:
         status, res = self.conn.select()
         if int(res[0]) == 0:
             raise ValueError("no messages in imap folder")
-        status, results = self.conn.fetch("1:*", "(RFC822)")
+        status, results = self.conn.fetch("1:*", "(BODY.PEEK[])")
         assert status == "OK"
         return results
 
