@@ -21,20 +21,17 @@ class User:
     def can_track(self):
         return "@" in self.addr
 
-    def get_userdb_dict(self):
-        """Return a non-empty dovecot 'userdb' style dict
-        if the user has an existing non-empty password"""
+    def get_password_hash(self):
         try:
-            pw = self.password_path.read_text()
+            passhash = self.password_path.read_text()
         except FileNotFoundError:
-            return {}
+            return None
 
-        if not pw:
+        if not passhash:
             logging.error(f"password is empty for: {self.addr}")
-            return {}
+            return None
 
-        home = str(self.maildir)
-        return dict(addr=self.addr, home=home, uid=self.uid, gid=self.gid, password=pw)
+        return passhash
 
     def is_incoming_cleartext_ok(self):
         return not self.enforce_E2EE_path.exists()

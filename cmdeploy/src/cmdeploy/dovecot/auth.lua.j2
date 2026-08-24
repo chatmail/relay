@@ -1,0 +1,64 @@
+-- Existing addresses are served from the maildir directly.
+-- Unknown ones are offered to doveauth, which owns the creation policy.
+local mailboxes_dir = "{{ config.mailboxes_dir }}"
+local domain_suffix = "@{{ config.mail_domain }}"
+local create_url = "http://127.0.0.1:{{ config.doveauth_http_port }}/create"
+
+local http_client
+
+local function is_ours(user)
+  return user:sub(-#domain_suffix) == domain_suffix
+     and not user:find("/", 1, true)
+end
+
+local function password_hash(user)
+  local fh = io.open(mailboxes_dir .. "/" .. user .. "/password", "r")
+  if not fh then
+    return nil
+  end
+  local hash, rest = fh:read("l", "a")
+  fh:close()
+  if hash == nil or hash == "" or rest ~= "" then
+    return nil
+  end
+  return hash
+end
+
+local function userdb_fields(user)
+  return {home = mailboxes_dir .. "/" .. user, uid = "vmail", gid = "vmail"}
+end
+
+local function create(user, password)
+  local request = http_client:request({url = create_url, method = "POST"})
+  request:set_payload(user .. "\t" .. password)
+  return request:submit():status() == 200
+end
+
+-- Entry points called by dovecot
+
+function script_init()
+  http_client = dovecot.http.client({request_timeout_msecs = 5000, max_attempts = 1})
+  return 0
+end
+
+function auth_userdb_lookup(req)
+  if not is_ours(req.user) or password_hash(req.user) == nil then
+    return dovecot.auth.USERDB_RESULT_USER_UNKNOWN, {}
+  end
+  return dovecot.auth.USERDB_RESULT_OK, userdb_fields(req.user)
+end
+
+function auth_password_verify(req, password)
+  if not is_ours(req.user) then
+    return dovecot.auth.PASSDB_RESULT_USER_UNKNOWN, {}
+  end
+  local hash = password_hash(req.user)
+  if hash == nil then
+    if not create(req.user, password) then
+      return dovecot.auth.PASSDB_RESULT_USER_UNKNOWN, {}
+    end
+  elseif req:password_verify(hash, password) ~= 1 then
+    return dovecot.auth.PASSDB_RESULT_PASSWORD_MISMATCH, {}
+  end
+  return dovecot.auth.PASSDB_RESULT_OK, userdb_fields(req.user)
+end

@@ -36,6 +36,8 @@ DOVECOT_SHA256 = {
     ("imapd", "arm64"): "178fa877ddd5df9930e8308b518f4b07df10e759050725f8217a0c1fb3fd707f",
     ("lmtpd", "amd64"): "2f69ba5e35363de50962d42cccbfe4ed8495265044e244007d7ccddad77513ab",
     ("lmtpd", "arm64"): "89f52fb36524f5877a177dff4a713ba771fd3f91f22ed0af7238d495e143b38f",
+    ("auth-lua", "amd64"): "d724f37712faba52e177153114af1831e54da555c57c6474c05f96f176176ce4",
+    ("auth-lua", "arm64"): "7272768e20de148c35891d99cd60205acbe7e732b056caf0a83e8194d49136e6",
 }
 TURN_VERSION = "v0.4"
 TURN_ARTIFACTS = {

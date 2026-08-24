@@ -1,12 +1,11 @@
 [Unit]
-Description=Chatmail dict authentication proxy for dovecot
+Description=Chatmail HTTP authentication service for dovecot
 
 [Service]
-ExecStart={execpath} /run/doveauth/doveauth.socket {config_path}
+ExecStart={execpath} {config_path}
 Restart=always
-RestartSec=30
+RestartSec=5
 User=vmail
-RuntimeDirectory=doveauth
 UMask=0077
 
 [Install]
