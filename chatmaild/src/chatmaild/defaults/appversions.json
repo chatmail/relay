@@ -5,9 +5,9 @@
       "sources": [
         {
           "sourceId": "gplay",
-          "versionInteger": 754,
-          "versionString": "2.57.0",
-          "downloadUrl": "https://github.com/deltachat/deltachat-android/releases/download/v2.57.0/deltachat-gplay-release-2.57.0.apk"
+          "versionInteger": 757,
+          "versionString": "2.59.1",
+          "downloadUrl": "https://github.com/deltachat/deltachat-android/releases/download/v2.59.1/deltachat-gplay-release-2.59.1.apk"
         }
       ]
     }
