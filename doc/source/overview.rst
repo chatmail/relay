@@ -84,11 +84,12 @@ and only relaying OpenPGP end-to-end messages encrypted messages. A
 short overview of ``chatmaild`` services:
 
 -  :repofile:`doveauth <chatmaild/src/chatmaild/doveauth.py>`
-   implements create-on-login address semantics and is used by Dovecot
-   during IMAP login and by Postfix during SMTP/SUBMISSION login which
-   in turn uses `Dovecot SASL
-   <https://doc.dovecot.org/2.3/configuration_manual/authentication/dict/#complete-example-for-authenticating-via-a-unix-socket>`_
-   to authenticate logins.
+   implements create-on-login address semantics.
+   Dovecot authenticates IMAP logins, and Postfix SMTP/SUBMISSION logins through `Dovecot SASL
+   <https://doc.dovecot.org/2.3/configuration_manual/authentication/authentication_mechanisms/>`_,
+   from an :repofile:`auth.lua <cmdeploy/src/cmdeploy/dovecot/auth.lua.j2>` script
+   that reads the maildir directly. Only addresses which do not exist yet
+   are passed on to doveauth, which owns the creation policy.
 
 -  :repofile:`chatmail-metadata <chatmaild/src/chatmaild/metadata.py>`
    is contacted by a
@@ -155,7 +156,7 @@ Chatmail relay dependency diagram
         filtermail-outgoing --- |10025 reinject|postfix;
         filtermail-incoming --- |10026 reinject|postfix;
         postfix --- |milter opendkim.sock|OpenDKIM
-        dovecot --- |doveauth.socket|doveauth;
+        dovecot --- |10084 create|doveauth;
         dovecot --- |message delivery|maildir["maildir
         /home/vmail/.../user"];
         dovecot --- |lastlogin.socket|lastlogin;

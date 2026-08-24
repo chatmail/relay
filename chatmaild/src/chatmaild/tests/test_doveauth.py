@@ -1,42 +1,37 @@
-import io
-import json
-import queue
+import http.client
 import threading
-import traceback
+from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
 import chatmaild.doveauth
 from chatmaild.doveauth import (
-    AuthDictProxy,
+    CreateHandler,
+    DoveAuth,
+    DoveAuthServer,
     is_allowed_to_create,
 )
 from chatmaild.newemail import create_newemail_dict
 
 
 @pytest.fixture
-def dictproxy(example_config):
-    return AuthDictProxy(config=example_config)
+def doveauth(example_config):
+    return DoveAuth(example_config)
 
 
-def test_basic(dictproxy, example_gencreds):
+def stored_hash(config, addr):
+    return config.get_user(addr).get_password_hash()
+
+
+def test_basic(doveauth, example_config, example_gencreds):
     addr, password = example_gencreds()
-    dictproxy.lookup_passdb(addr, password)
-    data = dictproxy.lookup_userdb(addr)
-    assert data
-    data2 = dictproxy.lookup_passdb(addr, password)
-    assert data == data2
+    assert doveauth.create_user(addr, password)
+    passhash = stored_hash(example_config, addr)
+    assert passhash.startswith("{SHA512-CRYPT}")
 
-
-def test_iterate_addresses(dictproxy):
-    addresses = []
-
-    for i in range(10):
-        addresses.append(f"asdf1234{i}@chat.example.org")
-        dictproxy.lookup_passdb(addresses[-1], "q9mr3faue")
-
-    res = dictproxy.iter_userdb()
-    assert set(res) == set(addresses)
+    # a second login verifies against the stored hash and rewrites nothing
+    assert doveauth.create_user(addr, password)
+    assert stored_hash(example_config, addr) == passhash
 
 
 def test_invalid_username_length(example_config):
@@ -53,75 +48,32 @@ def test_invalid_username_length(example_config):
     )
 
 
-def test_dont_overwrite_password_on_wrong_login(dictproxy):
-    """Test that logging in with a different password doesn't create a new user"""
-    res = dictproxy.lookup_passdb(
-        "newuser12@chat.example.org", "kajdlkajsldk12l3kj1983"
-    )
-    assert res["password"]
-    res2 = dictproxy.lookup_passdb("newuser12@chat.example.org", "kajdslqwe")
-    # this function always returns a password hash, which is actually compared by dovecot.
-    assert res["password"] == res2["password"]
+def test_dont_overwrite_password_on_wrong_login(doveauth, example_config):
+    addr = "newuser12@chat.example.org"
+    assert doveauth.create_user(addr, "kajdlkajsldk12l3kj1983")
+    passhash = stored_hash(example_config, addr)
+
+    assert not doveauth.create_user(addr, "kajdslqwe")
+    assert stored_hash(example_config, addr) == passhash
+
+    assert doveauth.create_user(addr, "kajdlkajsldk12l3kj1983")
+    assert stored_hash(example_config, addr) == passhash
 
 
-def test_nocreate_file(monkeypatch, tmpdir, dictproxy):
+def test_foreign_domain_is_refused(doveauth):
+    assert not doveauth.create_user("newuser12@evil.example.org", "qlwkejqlwe12")
+
+
+def test_nocreate_file(monkeypatch, tmpdir, doveauth, example_config):
     p = tmpdir.join("nocreate")
     p.write("")
     monkeypatch.setattr(chatmaild.doveauth, "NOCREATE_FILE", str(p))
-    dictproxy.lookup_passdb("newuser12@chat.example.org", "zequ0Aimuchoodaechik")
-    assert not dictproxy.lookup_userdb("newuser12@chat.example.org")
-
-
-def test_handle_dovecot_request(dictproxy):
-    transactions = {}
-    # Test that password can contain ", ', \ and /
-    msg = (
-        'Lshared/passdb/laksjdlaksjdlak\\\\sjdlk\\"12j\\\'3l1/k2j3123"'
-        "some42123@chat.example.org\tsome42123@chat.example.org"
-    )
-    res = dictproxy.handle_dovecot_request(msg, transactions)
-    assert res
-    assert res[0] == "O" and res.endswith("\n")
-    userdata = json.loads(res[1:].strip())
-    assert userdata["home"].endswith("chat.example.org/some42123@chat.example.org")
-    assert userdata["uid"] == userdata["gid"] == "vmail"
-    assert userdata["password"].startswith("{SHA512-CRYPT}")
-
-
-def test_handle_dovecot_protocol_hello_is_skipped(example_config, caplog):
-    dictproxy = AuthDictProxy(config=example_config)
-    rfile = io.BytesIO(b"H3\t2\t0\t\tauth\n")
-    wfile = io.BytesIO()
-    dictproxy.loop_forever(rfile, wfile)
-    assert wfile.getvalue() == b""
-    assert not caplog.messages
-
-
-def test_handle_dovecot_protocol_user_not_exists(example_config):
-    dictproxy = AuthDictProxy(config=example_config)
-    rfile = io.BytesIO(
-        b"H3\t2\t0\t\tauth\nLshared/userdb/foobar@chat.example.org\tfoobar@chat.example.org\n"
-    )
-    wfile = io.BytesIO()
-    dictproxy.loop_forever(rfile, wfile)
-    assert wfile.getvalue() == b"N\n"
-
-
-def test_handle_dovecot_protocol_iterate(example_config):
-    dictproxy = AuthDictProxy(config=example_config)
-    dictproxy.lookup_passdb("asdf00000@chat.example.org", "q9mr3faue")
-    dictproxy.lookup_passdb("asdf11111@chat.example.org", "q9mr3faue")
-    rfile = io.BytesIO(b"H3\t2\t0\t\tauth\nI0\t0\tshared/userdb/")
-    wfile = io.BytesIO()
-    dictproxy.loop_forever(rfile, wfile)
-    lines = wfile.getvalue().decode("ascii").split("\n")
-    assert "Oshared/userdb/asdf00000@chat.example.org\t" in lines
-    assert "Oshared/userdb/asdf11111@chat.example.org\t" in lines
-    assert not lines[2]
+    addr = "newuser12@chat.example.org"
+    assert not doveauth.create_user(addr, "zequ0Aimuchoodaechik")
+    assert stored_hash(example_config, addr) is None
 
 
 def test_invalid_localpart_characters(make_config):
-    """Test that is_allowed_to_create rejects localparts with invalid characters."""
     config = make_config("chat.example.org", {"username_min_length": "3"})
     password = "zequ0Aimuchoodaechik"
     domain = config.mail_domain
@@ -141,78 +93,150 @@ def test_invalid_localpart_characters(make_config):
     assert not is_allowed_to_create(config, f"ab@cdef@{domain}", password)
     assert not is_allowed_to_create(config, f"abc/def@{domain}", password)
     assert not is_allowed_to_create(config, f"abc\\def@{domain}", password)
+    assert not is_allowed_to_create(config, f"üser123@{domain}", password)
 
 
-def test_concurrent_creation_same_account(dictproxy):
-    """Test that concurrent creation of the same account doesn't corrupt password."""
+def test_concurrent_creation_same_account(doveauth, example_config, capsys):
     addr = "racetest1@chat.example.org"
     password = "zequ0Aimuchoodaechik"
-    num_threads = 10
-    results = queue.Queue()
 
-    def create():
-        try:
-            res = dictproxy.lookup_passdb(addr, password)
-            results.put(("ok", res))
-        except Exception:
-            results.put(("err", traceback.format_exc()))
+    def create(_):
+        ok = doveauth.create_user(addr, password)
+        return ok, stored_hash(example_config, addr)
 
-    threads = [threading.Thread(target=create, daemon=True) for _ in range(num_threads)]
-    for t in threads:
-        t.start()
-    for t in threads:
-        t.join(timeout=10)
-
-    passwords_seen = set()
-    for _ in range(num_threads):
-        status, res = results.get()
-        if status == "err":
-            pytest.fail(f"concurrent creation failed\n{res}")
-        passwords_seen.add(res["password"])
-
+    with ThreadPoolExecutor(10) as pool:
+        results = list(pool.map(create, range(10)))
+    assert all(ok for ok, _ in results)
     # all threads must see the same password hash
-    assert len(passwords_seen) == 1
-
-
-def test_50_concurrent_lookups_different_accounts(example_gencreds, dictproxy):
-    num_threads = 50
-    req_per_thread = 5
-    results = queue.Queue()
-
-    def lookup():
-        for i in range(req_per_thread):
-            addr, password = example_gencreds()
-            try:
-                dictproxy.lookup_passdb(addr, password)
-            except Exception:
-                results.put(traceback.format_exc())
-            else:
-                results.put(None)
-
-    threads = []
-    for i in range(num_threads):
-        thread = threading.Thread(target=lookup, daemon=True)
-        threads.append(thread)
-
-    print(f"created {num_threads} threads, starting them and waiting for results")
-    for thread in threads:
-        thread.start()
-
-    for i in range(num_threads * req_per_thread):
-        res = results.get()
-        if res is not None:
-            pytest.fail(f"concurrent lookup failed\n{res}")
+    assert len({passhash for _, passhash in results}) == 1
+    assert capsys.readouterr().err.count("Created address:") == 1
 
 
 def test_insufficient_resources_block_creation_not_existing_logins(
-    dictproxy, example_gencreds, monkeypatch
+    doveauth, example_gencreds, monkeypatch
 ):
     addr, password = example_gencreds()
-    assert dictproxy.lookup_passdb(addr, password)
+    assert doveauth.create_user(addr, password)
 
     monkeypatch.setattr(
         chatmaild.doveauth, "has_sufficient_resources", lambda config: False
     )
     newaddr, newpassword = example_gencreds()
-    assert not dictproxy.lookup_passdb(newaddr, newpassword)
-    assert dictproxy.lookup_passdb(addr, password)
+    assert not doveauth.create_user(newaddr, newpassword)
+    assert doveauth.create_user(addr, password)
+
+
+class TestHttpPost:
+    @pytest.fixture
+    def doveauth_server(self, example_config):
+        server = DoveAuthServer(example_config, port=0)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        yield f"127.0.0.1:{server.server_address[1]}"
+        server.shutdown()
+        server.server_close()
+
+    @pytest.fixture
+    def post(self, doveauth_server):
+        def post(path, data):
+            conn = http.client.HTTPConnection(doveauth_server, timeout=10)
+            try:
+                return self.post_on(conn, path, data).status
+            finally:
+                conn.close()
+
+        return post
+
+    @pytest.fixture
+    def connection(self, doveauth_server):
+        """One kept-alive connection, which is all dovecot's HTTP client opens."""
+        conn = http.client.HTTPConnection(doveauth_server, timeout=10)
+        yield conn
+        conn.close()
+
+    @staticmethod
+    def post_on(conn, path, data):
+        conn.request("POST", path, body=data)
+        resp = conn.getresponse()
+        resp.read()
+        return resp
+
+    def test_create_and_verify(self, post, example_config, example_gencreds):
+        addr, password = example_gencreds()
+        assert post("/create", f"{addr}\t{password}".encode()) == 200
+        assert stored_hash(example_config, addr).startswith("{SHA512-CRYPT}")
+
+        # second login with the same password verifies, a wrong one is refused
+        assert post("/create", f"{addr}\t{password}".encode()) == 200
+        assert post("/create", f"{addr}\twrong{password}".encode()) == 403
+
+    def test_password_special_chars_survive_transport(self, post, example_gencreds):
+        addr, _ = example_gencreds()
+        password = "laksjdlaksjdlak\\sjdlk\"12j'3l1/k2\tj3123"
+        body = f"{addr}\t{password}".encode()
+        assert post("/create", body) == 200
+        assert post("/create", body) == 200
+        assert post("/create", f"{addr}\totherpassword1".encode()) == 403
+
+    def test_password_must_be_utf8(self, post, example_gencreds):
+        addr, _ = example_gencreds()
+        assert post("/create", f"{addr}\tpässwort12".encode()) == 200
+        assert post("/create", addr.encode() + b"\tp\xe4sswort12") == 400
+
+    def test_nul_is_refused_before_crypt_sees_it(self, post, example_gencreds):
+        addr, _ = example_gencreds()
+        assert post("/create", f"{addr}\tpass\0word12".encode()) == 400
+        assert (
+            post("/create", "us\0er12345@chat.example.org\tlongenough1".encode()) == 400
+        )
+
+    def test_refused_creation(self, post, example_gencreds):
+        addr, _ = example_gencreds()
+        assert post("/create", f"{addr}\tshort".encode()) == 403
+        assert post("/create", b"not-an-address\tlongenoughpassword") == 403
+        body = "bürger123@chat.example.org\tlongenoughpw".encode()
+        assert post("/create", body) == 403
+        assert post("/create", b"") == 403
+
+    def test_body_length_limit(self, post, example_gencreds):
+        addr, _ = example_gencreds()
+        fill = CreateHandler.max_body_len - len(addr) - len("\t")
+        body = f"{addr}\t{'x' * fill}".encode()
+        assert len(body) == CreateHandler.max_body_len
+        assert post("/create", body) == 200
+
+        body = f"{addr}\t{'x' * (fill + 1)}".encode()
+        assert len(body) == CreateHandler.max_body_len + 1
+        assert post("/create", body) == 400
+
+    def test_connection_is_reused_across_200_replies(
+        self, connection, example_gencreds
+    ):
+        addr, password = example_gencreds()
+        body = f"{addr}\t{password}".encode()
+        # create, then verify the same password, on one connection
+        for _ in range(2):
+            resp = self.post_on(connection, "/create", body)
+            assert (resp.status, resp.will_close) == (200, False)
+
+    @pytest.mark.parametrize(
+        "path,data,status",
+        [
+            ("/other", b"not read", 404),
+            ("/create", b"x" * (CreateHandler.max_body_len + 1), 400),
+            ("/create", b"not-an-address\tlongenoughpassword", 403),
+        ],
+    )
+    def test_error_replies_close_the_connection(self, connection, path, data, status):
+        resp = self.post_on(connection, path, data)
+        assert (resp.status, resp.will_close) == (status, True)
+
+    @pytest.mark.parametrize("content_length", [None, "-1", "notanumber", "999999"])
+    def test_bad_content_length(self, connection, content_length):
+        # the fixture timeout turns a server that waits for the body into a failure
+        connection.putrequest("POST", "/create", skip_accept_encoding=True)
+        if content_length is not None:
+            connection.putheader("Content-Length", content_length)
+        connection.endheaders()
+        resp = connection.getresponse()
+        assert resp.status == 400
+        assert resp.will_close

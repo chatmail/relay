@@ -1,6 +1,6 @@
 import time
 
-from chatmaild.doveauth import AuthDictProxy
+from chatmaild.doveauth import DoveAuth
 from chatmaild.lastlogin import (
     LastLoginDictProxy,
 )
@@ -9,8 +9,8 @@ from chatmaild.lastlogin import (
 def test_handle_dovecot_request_last_login(testaddr, example_config):
     dictproxy = LastLoginDictProxy(config=example_config)
 
-    authproxy = AuthDictProxy(config=example_config)
-    authproxy.lookup_passdb(testaddr, "1l2k3j1l2k3jl123")
+    doveauth = DoveAuth(example_config)
+    doveauth.create_user(testaddr, "1l2k3j1l2k3jl123")
 
     dictproxy_transactions = {}
 

@@ -63,7 +63,7 @@ def test_migration(tmp_path, example_config, caplog):
         user = example_config.get_user(path.name)
         if last_login:
             assert user.get_last_login_timestamp() == last_login
-        assert password == user.get_userdb_dict()["password"]
+        assert password == user.get_password_hash()
 
     assert not all
     assert not example_config.passdb_path.exists()

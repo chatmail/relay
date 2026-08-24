@@ -31,7 +31,7 @@ class DovecotDeployer(Deployer):
         arch = host.get_fact(Arch)
         with blocked_service_startup():
             debs = []
-            for pkg in ("core", "imapd", "lmtpd"):
+            for pkg in ("core", "imapd", "lmtpd", "auth-lua"):
                 deb, changed = _download_dovecot_package(pkg, arch)
                 self.need_restart |= changed
                 if deb:
@@ -134,7 +134,8 @@ def _configure_dovecot(deployer, config: Config, debug: bool = False):
         debug=debug,
         disable_ipv6=config.disable_ipv6,
     )
-    deployer.put_file("dovecot/auth.conf", "/etc/dovecot/auth.conf")
+    deployer.put_template("dovecot/auth.lua.j2", "/etc/dovecot/auth.lua", config=config)
+    deployer.remove_file("/etc/dovecot/auth.conf")
     deployer.put_file(
         "dovecot/push_notification.lua", "/etc/dovecot/push_notification.lua"
     )

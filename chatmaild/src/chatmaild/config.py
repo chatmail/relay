@@ -55,6 +55,7 @@ class Config:
         self.postfix_reinject_port_incoming = int(
             params.pop("postfix_reinject_port_incoming", "10026")
         )
+        self.doveauth_http_port = int(params.pop("doveauth_http_port", "10084"))
         self.mtail_address = params.pop("mtail_address", None)
         self.disable_ipv6 = params.pop("disable_ipv6", "false").lower() == "true"
         self.acme_email = params.pop("acme_email", "")
