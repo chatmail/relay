@@ -17,12 +17,12 @@ class MtailDeployer(Deployer):
 
         (url, sha256sum) = {
             "x86_64": (
-                "https://github.com/google/mtail/releases/download/v3.0.8/mtail_3.0.8_linux_amd64.tar.gz",
-                "d55cb601049c5e61eabab29998dbbcea95d480e5448544f9470337ba2eea882e",
+                "https://github.com/jaqx0r/mtail/releases/download/v3.4.9/mtail_3.4.9_linux_amd64.tar.gz",
+                "55f64a87f71955bb871c724b4aadf19fe9d854e6327196919c7fe44943427eab",
             ),
             "aarch64": (
-                "https://github.com/google/mtail/releases/download/v3.0.8/mtail_3.0.8_linux_arm64.tar.gz",
-                "f748db8ad2a1e0b63684d4c8868cf6a373a20f7e6922e5ece601fff0ee00eb1a",
+                "https://github.com/jaqx0r/mtail/releases/download/v3.4.9/mtail_3.4.9_linux_arm64.tar.gz",
+                "e0a2b66b372ca257d7daeb7ba10f9233a2192a1f9057618fccc6be5c854a2a3c",
             ),
         }[host.get_fact(facts.server.Arch)]
         self.download_executable(
