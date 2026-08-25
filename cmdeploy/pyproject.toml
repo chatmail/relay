@@ -19,6 +19,7 @@ dependencies = [
   "pytest-xdist", 
   "execnet",
   "imap_tools",
+  "lupa",
   "deltachat-rpc-client",
   "deltachat-rpc-server",
 ]
