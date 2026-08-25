@@ -51,7 +51,7 @@ def get_resource(arg, pkg=__package__):
     return importlib.resources.files(pkg).joinpath(arg)
 
 
-def configure_remote_units(deployer, mail_domain, units) -> None:
+def configure_remote_units(deployer, mail_domain, units, **kwargs) -> None:
     remote_base_dir = "/usr/local/lib/chatmaild"
     remote_venv_dir = f"{remote_base_dir}/venv"
     remote_chatmail_inipath = f"{remote_base_dir}/chatmail.ini"
@@ -63,6 +63,7 @@ def configure_remote_units(deployer, mail_domain, units) -> None:
             config_path=remote_chatmail_inipath,
             remote_venv_dir=remote_venv_dir,
             mail_domain=mail_domain,
+            **kwargs,
         )
 
         basename = fn if "." in fn else f"{fn}.service"

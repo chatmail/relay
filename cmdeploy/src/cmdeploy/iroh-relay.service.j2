@@ -2,7 +2,7 @@
 Description=Iroh relay
 
 [Service]
-ExecStart=/usr/local/bin/iroh-relay --config-path /etc/iroh-relay.toml
+ExecStart={{ bin_path }} --config-path {{ config_path }}
 Restart=on-failure
 RestartSec=5s
 User=iroh

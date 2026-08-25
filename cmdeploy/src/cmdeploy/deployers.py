@@ -301,6 +301,8 @@ def check_config(config):
 
 
 class TurnDeployer(Deployer):
+    bin_path = "/usr/local/bin/chatmail-turn"
+
     def __init__(self, mail_domain):
         self.mail_domain = mail_domain
         self.units = ["turnserver"]
@@ -316,16 +318,21 @@ class TurnDeployer(Deployer):
                 "0fb3e792419494e21ecad536464929dba706bb2c88884ed8f1788141d26fc756",
             ),
         }[host.get_fact(facts.server.Arch)]
-        self.download_executable(url, "/usr/local/bin/chatmail-turn", sha256sum)
+        self.download_executable(url, self.bin_path, sha256sum)
 
     def configure(self):
-        configure_remote_units(self, self.mail_domain, self.units)
+        configure_remote_units(
+            self, self.mail_domain, self.units, bin_path=self.bin_path
+        )
 
     def activate(self):
         activate_remote_units(self, self.units)
 
 
 class IrohDeployer(Deployer):
+    bin_path = "/usr/local/bin/iroh-relay"
+    config_path = "/etc/iroh-relay.toml"
+
     def __init__(self, enable_iroh_relay):
         self.enable_iroh_relay = enable_iroh_relay
 
@@ -342,14 +349,18 @@ class IrohDeployer(Deployer):
         }[host.get_fact(facts.server.Arch)]
         self.download_executable(
             url,
-            "/usr/local/bin/iroh-relay",
+            self.bin_path,
             sha256sum,
             extract="gunzip | tar -xf - ./iroh-relay -O",
         )
 
     def configure(self):
-        self.ensure_systemd_unit("iroh-relay.service")
-        self.put_file("iroh-relay.toml", "/etc/iroh-relay.toml")
+        self.ensure_systemd_unit(
+            "iroh-relay.service.j2",
+            bin_path=self.bin_path,
+            config_path=self.config_path,
+        )
+        self.put_file("iroh-relay.toml", self.config_path)
 
     def activate(self):
         self.ensure_service(
