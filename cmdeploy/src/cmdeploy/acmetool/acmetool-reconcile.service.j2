@@ -4,5 +4,5 @@ After=network.target
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/acmetool --batch reconcile
+ExecStart={{ bin_path }} --batch reconcile
 

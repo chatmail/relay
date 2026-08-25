@@ -5,6 +5,9 @@ from cmdeploy.basedeploy import Deployer
 
 
 class MtailDeployer(Deployer):
+    bin_path = "/usr/local/bin/mtail"
+    progs_dir = "/etc/mtail"
+
     def __init__(self, mtail_address):
         self.mtail_address = mtail_address
 
@@ -24,7 +27,7 @@ class MtailDeployer(Deployer):
         }[host.get_fact(facts.server.Arch)]
         self.download_executable(
             url,
-            "/usr/local/bin/mtail",
+            self.bin_path,
             sha256sum,
             extract="gunzip | tar -xf - mtail -O",
         )
@@ -36,8 +39,12 @@ class MtailDeployer(Deployer):
             "mtail/mtail.service.j2",
             address=self.mtail_address or "127.0.0.1",
             port=3903,
+            bin_path=self.bin_path,
+            progs_dir=self.progs_dir,
         )
-        self.put_file("mtail/delivered_mail.mtail", "/etc/mtail/delivered_mail.mtail")
+        self.put_file(
+            "mtail/delivered_mail.mtail", f"{self.progs_dir}/delivered_mail.mtail"
+        )
 
     def activate(self):
         active = bool(self.mtail_address)

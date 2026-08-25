@@ -5,5 +5,5 @@ After=network.target
 [Service]
 Type=oneshot
 User=vmail
-ExecStart=/usr/local/lib/chatmaild/venv/bin/chatmail-fsreport /usr/local/lib/chatmaild/chatmail.ini
+ExecStart={execpath} {config_path}
 

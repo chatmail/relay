@@ -5,7 +5,7 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=/bin/sh -c "journalctl -f -o short-iso -n 0 | /usr/local/bin/mtail --address={{ address }} --port={{ port }} --progs /etc/mtail --logtostderr --logs -"
+ExecStart=/bin/sh -c "journalctl -f -o short-iso -n 0 | {{ bin_path }} --address={{ address }} --port={{ port }} --progs {{ progs_dir }} --logtostderr --logs -"
 Restart=on-failure
 RestartSec=2s
 

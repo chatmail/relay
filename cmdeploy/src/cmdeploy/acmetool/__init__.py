@@ -4,6 +4,8 @@ from ..basedeploy import Deployer
 
 
 class AcmetoolDeployer(Deployer):
+    bin_path = "/usr/bin/acmetool"
+
     def __init__(self, email, domains):
         self.domains = domains
         self.email = email
@@ -41,8 +43,12 @@ class AcmetoolDeployer(Deployer):
             domains=self.domains,
         )
 
-        self.ensure_systemd_unit("acmetool/acmetool-redirector.service")
-        self.ensure_systemd_unit("acmetool/acmetool-reconcile.service")
+        self.ensure_systemd_unit(
+            "acmetool/acmetool-redirector.service.j2", bin_path=self.bin_path
+        )
+        self.ensure_systemd_unit(
+            "acmetool/acmetool-reconcile.service.j2", bin_path=self.bin_path
+        )
         self.ensure_systemd_unit("acmetool/acmetool-reconcile.timer")
 
     def activate(self):
@@ -52,5 +58,5 @@ class AcmetoolDeployer(Deployer):
 
         server.shell(
             name=f"Reconcile certificates for: {', '.join(self.domains)}",
-            commands=["acmetool --batch --xlog.severity=debug reconcile"],
+            commands=[f"{self.bin_path} --batch --xlog.severity=debug reconcile"],
         )
