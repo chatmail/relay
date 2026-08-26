@@ -13,6 +13,11 @@ jobs:
   scripts:
     name: build 
     runs-on: ubuntu-latest
+    env:
+      # Pin the repository links in the docs to this pull request's head commit
+      # so that linkcheck resolves files which only exist on the branch so far.
+      # see doc/conf.py
+      DOC_GITHUB_REF: ${{ github.event.pull_request.head.sha }}
     environment:
       name: 'staging.chatmail.at/doc/relay/'
       url: https://staging.chatmail.at/doc/relay/${{ steps.prepare.outputs.prid }}

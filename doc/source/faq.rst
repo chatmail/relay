@@ -54,7 +54,7 @@ How can I upgrade my chatmail relay?
 ------------------------------------
 
 To upgrade to the latest ``main`` branch,
-``cd`` into your local checkout of `https://github.com/chatmail/relay/`_
+``cd`` into your local checkout of https://github.com/chatmail/relay/
 and run the following commands:
 
    ::
