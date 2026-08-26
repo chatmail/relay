@@ -14,18 +14,9 @@ from cmdeploy.basedeploy import (
     configure_remote_units,
     is_in_container,
 )
+from cmdeploy.pins import DOVECOT_SHA256, DOVECOT_VERSION
 
-DOVECOT_ARCHIVE_VERSION = "2.3.21+dfsg1-3"
-DOVECOT_PACKAGE_VERSION = f"1:{DOVECOT_ARCHIVE_VERSION}"
-
-DOVECOT_SHA256 = {
-    ("core", "amd64"): "dd060706f52a306fa863d874717210b9fe10536c824afe1790eec247ded5b27d",
-    ("core", "arm64"): "e7548e8a82929722e973629ecc40fcfa886894cef3db88f23535149e7f730dc9",
-    ("imapd", "amd64"): "8d8dc6fc00bbb6cdb25d345844f41ce2f1c53f764b79a838eb2a03103eebfa86",
-    ("imapd", "arm64"): "178fa877ddd5df9930e8308b518f4b07df10e759050725f8217a0c1fb3fd707f",
-    ("lmtpd", "amd64"): "2f69ba5e35363de50962d42cccbfe4ed8495265044e244007d7ccddad77513ab",
-    ("lmtpd", "arm64"): "89f52fb36524f5877a177dff4a713ba771fd3f91f22ed0af7238d495e143b38f",
-}
+DOVECOT_PACKAGE_VERSION = f"1:{DOVECOT_VERSION}"
 
 
 class DovecotDeployer(Deployer):
@@ -117,7 +108,7 @@ def _download_dovecot_package(package: str, arch: str) -> tuple[str | None, bool
     if DOVECOT_PACKAGE_VERSION in installed_versions:
         return None, False
 
-    url_version = DOVECOT_ARCHIVE_VERSION.replace("+", "%2B")
+    url_version = DOVECOT_VERSION.replace("+", "%2B")
     deb_base = f"{pkg_name}_{url_version}_{arch}.deb"
     primary_url = f"https://download.delta.chat/dovecot/{deb_base}"
     fallback_url = f"https://github.com/chatmail/dovecot/releases/download/upstream%2F{url_version}/{deb_base}"

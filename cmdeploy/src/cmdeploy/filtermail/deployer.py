@@ -3,13 +3,7 @@ import os
 from pyinfra import facts, host
 
 from cmdeploy.basedeploy import Deployer
-
-VERSION = "v0.7.4" # also gets used by mtail deployer
-SHA256SUMS = {
-    "x86_64": "484cb8dff083134aefba9fce4a6b7ef4784a0f0e28e5108ecf8bb9e58a44fd2c",
-    "aarch64": "66aa0ca2ca9add7a12d92883d76f8786384092adfde24a3d3a1d0b1f30d23a9e",
-}
-MTAIL_PROGRAM_SHA256 = "948f688bb89ad47e6eb0fc8fa107e201a689f5adc264ff926be487a2a8562b51"
+from cmdeploy.pins import FILTERMAIL_ARTIFACTS
 
 
 class FiltermailDeployer(Deployer):
@@ -27,8 +21,8 @@ class FiltermailDeployer(Deployer):
             return
 
         arch = host.get_fact(facts.server.Arch)
-        url = f"https://github.com/chatmail/filtermail/releases/download/{VERSION}/filtermail-{arch}"
-        self.download_executable(url, self.bin_path, SHA256SUMS[arch])
+        url, sha256sum = FILTERMAIL_ARTIFACTS[arch]
+        self.download_executable(url, self.bin_path, sha256sum)
 
     def configure(self):
         for service in self.services:
