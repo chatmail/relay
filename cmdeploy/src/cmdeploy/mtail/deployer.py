@@ -2,10 +2,7 @@ from pyinfra import facts, host
 from pyinfra.operations import apt, server
 
 from cmdeploy.basedeploy import Deployer
-from cmdeploy.filtermail.deployer import (
-    MTAIL_PROGRAM_SHA256 as FILTERMAIL_MTAIL_SHA256,
-    VERSION as FILTERMAIL_VERSION,
-)
+from cmdeploy.pins import FILTERMAIL_ARTIFACTS, MTAIL_ARTIFACTS
 
 
 class MtailDeployer(Deployer):
@@ -19,16 +16,7 @@ class MtailDeployer(Deployer):
         # Uninstall mtail package to install a static binary.
         apt.packages(name="Uninstall mtail", packages=["mtail"], present=False)
 
-        (url, sha256sum) = {
-            "x86_64": (
-                "https://github.com/jaqx0r/mtail/releases/download/v3.4.9/mtail_3.4.9_linux_amd64.tar.gz",
-                "55f64a87f71955bb871c724b4aadf19fe9d854e6327196919c7fe44943427eab",
-            ),
-            "aarch64": (
-                "https://github.com/jaqx0r/mtail/releases/download/v3.4.9/mtail_3.4.9_linux_arm64.tar.gz",
-                "e0a2b66b372ca257d7daeb7ba10f9233a2192a1f9057618fccc6be5c854a2a3c",
-            ),
-        }[host.get_fact(facts.server.Arch)]
+        (url, sha256sum) = MTAIL_ARTIFACTS[host.get_fact(facts.server.Arch)]
         self.download_executable(
             url,
             self.bin_path,
@@ -50,10 +38,11 @@ class MtailDeployer(Deployer):
             self.put_file(
                 "mtail/delivered_mail.mtail", f"{self.progs_dir}/delivered_mail.mtail"
             )
+            url, sha256sum = FILTERMAIL_ARTIFACTS['mtail']
             self.download_executable(
-                f"https://raw.githubusercontent.com/chatmail/filtermail/{FILTERMAIL_VERSION}/contrib/filtermail.mtail",
+                url,
                 f"{self.progs_dir}/filtermail.mtail",
-                FILTERMAIL_MTAIL_SHA256,
+                sha256sum,
                 mode="644",
             )
             if self.need_restart:

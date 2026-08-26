@@ -33,6 +33,7 @@ from .filtermail.deployer import FiltermailDeployer
 from .mtail.deployer import MtailDeployer
 from .nginx.deployer import NginxDeployer
 from .opendkim.deployer import OpendkimDeployer
+from .pins import IROH_ARTIFACTS, TURN_ARTIFACTS
 from .postfix.deployer import PostfixDeployer
 from .selfsigned.deployer import SelfSignedTlsDeployer
 from .www import build_webpages, find_merge_conflict, get_paths
@@ -308,16 +309,7 @@ class TurnDeployer(Deployer):
         self.units = ["turnserver"]
 
     def install(self):
-        (url, sha256sum) = {
-            "x86_64": (
-                "https://github.com/chatmail/chatmail-turn/releases/download/v0.4/chatmail-turn-x86_64-linux",
-                "1ec1f5c50122165e858a5a91bcba9037a28aa8cb8b64b8db570aa457c6141a8a",
-            ),
-            "aarch64": (
-                "https://github.com/chatmail/chatmail-turn/releases/download/v0.4/chatmail-turn-aarch64-linux",
-                "0fb3e792419494e21ecad536464929dba706bb2c88884ed8f1788141d26fc756",
-            ),
-        }[host.get_fact(facts.server.Arch)]
+        (url, sha256sum) = TURN_ARTIFACTS[host.get_fact(facts.server.Arch)]
         self.download_executable(url, self.bin_path, sha256sum)
 
     def configure(self):
@@ -337,16 +329,7 @@ class IrohDeployer(Deployer):
         self.enable_iroh_relay = enable_iroh_relay
 
     def install(self):
-        (url, sha256sum) = {
-            "x86_64": (
-                "https://github.com/n0-computer/iroh/releases/download/v0.35.0/iroh-relay-v0.35.0-x86_64-unknown-linux-musl.tar.gz",
-                "45c81199dbd70f8c4c30fef7f3b9727ca6e3cea8f2831333eeaf8aa71bf0fac1",
-            ),
-            "aarch64": (
-                "https://github.com/n0-computer/iroh/releases/download/v0.35.0/iroh-relay-v0.35.0-aarch64-unknown-linux-musl.tar.gz",
-                "f8ef27631fac213b3ef668d02acd5b3e215292746a3fc71d90c63115446008b1",
-            ),
-        }[host.get_fact(facts.server.Arch)]
+        (url, sha256sum) = IROH_ARTIFACTS[host.get_fact(facts.server.Arch)]
         self.download_executable(
             url,
             self.bin_path,
