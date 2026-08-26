@@ -48,7 +48,7 @@ def test_create_dclogin_url_ipv4(ipv4_config):
     assert addr in url
 
 
-def test_print_new_account(capsys, monkeypatch, maildomain, tmpdir, example_config):
+def test_print_new_account(capsys, monkeypatch, tmpdir, example_config):
     monkeypatch.setattr(chatmaild.newemail, "CONFIG_PATH", str(example_config._inipath))
     print_new_account()
     out, err = capsys.readouterr()

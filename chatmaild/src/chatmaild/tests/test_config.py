@@ -30,9 +30,9 @@ def test_read_config_ipv4(ipv4_config):
     assert ipv4_config.mail_domain == "[1.3.3.7]"
 
 
-def test_read_config_basic_using_defaults(tmp_path, maildomain):
+def test_read_config_basic_using_defaults(tmp_path, example_maildomain):
     inipath = tmp_path.joinpath("chatmail.ini")
-    inipath.write_text(f"[params]\nmail_domain = {maildomain}")
+    inipath.write_text(f"[params]\nmail_domain = {example_maildomain}")
     example_config = read_config(inipath)
     assert example_config.max_user_send_per_minute == 60
     assert example_config.filtermail_smtp_port_incoming == 10081
