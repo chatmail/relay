@@ -27,6 +27,7 @@ to also write legacy metrics.py style output (default: /var/www/html/metrics):
 
 import os
 import tempfile
+import time
 from argparse import ArgumentParser
 from datetime import datetime
 
@@ -264,7 +265,7 @@ def main(args=None):
 
     config = read_config(args.chatmail_ini)
 
-    now = datetime.utcnow().timestamp()
+    now = time.time()
     if args.days:
         now = now - 86400 * int(args.days)
 

@@ -259,7 +259,7 @@ def daily_expire_main(args=None):
     args = parser.parse_args(args)
 
     config = read_config(args.chatmail_ini)
-    now = datetime.utcnow().timestamp()
+    now = time.time()
     if args.days:
         now = now - 86400 * int(args.days)
 
