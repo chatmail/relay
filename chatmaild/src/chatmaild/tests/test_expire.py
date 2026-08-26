@@ -3,7 +3,6 @@ import os
 import random
 import shutil
 import time
-from datetime import datetime
 from fnmatch import fnmatch
 from pathlib import Path
 
@@ -41,7 +40,7 @@ def fill_mbox(folderdir):
 
 
 def create_new_messages(basedir, relpaths, size=1000, days=0):
-    now = datetime.utcnow().timestamp()
+    now = time.time()
 
     for relpath in relpaths:
         msg_path = Path(basedir).joinpath(relpath)
@@ -112,9 +111,7 @@ def test_mbox_without_password(mbox1, example_config, capsys):
     mbox_rescan = MailboxStat(mbox1.basedir)
     assert mbox_rescan.last_login is None
 
-    exp = Expiry(
-        example_config, dry=False, now=datetime.now().timestamp(), verbose=False
-    )
+    exp = Expiry(example_config, dry=False, now=time.time(), verbose=False)
     exp.process_mailbox_stat(mbox_rescan)
     out, err = capsys.readouterr()
     assert "doesn't have last_login but isn't empty" in err
@@ -152,7 +149,7 @@ def test_report_mdir_filters_by_path(mbox1, example_config):
     """Test that Report with mdir='cur' only counts messages in cur/ subdirectory."""
     from chatmaild.fsreport import Report
 
-    now = datetime.utcnow().timestamp()
+    now = time.time()
 
     # Set password mtime to old enough so min_login_age check passes
     password = Path(mbox1.basedir).joinpath("password")
