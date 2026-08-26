@@ -41,22 +41,22 @@ def ipv4_config(make_config):
 
 
 @pytest.fixture
-def maildomain(example_config):
+def example_maildomain(example_config):
     return example_config.mail_domain
 
 
 @pytest.fixture
-def testaddr(maildomain):
-    return f"user.name@{maildomain}"
+def testaddr(example_maildomain):
+    return f"user.name@{example_maildomain}"
 
 
 @pytest.fixture
-def gencreds(maildomain):
+def example_gencreds(example_maildomain):
     count = itertools.count()
     next(count)
 
     def gen(domain=None):
-        domain = domain if domain else maildomain
+        domain = domain if domain else example_maildomain
         while 1:
             num = next(count)
             alphanumeric = "abcdefghijklmnopqrstuvwxyz1234567890"
