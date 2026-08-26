@@ -27,9 +27,6 @@ dependencies = [
 [project.scripts]
 cmdeploy = "cmdeploy.cmdeploy:main"
 
-[project.entry-points.pytest11]
-"cmdeploy.testplugin" = "cmdeploy.tests.plugin"
-
 [tool.pytest.ini_options]
 addopts = "-v -ra --strict-markers"
 
