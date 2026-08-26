@@ -28,7 +28,6 @@ dependencies = [
 cmdeploy = "cmdeploy.cmdeploy:main"
 
 [project.entry-points.pytest11]
-"chatmaild.testplugin" = "chatmaild.tests.plugin"
 "cmdeploy.testplugin" = "cmdeploy.tests.plugin"
 
 [tool.pytest.ini_options]

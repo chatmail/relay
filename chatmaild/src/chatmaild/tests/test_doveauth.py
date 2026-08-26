@@ -19,8 +19,8 @@ def dictproxy(example_config):
     return AuthDictProxy(config=example_config)
 
 
-def test_basic(dictproxy, gencreds):
-    addr, password = gencreds()
+def test_basic(dictproxy, example_gencreds):
+    addr, password = example_gencreds()
     dictproxy.lookup_passdb(addr, password)
     data = dictproxy.lookup_userdb(addr)
     assert data
@@ -107,7 +107,7 @@ def test_handle_dovecot_protocol_user_not_exists(example_config):
     assert wfile.getvalue() == b"N\n"
 
 
-def test_handle_dovecot_protocol_iterate(gencreds, example_config):
+def test_handle_dovecot_protocol_iterate(example_config):
     dictproxy = AuthDictProxy(config=example_config)
     dictproxy.lookup_passdb("asdf00000@chat.example.org", "q9mr3faue")
     dictproxy.lookup_passdb("asdf11111@chat.example.org", "q9mr3faue")
@@ -174,14 +174,14 @@ def test_concurrent_creation_same_account(dictproxy):
     assert len(passwords_seen) == 1
 
 
-def test_50_concurrent_lookups_different_accounts(gencreds, dictproxy):
+def test_50_concurrent_lookups_different_accounts(example_gencreds, dictproxy):
     num_threads = 50
     req_per_thread = 5
     results = queue.Queue()
 
     def lookup():
         for i in range(req_per_thread):
-            addr, password = gencreds()
+            addr, password = example_gencreds()
             try:
                 dictproxy.lookup_passdb(addr, password)
             except Exception:
@@ -205,14 +205,14 @@ def test_50_concurrent_lookups_different_accounts(gencreds, dictproxy):
 
 
 def test_insufficient_resources_block_creation_not_existing_logins(
-    dictproxy, gencreds, monkeypatch
+    dictproxy, example_gencreds, monkeypatch
 ):
-    addr, password = gencreds()
+    addr, password = example_gencreds()
     assert dictproxy.lookup_passdb(addr, password)
 
     monkeypatch.setattr(
         chatmaild.doveauth, "has_sufficient_resources", lambda config: False
     )
-    newaddr, newpassword = gencreds()
+    newaddr, newpassword = example_gencreds()
     assert not dictproxy.lookup_passdb(newaddr, newpassword)
     assert dictproxy.lookup_passdb(addr, password)

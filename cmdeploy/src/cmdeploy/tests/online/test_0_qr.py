@@ -20,17 +20,17 @@ def test_fastcgi_working(maildomain, chatmail_config):
 
 
 @pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")
-def test_newemail_configure(maildomain, rpc, chatmail_config):
+def test_newemail_configure(maildomain, cmrpc, chatmail_config):
     """Test configuring accounts by scanning a QR code works."""
     url = f"DCACCOUNT:https://{maildomain}/new"
     for i in range(3):
-        account_id = rpc.add_account()
+        account_id = cmrpc.add_account()
         if chatmail_config.tls_cert_mode == "self":
             # deltachat core's rustls rejects self-signed HTTPS certs during
             # set_config_from_qr, so fetch credentials via requests instead
             res = requests.post(f"https://{maildomain}/new", verify=False)
             data = res.json()
-            rpc.add_or_update_transport(account_id, {
+            cmrpc.add_or_update_transport(account_id, {
                 "addr": data["email"],
                 "password": data["password"],
                 "imapServer": maildomain,
@@ -38,4 +38,4 @@ def test_newemail_configure(maildomain, rpc, chatmail_config):
                 "certificateChecks": "acceptInvalidCertificates",
             })
         else:
-            rpc.add_transport_from_qr(account_id, url)
+            cmrpc.add_transport_from_qr(account_id, url)
