@@ -1,9 +1,11 @@
 """Run the lua scripts we ship under lupa, which bundles Lua 5.4 like dovecot."""
 
 import pytest
+from chatmaild.tests.plugin import *  # noqa: F403
 from lupa import lua54
 
 from cmdeploy.basedeploy import get_resource
+from cmdeploy.tests.plugin import *  # noqa: F403
 
 
 class Lua:

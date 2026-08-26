@@ -20,6 +20,10 @@ fi
 
 python3 -m venv --upgrade-deps venv
 
+# an editable install puts src/ on sys.path, so a leftover egg-info there is
+# found as a second distribution and keeps removed entry points registered
+rm -rf chatmaild/src/*.egg-info cmdeploy/src/*.egg-info
+
 venv/bin/pip install -e chatmaild 
 venv/bin/pip install -e cmdeploy
 venv/bin/pip install sphinx sphinxcontrib-mermaid sphinx-autobuild furo  # for building the docs

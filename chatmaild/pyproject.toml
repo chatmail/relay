@@ -27,9 +27,6 @@ chatmail-quota-expire = "chatmaild.expire:quota_expire_main"
 chatmail-fsreport = "chatmaild.fsreport:main"
 lastlogin = "chatmaild.lastlogin:main"
 
-[project.entry-points.pytest11]
-"chatmaild.testplugin" = "chatmaild.tests.plugin"
-
 [tool.pytest.ini_options]
 addopts = "-v -ra --strict-markers"
 log_format = "%(asctime)s %(levelname)s %(message)s"
