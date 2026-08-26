@@ -3,6 +3,8 @@
 # For the full list of built-in configuration values, see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
+import os
+
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
@@ -16,18 +18,24 @@ author = 'chatmail collective'
 extensions = [
     #'sphinx.ext.autodoc',
     #'sphinx.ext.viewdoc',
+    'sphinx.ext.extlinks',
     'sphinxcontrib.mermaid',
 ]
 
 templates_path = ['_templates']
 exclude_patterns = []
 
-linkcheck_ignore = [
-    # only resolves once the file is merged to main
-    r"https://github\.com/chatmail/relay/blob/main/chatmaild/src/chatmaild/defaults/appversions\.json",
-]
+# Repository links go through the roles below.
+# CI sets DOC_GITHUB_REF to the head commit of a pull request,
+gh_ref = os.environ.get("DOC_GITHUB_REF", "main")
 
+extlinks = {
+    "repofile": (f"https://github.com/chatmail/relay/blob/{gh_ref}/%s", "%s"),
+    "repodir": (f"https://github.com/chatmail/relay/tree/{gh_ref}/%s", "%s"),
+}
 
+# Warn about repository links spelled out in full instead of using the roles.
+extlinks_detect_hardcoded_links = True
 
 
 # -- Options for HTML output -------------------------------------------------
