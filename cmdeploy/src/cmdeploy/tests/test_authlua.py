@@ -8,7 +8,7 @@ from cmdeploy.basedeploy import get_resource
 
 USER1 = "user12345@chat.example.org"
 USER2 = "newuser12@chat.example.org"
-OK, UNKNOWN, MISMATCH = 1, -2, -3
+OK, UNKNOWN, MISMATCH, INTERNAL = 1, -2, -3, -4
 
 DOVECOT_MOCKS = """
 create_status = 200
@@ -18,6 +18,7 @@ dovecot = {
     PASSDB_RESULT_OK = OK,
     PASSDB_RESULT_USER_UNKNOWN = UNKNOWN,
     PASSDB_RESULT_PASSWORD_MISMATCH = MISMATCH,
+    PASSDB_RESULT_INTERNAL_FAILURE = INTERNAL,
     USERDB_RESULT_OK = OK,
     USERDB_RESULT_USER_UNKNOWN = UNKNOWN,
   },
@@ -40,7 +41,8 @@ dovecot = {
 
 
 def load_authlua(lua, config):
-    lua.g.OK, lua.g.UNKNOWN, lua.g.MISMATCH = OK, UNKNOWN, MISMATCH
+    lua.g.OK, lua.g.UNKNOWN = OK, UNKNOWN
+    lua.g.MISMATCH, lua.g.INTERNAL = MISMATCH, INTERNAL
     lua.rt.execute(DOVECOT_MOCKS)
     template = jinja2.Template(get_resource("dovecot/auth.lua.j2").read_text())
     lua.rt.execute(template.render(config=config))
@@ -147,14 +149,22 @@ def test_unknown_address_is_created_via_endpoint(authlua, request_for):
     assert authlua.g.create_request["url"] == "http://127.0.0.1:10084/create"
 
 
-# a policy refusal and a doveauth that is down are both fail-closed
-@pytest.mark.parametrize("status", [403, 0])
-def test_creation_that_is_not_answered_with_200_is_user_unknown(
+# doveauth refusing is the user's problem, doveauth failing is ours
+@pytest.mark.parametrize("status", [400, 403, 404])
+def test_creation_refused_by_doveauth_is_user_unknown(authlua, request_for, status):
+    authlua.g.create_status = status
+    res, _ = authlua.g.auth_password_verify(request_for(USER2), "brandnewpass")
+    assert res == UNKNOWN
+
+
+# 9003 is dovecot's own CONNECT_FAILED, what a stopped doveauth actually yields
+@pytest.mark.parametrize("status", [500, 502, 9003, 9005])
+def test_creation_that_doveauth_could_not_answer_is_internal_failure(
     authlua, request_for, status
 ):
     authlua.g.create_status = status
     res, _ = authlua.g.auth_password_verify(request_for(USER2), "brandnewpass")
-    assert res == UNKNOWN
+    assert res == INTERNAL
 
 
 def test_userdb_unknown_before_creation_ok_after(authlua, request_for, create_user):
