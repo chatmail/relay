@@ -31,7 +31,7 @@ end
 local function create(user, password)
   local request = http_client:request({url = create_url, method = "POST"})
   request:set_payload(user .. "\t" .. password)
-  return request:submit():status() == 200
+  return request:submit():status()
 end
 
 -- Entry points called by dovecot
@@ -54,7 +54,11 @@ function auth_password_verify(req, password)
   end
   local hash = password_hash(req.user)
   if hash == nil then
-    if not create(req.user, password) then
+    -- doveauth refuses with 4xx; dovecot reports its own failures as 9000 and up
+    local status = create(req.user, password)
+    if status >= 500 then
+      return dovecot.auth.PASSDB_RESULT_INTERNAL_FAILURE, {}
+    elseif status ~= 200 then
       return dovecot.auth.PASSDB_RESULT_USER_UNKNOWN, {}
     end
   elseif req:password_verify(hash, password) ~= 1 then
