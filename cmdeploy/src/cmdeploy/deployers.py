@@ -354,7 +354,7 @@ class IrohDeployer(Deployer):
 
 class JournaldDeployer(Deployer):
     def configure(self):
-        self.put_file("journald.conf", "/etc/systemd/journald.conf")
+        self.put_file("journald.conf", "/etc/systemd/journald.conf.d/99-volatile-logging.conf")
 
     def activate(self):
         self.ensure_service("systemd-journald.service")
