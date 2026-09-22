@@ -1,5 +1,38 @@
 # Changelog for chatmail deployment
 
+## [1.13.0] - 2026-09-22
+
+### Bug Fixes
+
+- Actually use UTC time instead of just seemingly using it
+
+### Documentation
+
+- Describe Madmail v2 as a Rust chatmail relay
+
+### Features
+
+- Serve an APPVERSIONS.json index file to clients via IMAP metadata
+- *(mtail)* Deploy filtermail.mtail and gate mtail rule copy on mtail_address
+- *(mtail)* Validate programs during deploy
+- Move doveauth from dictproxy to lua/http
+- Distinguish AUTHENTICATION_FAILED/UNAVAILABLE login failures
+
+### Miscellaneous Tasks
+
+- Try to fix lack of RFC822 item support in madmail and make CI pass
+- Un-hardcode executable paths in some systemd service files
+- Follow the new mtail release source, upgrade 3.0.8 to 3.4.9
+- *(cmdeploy)* Refactor all pins into pins.py
+- *(doc)* Use sphinx roles for referencing repository files and dirs
+- update deltachat-android link to 2.59.1
+
+### Testing
+
+- Integrate lua testing into regular pytest run for push notifications
+- Cleanup and allow a repo-root level "pytest -n6" to succeed.
+- [**breaking**] Remove global registration of pytest plugins
+
 ## [1.12.0] - 2026-07-31
 
 ### Breaking Changes
