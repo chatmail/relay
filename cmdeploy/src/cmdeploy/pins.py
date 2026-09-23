@@ -28,16 +28,25 @@ MTAIL_ARTIFACTS = {
     ),
 }
 
-DOVECOT_VERSION = "2.3.21+dfsg1-3"
+# distro-neutral base version, as committed in chatmail/dovecot debian/changelog
+DOVECOT_VERSION = "2.3.21+dfsg1-3+chatmail2"
 DOVECOT_SHA256 = {
-    ("core", "amd64"): "dd060706f52a306fa863d874717210b9fe10536c824afe1790eec247ded5b27d",
-    ("core", "arm64"): "e7548e8a82929722e973629ecc40fcfa886894cef3db88f23535149e7f730dc9",
-    ("imapd", "amd64"): "8d8dc6fc00bbb6cdb25d345844f41ce2f1c53f764b79a838eb2a03103eebfa86",
-    ("imapd", "arm64"): "178fa877ddd5df9930e8308b518f4b07df10e759050725f8217a0c1fb3fd707f",
-    ("lmtpd", "amd64"): "2f69ba5e35363de50962d42cccbfe4ed8495265044e244007d7ccddad77513ab",
-    ("lmtpd", "arm64"): "89f52fb36524f5877a177dff4a713ba771fd3f91f22ed0af7238d495e143b38f",
-    ("auth-lua", "amd64"): "d724f37712faba52e177153114af1831e54da555c57c6474c05f96f176176ce4",
-    ("auth-lua", "arm64"): "7272768e20de148c35891d99cd60205acbe7e732b056caf0a83e8194d49136e6",
+    ("amd64", 12, "auth-lua"): "ef1b8e1db45147a74b48d63125bd61b2cc2f250e1006656ba1c58b9c12f5cde6",
+    ("arm64", 12, "auth-lua"): "c1a06ee9374439893e397ba3b0cacf532a733290c184f4f30ea39df8699be329",
+    ("amd64", 13, "auth-lua"): "6c0946d2516efcbcaa09a27df9b8ea701861cce270d71941056b3c69831a5ea2",
+    ("arm64", 13, "auth-lua"): "5e6c9cfe47f7f3b8aa0d68a3e607161b6abaee1ad696cb1419e997b3099b2985",
+    ("amd64", 12, "core"): "ac3977264d9b9a6fcec53fd3f5cdd2a79ca8aa0324de530c07e535008540826e",
+    ("arm64", 12, "core"): "21626c9c9b52cbdcf1a17b5c09e3c4043e69aa371bf83cc2fcb3b7ddaecdc109",
+    ("amd64", 13, "core"): "47c242ef23c17e700ac19d52d82c9fdb2ebd757d8beb3a7f6781d2de59f87bd0",
+    ("arm64", 13, "core"): "c14c53f112c875f698c4cb6e5870c605cd0a9dd98d35a66e94ceb1827f8020a3",
+    ("amd64", 12, "imapd"): "92a7ab5fc7dc32886a0c34404f919f1335d397b48c467e0c1ef77e56978f60ea",
+    ("arm64", 12, "imapd"): "9369fd566fec4df109ef23debf34ea0417ae85beb29cbe7de619d4d1f31b120c",
+    ("amd64", 13, "imapd"): "e38cc1266455f937ed62f971ea859c47e1a99247841ed0ad946963b524cfdbc5",
+    ("arm64", 13, "imapd"): "11d97dabf23171b37f8b1335dfdb81d408f8b95391aea6d4066aecc9fde01dfe",
+    ("amd64", 12, "lmtpd"): "dc3de473789969f7dd3504ac8783da5e42a446d2d7a305a4e9d7081a6dfe71ab",
+    ("arm64", 12, "lmtpd"): "ae2cbd6c5c43f6d8e2172997b055448f4c79238e2f99cd9ab9200a7d9f548908",
+    ("amd64", 13, "lmtpd"): "833b243e28c7baff141ecf37456e310f5d836e7944a3b9f2fe5074adf0d6a418",
+    ("arm64", 13, "lmtpd"): "55af47a121ba7e23966b20ddaab2dff7feba4b34677864e045e31a702afa180d",
 }
 TURN_VERSION = "v0.4"
 TURN_ARTIFACTS = {

@@ -1,11 +1,10 @@
-import io
 import urllib.request
 
 from chatmaild.config import Config
 from pyinfra import host
 from pyinfra.facts.deb import DebPackages
 from pyinfra.facts.server import Arch, Command, Sysctl
-from pyinfra.operations import apt, files, server
+from pyinfra.operations import files, server
 
 from cmdeploy.basedeploy import (
     Deployer,
@@ -16,7 +15,13 @@ from cmdeploy.basedeploy import (
 )
 from cmdeploy.pins import DOVECOT_SHA256, DOVECOT_VERSION
 
-DOVECOT_PACKAGE_VERSION = f"1:{DOVECOT_VERSION}"
+VERSION_ID_CMD = "grep '^VERSION_ID=' /etc/os-release"
+
+
+def _stamped_version(deb_release: int) -> str:
+    """Version as built, including the per-distro suffix stamped by
+    chatmail/dovecot CI into package version and filename."""
+    return f"{DOVECOT_VERSION}+deb{deb_release}u1"
 
 
 class DovecotDeployer(Deployer):
@@ -29,34 +34,30 @@ class DovecotDeployer(Deployer):
 
     def install(self):
         arch = host.get_fact(Arch)
+        deb_release = _parse_version_id(host.get_fact(Command, VERSION_ID_CMD))
         with blocked_service_startup():
             debs = []
             for pkg in ("core", "imapd", "lmtpd", "auth-lua"):
-                deb, changed = _download_dovecot_package(pkg, arch)
+                deb, changed = _download_dovecot_package(pkg, arch, deb_release)
                 self.need_restart |= changed
                 if deb:
                     debs.append(deb)
             if debs:
                 deb_list = " ".join(debs)
-                # First dpkg may fail on missing dependencies (stderr suppressed);
-                # apt-get --fix-broken pulls them in, then dpkg retries cleanly.
+                # apt-get install with local .deb paths resolves depends
+                # against the configured repos (e.g. pulls libwrap0),
+                # The pin file written earlier by ChatmailDeployer prevents apt
+                # from installing a 'wrong' version
                 server.shell(
                     name="Install dovecot packages",
                     commands=[
-                        f"dpkg --force-confdef --force-confold -i {deb_list} 2> /dev/null || true",
-                        "DEBIAN_FRONTEND=noninteractive apt-get -y --fix-broken install",
-                        f"dpkg --force-confdef --force-confold -i {deb_list}",
+                        "DEBIAN_FRONTEND=noninteractive apt-get install -y "
+                        '-o Dpkg::Options::="--force-confdef" '
+                        '-o Dpkg::Options::="--force-confold" '
+                        f"--allow-downgrades {deb_list}",
                     ],
                 )
                 self.need_restart = True
-        self.put_file(
-            src=io.StringIO(
-                "Package: dovecot-*\n"
-                "Pin: version *\n"
-                "Pin-Priority: -1\n"
-            ),
-            dest="/etc/apt/preferences.d/pin-dovecot",
-        )
 
     def configure(self):
         configure_remote_units(self, self.config.mail_domain_bare, self.units)
@@ -69,7 +70,7 @@ class DovecotDeployer(Deployer):
         if not self.disable_mail and not self.need_restart:
             stale = host.get_fact(
                 Command,
-                'pid=$(systemctl show -p MainPID --value dovecot.service 2>/dev/null);'
+                "pid=$(systemctl show -p MainPID --value dovecot.service 2>/dev/null);"
                 ' [ "${pid:-0}" != "0" ] && readlink "/proc/$pid/exe" 2>/dev/null | grep -q "(deleted)"'
                 " && echo STALE || true",
             )
@@ -84,6 +85,15 @@ class DovecotDeployer(Deployer):
         )
 
 
+def _parse_version_id(version_line: str) -> int:
+    """Debian major release from an /etc/os-release VERSION_ID line."""
+    _, _, raw = (version_line or "").strip().partition("=")
+    try:
+        return int(raw.strip('"'))
+    except ValueError:
+        raise ValueError(f"cannot determine Debian release from {version_line!r}")
+
+
 def _pick_url(primary, fallback):
     try:
         req = urllib.request.Request(primary, method="HEAD")
@@ -93,27 +103,36 @@ def _pick_url(primary, fallback):
         return fallback
 
 
-def _download_dovecot_package(package: str, arch: str) -> tuple[str | None, bool]:
+def _download_dovecot_package(package: str, arch: str, deb_release: int) -> tuple[str | None, bool]:
     """Download a dovecot .deb if needed, return (path, changed)."""
     arch = "amd64" if arch == "x86_64" else arch
     arch = "arm64" if arch == "aarch64" else arch
 
     pkg_name = f"dovecot-{package}"
-    sha256 = DOVECOT_SHA256.get((package, arch))
-    if sha256 is None:
-        op = apt.packages(packages=[pkg_name])
-        return None, bool(getattr(op, "changed", False))
+    try:
+        # never fall back to the distro package: it is pinned to -1 and would
+        # in any case be a version we did not build and do not support
+        sha256 = DOVECOT_SHA256[(arch, deb_release, package)]
+    except KeyError:
+        raise ValueError(f"no dovecot build for {pkg_name} on deb{deb_release}/{arch}")
 
+    stamped_version = _stamped_version(deb_release)
     installed_versions = host.get_fact(DebPackages).get(pkg_name, [])
-    if DOVECOT_PACKAGE_VERSION in installed_versions:
+    if f"1:{stamped_version}" in installed_versions:
         return None, False
 
-    url_version = DOVECOT_VERSION.replace("+", "%2B")
-    deb_base = f"{pkg_name}_{url_version}_{arch}.deb"
-    primary_url = f"https://download.delta.chat/dovecot/{deb_base}"
-    fallback_url = f"https://github.com/chatmail/dovecot/releases/download/upstream%2F{url_version}/{deb_base}"
+    # Primary URL: flat structure with distro suffix in filename
+    primary_deb = f"{pkg_name}_{stamped_version}_{arch}.deb"
+    primary_url = f"https://download.delta.chat/dovecot/{primary_deb}"
+    # GitHub release files: escaped + in filename; the release tag stays
+    # distro-neutral, both distros ship in one combined release
+    tag_version = DOVECOT_VERSION.replace("+", "%2B")
+    fallback_deb = f"{pkg_name}_{stamped_version.replace('+', '%2B')}_{arch}.deb"
+    fallback_url = (
+        f"https://github.com/chatmail/dovecot/releases/download/upstream%2F{tag_version}/{fallback_deb}"
+    )
     url = _pick_url(primary_url, fallback_url)
-    deb_filename = f"/root/{deb_base}"
+    deb_filename = f"/root/{primary_deb}"
 
     files.download(
         name=f"Download {pkg_name}",
@@ -124,6 +143,7 @@ def _download_dovecot_package(package: str, arch: str) -> tuple[str | None, bool
     )
 
     return deb_filename, True
+
 
 def _configure_dovecot(deployer, config: Config, debug: bool = False):
     """Configures Dovecot IMAP server."""
