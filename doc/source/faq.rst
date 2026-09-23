@@ -63,9 +63,17 @@ and run the following commands:
        scripts/initenv.sh
        scripts/cmdeploy run
 
-If you don't want the latest development version,
-but a specific tagged release like `1.10.0 <https://github.com/chatmail/relay/releases/tag/1.10.0>`_,
-run ``git pull origin 1.10.0`` instead.
+To upgrade to the latest tag,
+``cd`` into your local checkout of https://github.com/chatmail/relay/
+and run the following commands:
+
+   ::
+
+       git fetch --tags
+       latestTag=$(git describe --tags "$(git rev-list --tags --max-count=1)")
+       git checkout $latestTag
+       scripts/initenv.sh
+       scripts/cmdeploy run
 
 If you made local changes for your setup,
 they will be reapplied as long as they don't conflict with the upgrade.
