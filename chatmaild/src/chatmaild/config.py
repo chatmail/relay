@@ -31,7 +31,7 @@ class Config:
         self.max_user_send_per_minute = int(params.pop("max_user_send_per_minute", 60))
         self.max_user_send_burst_size = int(params.pop("max_user_send_burst_size", 10))
         self.max_mailbox_size = params.pop("max_mailbox_size", "500M")
-        self.max_message_size = int(params.pop("max_message_size", 31457280))
+        self.max_message_size = int(params.pop("max_message_size", 52428800))
         self.delete_mails_after = params.pop("delete_mails_after", "20")
         self.delete_large_after = params.pop("delete_large_after", "7")
         self.delete_inactive_users_after = int(
