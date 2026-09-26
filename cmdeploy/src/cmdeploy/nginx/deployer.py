@@ -55,6 +55,10 @@ def _configure_nginx(deployer, config: Config, debug: bool = False):
         "/etc/nginx/nginx.conf",
         config=config,
         disable_ipv6=config.disable_ipv6,
+        config_dir="/etc/nginx",
+        stream_module="modules/ngx_stream_module.so",
+        www_root="/var/www/html",
+        cgi_dir="/usr/lib/cgi-bin",
     )
 
     deployer.put_template(
