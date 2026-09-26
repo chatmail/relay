@@ -30,6 +30,8 @@ class OpendkimDeployer(Deployer):
             "opendkim/opendkim.conf",
             "/etc/opendkim.conf",
             config={"domain_name": domain, "opendkim_selector": dkim_selector},
+            keys_dir="/etc/dkimkeys",
+            trust_anchor="/usr/share/dns/root.key",
         )
 
         self.remove_file("/etc/opendkim/screen.lua")
@@ -46,6 +48,7 @@ class OpendkimDeployer(Deployer):
             "/etc/dkimkeys/KeyTable",
             owner="opendkim",
             config={"domain_name": domain, "opendkim_selector": dkim_selector},
+            keys_dir="/etc/dkimkeys",
         )
 
         self.put_template(

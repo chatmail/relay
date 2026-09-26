@@ -133,6 +133,9 @@ def _configure_dovecot(deployer, config: Config, debug: bool = False):
         config=config,
         debug=debug,
         disable_ipv6=config.disable_ipv6,
+        config_dir="/etc/dovecot",
+        dh_path="/usr/share/dovecot/dh.pem",
+        quota_expire_bin="/usr/local/lib/chatmaild/venv/bin/chatmail-quota-expire",
     )
     deployer.put_template("dovecot/auth.lua.j2", "/etc/dovecot/auth.lua", config=config)
     deployer.remove_file("/etc/dovecot/auth.conf")

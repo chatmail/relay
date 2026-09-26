@@ -62,11 +62,11 @@ imap_capability = +XDELTAPUSH XCHATMAIL
 # Authentication for system users.
 passdb {
   driver = lua
-  args = file=/etc/dovecot/auth.lua blocking=yes
+  args = file={{ config_dir }}/auth.lua blocking=yes
 }
 userdb {
   driver = lua
-  args = file=/etc/dovecot/auth.lua blocking=yes
+  args = file={{ config_dir }}/auth.lua blocking=yes
 }
 ##
 ## Mailbox locations and namespaces
@@ -168,7 +168,7 @@ plugin {
 }
 
 service quota-warning {
-  executable = script /usr/local/lib/chatmaild/venv/bin/chatmail-quota-expire
+  executable = script {{ quota_expire_bin }}
   user = vmail
   unix_listener quota-warning {
      user = vmail
@@ -179,7 +179,7 @@ service quota-warning {
 # push_notification configuration
 plugin {
   # <https://doc.dovecot.org/2.3/configuration_manual/push_notification/#lua-lua>
-  push_notification_driver = lua:file=/etc/dovecot/push_notification.lua
+  push_notification_driver = lua:file={{ config_dir }}/push_notification.lua
 }
 
 service lmtp {
@@ -254,7 +254,7 @@ service anvil {
 ssl = required
 ssl_cert = <{{ config.tls_cert_path }}
 ssl_key = <{{ config.tls_key_path }}
-ssl_dh = </usr/share/dovecot/dh.pem
+ssl_dh = <{{ dh_path }}
 ssl_min_protocol = TLSv1.3
 ssl_prefer_server_ciphers = yes
 
