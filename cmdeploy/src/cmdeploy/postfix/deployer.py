@@ -24,6 +24,8 @@ class PostfixDeployer(Deployer):
             "/etc/postfix/main.cf",
             config=config,
             disable_ipv6=config.disable_ipv6,
+            config_dir="/etc/postfix",
+            ca_path="/etc/ssl/certs",
         )
 
         self.put_template(
@@ -31,6 +33,7 @@ class PostfixDeployer(Deployer):
             "/etc/postfix/master.cf",
             debug=False,
             config=config,
+            config_dir="/etc/postfix",
         )
 
         self.put_file(
