@@ -5,6 +5,7 @@ import subprocess
 import time
 
 import pytest
+import requests
 from chatmaild.config import is_valid_ipv4
 
 from cmdeploy import remote
@@ -326,3 +327,14 @@ def test_nginx_access_log_only_defined_once(sshdomain):
     assert len(access_logs) == 1, (
         f"expected 1 access_log, found {len(access_logs)}: {access_logs}"
     )
+
+
+@pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")
+def test_mxdeliv_respects_max_message_size(maildomain, chatmail_config):
+    url = f"https://{maildomain}/mxdeliv"
+    verify = chatmail_config.tls_cert_mode == "acme"
+    size = chatmail_config.max_message_size
+    res = requests.post(url, data=b"x" * size, verify=verify)
+    assert res.text == "500 Invalid DATA"
+    res = requests.post(url, data=b"x" * (size + 1), verify=verify)
+    assert res.status_code == 413

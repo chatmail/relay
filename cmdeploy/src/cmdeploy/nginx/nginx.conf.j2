@@ -75,6 +75,7 @@ http {
 		server_name {{ config.mail_domain }} mta-sts.{{ config.mail_domain }};
 
 		location /mxdeliv {
+		    client_max_body_size {{ config.max_message_size }};
 		    proxy_pass http://127.0.0.1:{{ config.filtermail_http_port_incoming }};
 		}
 
