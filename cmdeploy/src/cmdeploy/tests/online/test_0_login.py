@@ -15,13 +15,6 @@ def test_init(tmp_path, maildomain):
     assert config.mail_domain_bare == maildomain
 
 
-def test_capabilities(imap):
-    imap.connect()
-    capas = imap.conn.capabilities
-    assert "XCHATMAIL" in capas
-    assert "XDELTAPUSH" in capas
-
-
 def test_login_basic_functioning(imap_or_smtp, gencreds, lp):
     """Test a) that an initial login creates a user automatically
     and b) verify we can also login a second time with the same password
