@@ -1,0 +1,12 @@
+[Unit]
+Description=WebSocket proxy for SMTP
+After=network.target
+
+[Service]
+Type=simple
+Restart=always
+ExecStart=/usr/bin/websockify 127.0.0.1:8587 localhost:587
+DynamicUser=true
+
+[Install]
+WantedBy=multi-user.target
