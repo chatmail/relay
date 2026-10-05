@@ -1,0 +1,12 @@
+[Unit]
+Description=Iroh relay (1.0 line, chatmail/relay#1010)
+
+[Service]
+ExecStart={{ bin_path }} --config-path {{ config_path }}
+Restart=on-failure
+RestartSec=5s
+User=iroh
+Group=iroh
+
+[Install]
+WantedBy=multi-user.target

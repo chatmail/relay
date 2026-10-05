@@ -87,6 +87,31 @@ def test_config_max_message_size(make_config, tmp_path):
     assert config.max_message_size == 10000
 
 
+def test_config_iroh_relay_1(make_config):
+    # Default: run the 1.0 line next to the 0.35 relay on port 3341.
+    config = make_config("chat.example.org")
+    assert config.iroh_relay == "https://chat.example.org"
+    assert config.enable_iroh_relay is True
+    assert config.iroh_relay_1 == "https://chat.example.org:3341"
+    assert config.enable_iroh_relay_1 is True
+
+    # Custom URL: the local 1.0 service is disabled, users get the URL.
+    config = make_config("chat.example.org", {"iroh_relay_1": "https://other.org"})
+    assert config.iroh_relay_1 == "https://other.org"
+    assert config.enable_iroh_relay_1 is False
+
+    # Empty string: do not advertise a 1.0 relay at all.
+    config = make_config("chat.example.org", {"iroh_relay_1": ""})
+    assert config.iroh_relay_1 == ""
+    assert config.enable_iroh_relay_1 is False
+
+    # If the 0.35 relay is external, no 1.0 relay is advertised by default.
+    config = make_config("chat.example.org", {"iroh_relay": "https://ext.org"})
+    assert config.enable_iroh_relay is False
+    assert config.iroh_relay_1 == ""
+    assert config.enable_iroh_relay_1 is False
+
+
 def test_config_tls_default_acme(make_config):
     config = make_config("chat.example.org")
     assert config.tls_cert_mode == "acme"

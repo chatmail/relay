@@ -98,6 +98,53 @@ def test_handle_dovecot_request_lookup_fails(dictproxy, testaddr):
     assert res == "N\n"
 
 
+IROHLOOKUP_PREFIX = "Lshared/guid00/vendor/vendor.dovecot/pvt/server/vendor/deltachat/"
+
+
+def test_handle_dovecot_request_iroh_relay_metadata(dictproxy, testaddr):
+    transactions = {}
+    # No relay URL configured -> not advertised.
+    assert (
+        dictproxy.handle_dovecot_request(
+            f"{IROHLOOKUP_PREFIX}irohrelay\t{testaddr}", transactions
+        )
+        == "N\n"
+    )
+    # The irohrelay1 item behaves the same when nothing is configured.
+    assert (
+        dictproxy.handle_dovecot_request(
+            f"{IROHLOOKUP_PREFIX}irohrelay1\t{testaddr}", transactions
+        )
+        == "N\n"
+    )
+
+
+def test_handle_dovecot_request_iroh_relay_1_metadata(dictproxy, testaddr):
+    transactions = {}
+    dictproxy.iroh_relay = "https://iroh.example.org"
+    dictproxy.iroh_relay_1 = "https://iroh1.example.org:3341"
+    assert (
+        dictproxy.handle_dovecot_request(
+            f"{IROHLOOKUP_PREFIX}irohrelay\t{testaddr}", transactions
+        )
+        == "Ohttps://iroh.example.org\n"
+    )
+    assert (
+        dictproxy.handle_dovecot_request(
+            f"{IROHLOOKUP_PREFIX}irohrelay1\t{testaddr}", transactions
+        )
+        == "Ohttps://iroh1.example.org:3341\n"
+    )
+    # An empty irohrelay1 value means "do not advertise".
+    dictproxy.iroh_relay_1 = ""
+    assert (
+        dictproxy.handle_dovecot_request(
+            f"{IROHLOOKUP_PREFIX}irohrelay1\t{testaddr}", transactions
+        )
+        == "N\n"
+    )
+
+
 def test_handle_dovecot_request_happy_path(dictproxy, testaddr, token):
     metadata = dictproxy.metadata
     transactions = {}

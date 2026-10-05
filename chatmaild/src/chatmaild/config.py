@@ -71,6 +71,17 @@ class Config:
         else:
             self.iroh_relay = iroh_relay.strip()
             self.enable_iroh_relay = False
+        iroh_relay_1 = params.pop("iroh_relay_1", None)
+        if iroh_relay_1 is None:
+            # Run the iroh-relay 1.0 line next to 0.35 (chatmail/relay#1010)
+            # as long as the local 0.35 relay runs.
+            self.iroh_relay_1 = (
+                f"https://{raw_domain}:3341" if self.enable_iroh_relay else ""
+            )
+            self.enable_iroh_relay_1 = self.enable_iroh_relay
+        else:
+            self.iroh_relay_1 = iroh_relay_1.strip()
+            self.enable_iroh_relay_1 = False
         self.privacy_postal = params.pop("privacy_postal", None)
         self.privacy_mail = params.pop("privacy_mail", None)
         self.privacy_pdo = params.pop("privacy_pdo", None)

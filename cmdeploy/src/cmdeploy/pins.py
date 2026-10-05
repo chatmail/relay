@@ -62,3 +62,16 @@ IROH_ARTIFACTS = {
         "f8ef27631fac213b3ef668d02acd5b3e215292746a3fc71d90c63115446008b1",
     ),
 }
+
+# iroh-relay 1.0 line, run next to 0.35 during the transition (chatmail/relay#1010).
+IROH1_VERSION = "v1.3.0"
+IROH1_ARTIFACTS = {
+    "x86_64": (
+        f"https://github.com/n0-computer/iroh/releases/download/{IROH1_VERSION}/iroh-relay-{IROH1_VERSION}-x86_64-unknown-linux-musl.tar.gz",
+        "677f4c62342a6ba8044459b5fd4302f2b1dcb8402542072e3a4ade5039bc0b9e",
+    ),
+    "aarch64": (
+        f"https://github.com/n0-computer/iroh/releases/download/{IROH1_VERSION}/iroh-relay-{IROH1_VERSION}-aarch64-unknown-linux-musl.tar.gz",
+        "dc4b9d620642026966d498763ec8ba3a6eefde8d39994b2d63e3d15d7af770f8",
+    ),
+}

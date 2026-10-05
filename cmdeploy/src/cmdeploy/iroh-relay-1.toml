@@ -1,0 +1,12 @@
+# Config for the iroh-relay 1.0 line, running next to iroh-relay 0.35
+# (chatmail/relay#1010).
+#
+# Plain HTTP on a loopback port: TLS termination and public exposure
+# happen in nginx (`listen 3341 ssl` -> this port).
+http_bind_addr = "127.0.0.1:3342"
+
+# iroh-relay 1.x defaults `enable_metrics` to true (0.35 defaulted to off).
+enable_metrics = false
+
+# The `enable_stun` option of the 0.35 config was removed in iroh-relay 1.0;
+# STUN is served by our TURN server instead.
