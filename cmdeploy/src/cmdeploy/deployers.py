@@ -33,7 +33,7 @@ from .filtermail.deployer import FiltermailDeployer
 from .mtail.deployer import MtailDeployer
 from .nginx.deployer import NginxDeployer
 from .opendkim.deployer import OpendkimDeployer
-from .pins import IROH_ARTIFACTS, TURN_ARTIFACTS
+from .pins import IROH1_ARTIFACTS, IROH_ARTIFACTS, TURN_ARTIFACTS
 from .postfix.deployer import PostfixDeployer
 from .selfsigned.deployer import SelfSignedTlsDeployer
 from .www import build_webpages, find_merge_conflict, get_paths
@@ -352,6 +352,45 @@ class IrohDeployer(Deployer):
         )
 
 
+class Iroh1Deployer(Deployer):
+    """iroh-relay 1.0 line, running next to 0.35 (chatmail/relay#1010).
+
+    Iroh clients overwrite the RelayUrl path (set_path("/relay")), so the
+    1.0 relay cannot share the main HTTPS origin with 0.35. Instead it
+    listens on plain HTTP 127.0.0.1:3342 behind nginx, which serves it
+    with its own TLS port 3341 (see NginxDeployer config).
+    """
+
+    bin_path = "/usr/local/bin/iroh-relay-1"
+    config_path = "/etc/iroh-relay-1.toml"
+
+    def __init__(self, enable_iroh_relay):
+        self.enable_iroh_relay = enable_iroh_relay
+
+    def install(self):
+        (url, sha256sum) = IROH1_ARTIFACTS[host.get_fact(facts.server.Arch)]
+        self.download_executable(
+            url,
+            self.bin_path,
+            sha256sum,
+            extract="gunzip | tar -xf - ./iroh-relay -O",
+        )
+
+    def configure(self):
+        self.ensure_systemd_unit(
+            "iroh-relay-1.service.j2",
+            bin_path=self.bin_path,
+            config_path=self.config_path,
+        )
+        self.put_file("iroh-relay-1.toml", self.config_path)
+
+    def activate(self):
+        self.ensure_service(
+            "iroh-relay-1.service",
+            enabled=self.enable_iroh_relay,
+        )
+
+
 class JournaldDeployer(Deployer):
     def configure(self):
         self.put_file("journald.conf", "/etc/systemd/journald.conf")
@@ -547,6 +586,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool, website_only: bool) -
         UnboundDeployer(config),
         TurnDeployer(bare_host),
         IrohDeployer(config.enable_iroh_relay),
+        Iroh1Deployer(config.enable_iroh_relay_1),
         tls_deployer,
         WebsiteDeployer(config),
         ChatmailVenvDeployer(config),

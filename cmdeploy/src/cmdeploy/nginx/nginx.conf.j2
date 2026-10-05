@@ -143,6 +143,37 @@ http {
 		}
 	}
 
+	# iroh-relay 1.0 line (chatmail/relay#1010). Iroh clients overwrite the
+	# RelayUrl path (set_path("/relay")), so the 1.0 relay cannot share the
+	# main HTTPS origin with 0.35 — it gets its own public TLS port instead
+	# and is advertised via the /shared/vendor/deltachat/irohrelay1 metadata.
+	server {
+		listen 3341 ssl;
+{% if not disable_ipv6 %}
+		listen [::]:3341 ssl;
+{% endif %}
+		server_name {{ config.mail_domain }};
+
+		location /relay {
+			proxy_pass http://127.0.0.1:3342;
+			proxy_http_version 1.1;
+
+			# Upgrade header is normally set to "iroh derp http" or "websocket".
+			proxy_set_header Upgrade $http_upgrade;
+			proxy_set_header Connection "upgrade";
+		}
+
+		location /ping {
+			proxy_pass http://127.0.0.1:3342;
+			proxy_http_version 1.1;
+		}
+
+		location /generate_204 {
+			proxy_pass http://127.0.0.1:3342;
+			proxy_http_version 1.1;
+		}
+	}
+
 	# Redirect www. to non-www
 	server {
 		listen 127.0.0.1:8443 ssl;
