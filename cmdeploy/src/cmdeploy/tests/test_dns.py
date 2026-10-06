@@ -141,6 +141,28 @@ def test_get_authoritative_ns(domain, ns, mockdns):
     assert get_authoritative_ns(domain) == ns
 
 
+def test_get_authoritative_ns_walks_to_zone(monkeypatch):
+    replies = {
+        "www.some.domain": (
+            "some.domain. 1800 IN SOA ns1.some.domain. hostmaster.some.domain. "
+            "1 10000 2400 604800 1800\n"
+            "www.some.domain. 1800 IN NSEC \\000.www.some.domain. A AAAA"
+        ),
+        "some.domain": "some.domain. 3600 IN NS ns1.some.domain.",
+    }
+    queried_domains = []
+
+    def shell(command, print):
+        chunks = command.split()
+        queried_domains.append(chunks[3])
+        return replies[chunks[3]]
+
+    monkeypatch.setattr(remote.rdns, "shell", shell)
+
+    assert get_authoritative_ns("www.some.domain") == "ns1.some.domain."
+    assert queried_domains == ["www.some.domain", "some.domain"]
+
+
 def test_parse_zone_records():
     text = """
     ; This is a comment
