@@ -125,6 +125,13 @@ default_transport = lmtp-filtermail:inet:[127.0.0.1]:{{ config.filtermail_lmtp_p
 lmtp-filtermail_initial_destination_concurrency=10000
 lmtp-filtermail_destination_concurrency_limit=10000
 
+{% if config.postfix_transport_maps %}
+# Per-domain routing overrides from `postfix_transport_maps` in chatmail.ini.
+# Recipients matching these tables bypass filtermail-transport
+# and are delivered by the transport given in the table.
+transport_maps = {{ config.postfix_transport_maps }}
+
+{% endif %}
 # Do not try to deliver messages for more than 2 days.
 maximal_queue_lifetime = 2d
 
