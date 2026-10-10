@@ -133,8 +133,8 @@ def test_use_two_chatmailservers(cmfactory, maildomain2):
     ac1 = cmfactory.get_online_account()
     ac2 = cmfactory.get_online_account(domain=maildomain2)
     cmfactory.get_accepted_chat(ac1, ac2)
-    domain1 = ac1.get_config("addr").split("@")[1]
-    domain2 = ac2.get_config("addr").split("@")[1]
+    domain1 = ac1.list_transports()[0]["addr"].split("@")[1]
+    domain2 = ac2.list_transports()[0]["addr"].split("@")[1]
     assert domain1 != domain2
 
 
