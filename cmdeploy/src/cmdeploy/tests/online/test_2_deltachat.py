@@ -15,8 +15,10 @@ from cmdeploy.remote import rshell
 @pytest.fixture
 def imap_mailbox(cmfactory, ssl_context):
     (ac1,) = cmfactory.get_online_accounts(1)
-    user = ac1.get_config("addr")
-    password = ac1.get_config("mail_pw")
+    # Delta Chat 2.63 stopped writing the legacy addr and mail_pw config keys.
+    transport = ac1.list_transports()[0]
+    user = transport["addr"]
+    password = transport["password"]
     host = user.split("@")[1].strip("[").strip("]")
     mailbox = imap_tools.MailBox(host, ssl_context=ssl_context)
     mailbox.login(user, password)
@@ -88,7 +90,7 @@ class TestEndToEndDeltaChat:
         ac1, ac2 = cmfactory.get_online_accounts(2)
         chat = cmfactory.get_accepted_chat(ac1, ac2)
 
-        user = ac2.get_config("configured_addr")
+        user = ac2.list_transports()[0]["addr"]
 
         def parse_size_limit(limit: str) -> int:
             """Parse a size limit and return the number of bytes as integer.
@@ -190,9 +192,10 @@ def test_hide_senders_ip_address(cmfactory, ssl_context):
 
     chat.send_text("testing submission header cleanup")
     user2.wait_for_incoming_msg()
-    addr = user2.get_config("addr")
+    transport = user2.list_transports()[0]
+    addr = transport["addr"]
     host = addr.split("@")[1].strip("[").strip("]")
-    pw = user2.get_config("mail_pw")
+    pw = transport["password"]
     mailbox = imap_tools.MailBox(host, ssl_context=ssl_context)
     mailbox.login(addr, pw)
     msgs = list(mailbox.fetch(mark_seen=False))
