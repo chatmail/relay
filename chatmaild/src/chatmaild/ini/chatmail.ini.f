@@ -22,7 +22,7 @@ mail_domain = {mail_domain}
 #max_mailbox_size = 500M
 
 # maximum message size for an e-mail in bytes
-#max_message_size = 31457280
+#max_message_size = 52428800
 
 # days after which mails are unconditionally deleted
 #delete_mails_after = 20
