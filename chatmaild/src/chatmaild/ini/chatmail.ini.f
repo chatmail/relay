@@ -112,6 +112,19 @@ mail_domain = {mail_domain}
 
 # mtail_address = 127.0.0.1
 
+# Postfix transport(5) lookup tables
+# to override routing for specific recipient domains,
+# e.g. to deliver mail for a peer relay over a private network
+# or to discard mail for domains that no longer exist.
+# Matching recipients bypass filtermail-transport
+# and are delivered by the transport given in the table.
+# The table files are not managed by cmdeploy.
+# `texthash:` tables do not need `postmap`,
+# but Postfix must be reloaded after editing them.
+# See <https://www.postfix.org/transport.5.html>.
+
+# postfix_transport_maps = texthash:/etc/postfix/transport
+
 #
 # Debugging options 
 #

@@ -87,6 +87,18 @@ def test_config_max_message_size(make_config, tmp_path):
     assert config.max_message_size == 10000
 
 
+def test_config_postfix_transport_maps(make_config):
+    config = make_config("chat.example.org")
+    assert config.postfix_transport_maps == ""
+
+    config = make_config(
+        "chat.example.org",
+        {"postfix_transport_maps": "texthash:/etc/postfix/transport"},
+    )
+    assert config.postfix_transport_maps == "texthash:/etc/postfix/transport"
+    assert config._unused_keys == []
+
+
 def test_config_tls_default_acme(make_config):
     config = make_config("chat.example.org")
     assert config.tls_cert_mode == "acme"
