@@ -32,6 +32,7 @@ from .external.deployer import ExternalTlsDeployer
 from .filtermail.deployer import FiltermailDeployer
 from .mtail.deployer import MtailDeployer
 from .nginx.deployer import NginxDeployer
+from .websockify.deployer import WebsockifyDeployer
 from .opendkim.deployer import OpendkimDeployer
 from .pins import IROH_ARTIFACTS, TURN_ARTIFACTS
 from .postfix.deployer import PostfixDeployer
@@ -559,6 +560,7 @@ def deploy_chatmail(config_path: Path, disable_mail: bool, website_only: bool) -
         PostfixDeployer(config, disable_mail),
         FcgiwrapDeployer(),
         NginxDeployer(config),
+        WebsockifyDeployer(config),
         MtailDeployer(config.mtail_address),
         GithashDeployer(),
     ]
