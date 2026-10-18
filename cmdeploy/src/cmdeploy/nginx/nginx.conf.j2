@@ -68,6 +68,11 @@ http {
   
 		listen 127.0.0.1:8443 ssl default_server;
 
+		# nginx is reached through the stream proxy on port 443,
+		# so redirects it generates itself (e.g. /dir -> /dir/)
+		# must not contain the internal port 8443.
+		absolute_redirect off;
+
 		root {{ www_root }};
 
 		index index.html index.htm;
