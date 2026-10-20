@@ -127,6 +127,7 @@ lmtp-filtermail_destination_concurrency_limit=10000
 
 # Do not try to deliver messages for more than 2 days.
 maximal_queue_lifetime = 2d
+bounce_queue_lifetime = 2d
 
 {% if not config.ipv4_relay %}
 # DKIM-sign locally generated mail (bounces, DSNs).
