@@ -354,7 +354,11 @@ class IrohDeployer(Deployer):
 
 class JournaldDeployer(Deployer):
     def configure(self):
-        self.put_file("journald.conf", "/etc/systemd/journald.conf.d/90-volatile-logging.conf")
+        overwrite_path = "/etc/systemd/journald.conf.d/90-volatile-logging.conf"
+        journald_conf = "/etc/systemd/journald.conf"
+        self.put_file("90-volatile-logging.conf", overwrite_path)
+        self.comment_out(journald_conf, "MaxRetentionSec", f"3d  # set in {overwrite_path}")
+        self.comment_out(journald_conf, "Storage", f"volatile  # set in {overwrite_path}")
 
     def activate(self):
         self.ensure_service("systemd-journald.service")
