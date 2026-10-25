@@ -167,24 +167,6 @@ class Deployer:
             return self.put_template(src, dest, **kwargs)
         return self.put_file(src, dest)
 
-    def comment_out(self, path: str, config_key: str, config_value: str = "", comment_char: str = "#", **kwargs):
-        """Comment out a config parameter in a file with a
-
-        :param path: the config file to change
-        :param config_key: the key which should be commented out
-        :param config_value: the value that should be in the leftover comment
-        :param comment_char: the character the config file uses to comment out
-        """
-        res = files.line(
-            name=f"Comment out {config_key} in {path}",
-            path=path  ,
-            line=f"^({comment_char}|){config_key}=(.*)",
-            replace = f"{comment_char}{config_key}={config_value}",
-            extended_regex = True,
-            **kwargs,
-        )
-        return self._update_restart_signals(path, res)
-
     def put_file(self, src, dest, mode="644", **kwargs):
         if isinstance(src, str):
             src = get_resource(src)
