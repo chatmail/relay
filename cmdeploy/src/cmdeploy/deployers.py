@@ -39,6 +39,9 @@ from .selfsigned.deployer import SelfSignedTlsDeployer
 from .www import build_webpages, find_merge_conflict, get_paths
 
 
+OLD_JOURNALD_SHA256 = "107c678516c972d5293a67386458fd4785d467cfa2f2b7174185e9a74e034be5"
+
+
 class Port(FactBase):
     """
     Returns the process occupying a port.
@@ -354,11 +357,15 @@ class IrohDeployer(Deployer):
 
 class JournaldDeployer(Deployer):
     def configure(self):
-        overwrite_path = "/etc/systemd/journald.conf.d/90-volatile-logging.conf"
-        journald_conf = "/etc/systemd/journald.conf"
-        self.put_file("90-volatile-logging.conf", overwrite_path)
-        self.comment_out(journald_conf, "MaxRetentionSec", f"3d  # set in {overwrite_path}")
-        self.comment_out(journald_conf, "Storage", f"volatile  # set in {overwrite_path}")
+        self.put_file("90-volatile-logging.conf", "/etc/systemd/journald.conf.d/90-volatile-logging.conf")
+        if host.get_fact(Sha256File, "/etc/systemd/journald.conf") == OLD_JOURNALD_SHA256:
+            server.shell(
+                name="Restore Debian's journald.conf",
+                commands=[
+                    "rm /etc/systemd/journald.conf",
+                    "DEBIAN_FRONTEND=noninteractive apt-get install -y --reinstall -o Dpkg::Options::=--force-confmiss systemd",
+                ],
+            )
 
     def activate(self):
         self.ensure_service("systemd-journald.service")
