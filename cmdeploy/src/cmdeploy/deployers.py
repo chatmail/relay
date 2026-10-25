@@ -12,6 +12,7 @@ from chatmaild.config import read_config
 from pyinfra import facts, host, logger
 from pyinfra.api import FactBase
 from pyinfra.facts import hardware
+from pyinfra.facts.files import Sha256File
 from pyinfra.facts.systemd import SystemdEnabled
 from pyinfra.operations import apt, files, pip, server, systemd
 
@@ -37,6 +38,8 @@ from .pins import IROH_ARTIFACTS, TURN_ARTIFACTS
 from .postfix.deployer import PostfixDeployer
 from .selfsigned.deployer import SelfSignedTlsDeployer
 from .www import build_webpages, find_merge_conflict, get_paths
+
+OLD_JOURNALD_SHA256 = "107c678516c972d5293a67386458fd4785d467cfa2f2b7174185e9a74e034be5"
 
 
 class Port(FactBase):
@@ -354,7 +357,15 @@ class IrohDeployer(Deployer):
 
 class JournaldDeployer(Deployer):
     def configure(self):
-        self.put_file("journald.conf", "/etc/systemd/journald.conf.d/90-volatile-logging.conf")
+        self.put_file("90-volatile-logging.conf", "/etc/systemd/journald.conf.d/90-volatile-logging.conf")
+        if host.get_fact(Sha256File, "/etc/systemd/journald.conf") == OLD_JOURNALD_SHA256:
+            server.shell(
+                name="Restore Debian's journald.conf",
+                commands=[
+                    "rm /etc/systemd/journald.conf",
+                    "DEBIAN_FRONTEND=noninteractive apt-get install -y --reinstall -o Dpkg::Options::=--force-confmiss systemd",
+                ],
+            )
 
     def activate(self):
         self.ensure_service("systemd-journald.service")
