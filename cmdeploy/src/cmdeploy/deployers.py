@@ -12,6 +12,7 @@ from chatmaild.config import read_config
 from pyinfra import facts, host, logger
 from pyinfra.api import FactBase
 from pyinfra.facts import hardware
+from pyinfra.facts.files import Sha256File
 from pyinfra.facts.systemd import SystemdEnabled
 from pyinfra.operations import apt, files, pip, server, systemd
 
@@ -37,7 +38,6 @@ from .pins import IROH_ARTIFACTS, TURN_ARTIFACTS
 from .postfix.deployer import PostfixDeployer
 from .selfsigned.deployer import SelfSignedTlsDeployer
 from .www import build_webpages, find_merge_conflict, get_paths
-
 
 OLD_JOURNALD_SHA256 = "107c678516c972d5293a67386458fd4785d467cfa2f2b7174185e9a74e034be5"
 
