@@ -5,9 +5,9 @@
       "sources": [
         {
           "sourceId": "gplay",
-          "versionInteger": 758,
-          "versionString": "2.62.0",
-          "downloadUrl": "https://github.com/deltachat/deltachat-android/releases/download/v2.62.0/deltachat-gplay-release-2.62.0.apk"
+          "versionInteger": 759,
+          "versionString": "2.64.0",
+          "downloadUrl": "https://github.com/deltachat/deltachat-android/releases/download/v2.64.0/deltachat-gplay-release-2.64.0.apk"
         }
       ]
     }
