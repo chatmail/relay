@@ -1,3 +1,23 @@
-/^DKIM-Signature:/            IGNORE
-/^Authentication-Results:/            IGNORE
-/^Received:/            IGNORE
+# List of headers for incoming messages 
+# that must be retained for functionality and compatibility reasons 
+/^From:/            DUNNO
+/^Message-Id:/      DUNNO
+/^Chat-/            DUNNO
+/^Content-Type:/    DUNNO
+
+# For receiving clear-text messages (still supported in May 2026)
+/^Subject:/         DUNNO
+/^Date:/            DUNNO
+/^To:/              DUNNO
+/^CC:/              DUNNO
+/^References:/      DUNNO
+/^In-Reply-To:/     DUNNO
+
+# Senders might support Autocrypt 1 but not RFC9788 (Header Protection) 
+/^Autocrypt:/       DUNNO
+
+# SecureJoin V2 protocol headers (for backward compatibility) 
+/^Secure-Join/      DUNNO
+
+# Ignore all other headers
+/.*/                IGNORE
