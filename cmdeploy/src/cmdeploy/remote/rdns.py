@@ -65,16 +65,22 @@ def get_dkim_entry(mail_domain, pre_command, dkim_selector):
 
 
 def get_authoritative_ns(domain):
-    ns_replies = [
-        x.split()
-        for x in shell(
-            f"dig -r -q {domain} -t NS +noall +authority +answer", print=log_progress
-        ).split("\n")
-    ]
-    filtered_replies = [a for a in ns_replies if len(a) >= 5 and a[3] == "NS"]
-    if not filtered_replies:
-        return
-    return filtered_replies[0][4]
+    """Find the closest authoritative nameserver for a domain."""
+    labels = domain.rstrip(".").split(".")
+    for index in range(len(labels)):
+        candidate = ".".join(labels[index:])
+        ns_replies = [
+            x.split()
+            for x in shell(
+                f"dig -r -q {candidate} -t NS +noall +authority +answer",
+                print=log_progress,
+            ).split("\n")
+        ]
+        filtered_replies = [
+            reply for reply in ns_replies if len(reply) >= 5 and reply[3] == "NS"
+        ]
+        if filtered_replies:
+            return filtered_replies[0][4]
 
 
 def query_dns(typ, domain):
