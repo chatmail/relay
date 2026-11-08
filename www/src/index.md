@@ -35,4 +35,4 @@ you can also **scan this QR code** with Delta Chat:
 
 🐣 **Choose** your Avatar and Name
 
-💬 **Start** chatting with any Delta Chat contacts using [QR invite codes](https://delta.chat/en/help#howtoe2ee)
+💬 **Start** chatting with any Delta Chat contacts using [QR invite codes](https://delta.chat/help#howtoe2ee)

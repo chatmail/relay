@@ -10,12 +10,12 @@ for the usage in chats, especially DeltaChat.
 ### Rate and storage limits 
 
 - Un-encrypted messages are blocked to recipients outside
-  {{config.mail_domain}} but setting up contact via [QR invite codes](https://delta.chat/en/help#howtoe2ee) 
+  {{config.mail_domain}} but setting up contact via [QR invite codes](https://delta.chat/help#howtoe2ee) 
   allows your messages to pass freely to any outside recipients.
 
 - You may send up to {{ config.max_user_send_per_minute }} messages per minute.
 
-- You can store up to [{{ config.max_mailbox_size }} messages on the server](https://delta.chat/en/help#what-happens-if-i-turn-on-delete-old-messages-from-server).
+- You can store up to [{{ config.max_mailbox_size }} messages on the server](https://delta.chat/help#what-happens-if-i-turn-on-delete-old-messages-from-server).
 
 - Messages are unconditionally removed latest {{ config.delete_mails_after }} days after arriving on the server.
   Earlier, if storage may exceed otherwise.

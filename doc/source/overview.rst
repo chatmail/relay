@@ -97,7 +97,7 @@ short overview of ``chatmaild`` services:
    to store user-specific relay-side config. On new messages, it
    :repofile:`passes the user’s push notification token <chatmaild/src/chatmaild/notifier.py>`
    to
-   `notifications.delta.chat <https://delta.chat/en/help#instant-delivery>`_
+   `notifications.delta.chat <https://delta.chat/help#instant-delivery>`_
    so the push notifications on the user’s phone can be triggered by
    Apple/Google/Huawei.
 

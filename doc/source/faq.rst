@@ -90,4 +90,4 @@ enforce end-to-end encryption on their own.
 The end-to-end encryption protection includes attached media, user
 display names, avatars and group names. What is visible to operators is:
 message date, sender and receiver addresses.
-Please see the `Delta Chat FAQ on encryption and security <https://delta.chat/en/help#e2ee>`_ for further info.
+Please see the `Delta Chat FAQ on encryption and security <https://delta.chat/help#e2ee>`_ for further info.

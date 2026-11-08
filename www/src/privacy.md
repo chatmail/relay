@@ -5,7 +5,7 @@
 Welcome to `{{config.mail_domain}}`, the default chatmail onboarding server for Delta Chat users. 
 It is operated on the side by a small sysops team
 on a voluntary basis.
-See [other chatmail servers](https://delta.chat/en/chatmail) for alternative server operators. 
+See [other chatmail servers](https://chatmail.at/relays) for alternative server operators. 
 {% endif %}
 
 
