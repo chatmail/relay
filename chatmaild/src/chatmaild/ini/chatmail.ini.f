@@ -96,6 +96,14 @@ mail_domain = {mail_domain}
 # Set it to empty string if you want users to use their default iroh relay.
 # iroh_relay =
 
+# The iroh-relay 1.0 line runs next to 0.35 (chatmail/relay#1010) and is
+# advertised to clients through the irohrelay1 metadata item.
+# Defaults to https://{{mail_domain}}:3341 while the local iroh relay runs.
+# If you set it to anything else, the local 1.0 service will be disabled
+# and users will be directed to the given iroh 1.0 relay URL.
+# Set it to empty string to not advertise an iroh 1.0 relay at all.
+# iroh_relay_1 =
+
 # Address on which `mtail` listens,
 # e.g. 127.0.0.1 or some private network
 # address like 192.168.10.1.

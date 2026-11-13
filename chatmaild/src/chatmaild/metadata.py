@@ -106,6 +106,7 @@ class MetadataDictProxy(DictProxy):
         notifier,
         metadata,
         iroh_relay=None,
+        iroh_relay_1=None,
         turn_hostname=None,
         turn_socket_path=None,
     ):
@@ -113,6 +114,7 @@ class MetadataDictProxy(DictProxy):
         self.notifier = notifier
         self.metadata = metadata
         self.iroh_relay = iroh_relay
+        self.iroh_relay_1 = iroh_relay_1
         self.turn_hostname = turn_hostname
         self.turn_socket_path = turn_socket_path
         self.appversions_path = files(__package__).joinpath("defaults/appversions.json")
@@ -130,6 +132,8 @@ class MetadataDictProxy(DictProxy):
                     match keyname[len(prefix) :]:
                         case "irohrelay" if self.iroh_relay:
                             return f"O{self.iroh_relay}\n"
+                        case "irohrelay1" if self.iroh_relay_1:
+                            return f"O{self.iroh_relay_1}\n"
                         case "turn":
                             try:
                                 res = turn_credentials(self.turn_socket_path)
@@ -168,6 +172,7 @@ def main():
 
     config = read_config(config_path)
     iroh_relay = config.iroh_relay
+    iroh_relay_1 = config.iroh_relay_1
     mail_domain = config.mail_domain
     socket_path = config.turn_socket_path
 
@@ -186,6 +191,7 @@ def main():
         notifier=notifier,
         metadata=metadata,
         iroh_relay=iroh_relay,
+        iroh_relay_1=iroh_relay_1,
         turn_hostname=mail_domain,
         turn_socket_path=socket_path,
     )
