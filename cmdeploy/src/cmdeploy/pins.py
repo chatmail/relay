@@ -1,14 +1,14 @@
 """Versions, hashes, and download URLs for pre-built artifacts fetched during deploy."""
 
-FILTERMAIL_VERSION = "v0.7.8"
+FILTERMAIL_VERSION = "v0.7.10"
 FILTERMAIL_ARTIFACTS = {
     "x86_64": (
         f"https://github.com/chatmail/filtermail/releases/download/{FILTERMAIL_VERSION}/filtermail-x86_64",
-        "f470431f98468b9f4d2452470bffc00c0010b3f92655005d59b997f599fd7d4a",
+        "c800e39e37d81c504f48dee2e61c10fcdd679c23e7ab958d6f0e6413c19d2be3",
     ),
     "aarch64": (
         f"https://github.com/chatmail/filtermail/releases/download/{FILTERMAIL_VERSION}/filtermail-aarch64",
-        "a15a476ab92072ad22f1bc9d81e5c545bc3d81fc9d446d53f8cc1de810867837",
+        "eaf2a46c7c39e898bb37b82716a0a866cea5bbbc642675c78c259e0f98517ceb",
     ),
     "mtail": (
         f"https://raw.githubusercontent.com/chatmail/filtermail/{FILTERMAIL_VERSION}/contrib/filtermail.mtail",
