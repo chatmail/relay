@@ -52,8 +52,7 @@ The deployed system components of a chatmail relay are:
 -  `acmetool <https://hlandau.github.io/acmetool/>`_ manages TLS
    certificates for Dovecot, Postfix, and Nginx
 
--  `OpenDKIM <http://www.opendkim.org/>`_ for signing messages with
-   DKIM and rejecting inbound messages without DKIM
+-  `OpenDKIM <http://www.opendkim.org/>`_ for signing outgoing messages with DKIM
 
 -  `mtail <https://google.github.io/mtail/>`_ for collecting anonymized
    metrics in case you have monitoring
@@ -294,14 +293,13 @@ Dovecot_ listens on ports
 
 Nginx_ listens on port
 
+- 80 (HTTP), which passes certificate challenges on to
+  `acmetool <https://hlandau.github.io/acmetool/>`_ and redirects everything else to HTTPS,
+
 - 8443 (HTTPS-ALT) and
 
 - 443 (HTTPS) which multiplexes HTTPS, IMAP and SMTP using ALPN
   to redirect connections to ports 8443, 465 or 993.
-
-`acmetool <https://hlandau.github.io/acmetool/>`_ listens on port:
-
-- 80 (HTTP).
 
 `chatmail-turn <https://github.com/chatmail/chatmail-turn>`_ listens on port
 
@@ -322,12 +320,10 @@ Chatmail relays enforce :rfc:`DKIM <6376>` to authenticate incoming emails
 Incoming emails must have a valid DKIM signature with
 Signing Domain Identifier (SDID, ``d=`` parameter in the DKIM-Signature
 header) equal to the ``From:`` header domain. This property is checked
-by OpenDKIM screen policy script before validating the signatures. This
+by filtermail when it verifies the signatures. This
 corresponds to strict :rfc:`DMARC <7489>` alignment (``adkim=s``).
 If there is no valid DKIM signature on the incoming email, the
 sender receives a “5.7.1 No valid DKIM signature found” error.
-After validating the DKIM signature,
-the `final.lua` script strips all ``OpenDKIM:`` headers to reduce message size on disc.
 
 Note that chatmail relays
 
