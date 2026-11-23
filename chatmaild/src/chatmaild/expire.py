@@ -15,6 +15,7 @@ from pathlib import Path
 from stat import S_ISREG
 
 from chatmaild.config import read_config
+from chatmaild.fsreport import Report
 
 FileEntry = namedtuple("FileEntry", ("path", "mtime", "size"))
 QuotaFileEntry = namedtuple("QuotaFileEntry", ("mtime", "quota_size", "path"))
@@ -106,7 +107,7 @@ def expire_to_target(mbox, target_bytes, dry=False):
     # likely something is wrong with interactions on that address
     # and quota-full signal can help the address owner's device to notice it
     undeletable_messages_cutoff = time.time() - (3600 * 24)
-    removed = 0
+    removed = []
     for entry in sorted(messages):
         if total_size <= target_bytes:
             break
@@ -115,7 +116,7 @@ def expire_to_target(mbox, target_bytes, dry=False):
         if not dry:
             (mbox / entry.path).unlink(missing_ok=True)
         total_size -= entry.quota_size
-        removed += 1
+        removed.append(entry)
 
     return removed
 
@@ -134,6 +135,7 @@ class Expiry:
         self.all_mboxes = 0
         self.del_files = 0
         self.all_files = 0
+        self.removed_paths = set()
         self.start = time.time()
 
     def remove_mailbox(self, mboxdir):
@@ -155,6 +157,7 @@ class Expiry:
                 os.unlink(path)
             except FileNotFoundError:
                 print_info(f"file not found/vanished {path}")
+        self.removed_paths.add(path)
         self.del_files += 1
 
     def process_mailbox_stat(self, mbox):
@@ -168,7 +171,7 @@ class Expiry:
         changed = False
         if mbox.last_login and mbox.last_login < cutoff_without_login:
             self.remove_mailbox(mbox.basedir)
-            return
+            return False
         elif mbox.last_login is None:
             try:
                 if not self.dry:
@@ -178,7 +181,7 @@ class Expiry:
                 print_info(
                     f"Skipped deleting {mbox.basedir}, doesn't have last_login but isn't empty"
                 )
-            return
+            return False
 
         mboxname = os.path.basename(mbox.basedir)
         if self.verbose:
@@ -188,6 +191,7 @@ class Expiry:
             else:
                 print_info(f"checking mailbox (no last_login) {mboxname}")
         self.all_files += len(mbox.messages)
+        self.removed_paths.clear()
         for message in mbox.messages:
             if message.mtime < cutoff_mails:
                 self.remove_file(message.path, mtime=message.mtime)
@@ -206,14 +210,17 @@ class Expiry:
         removed = expire_to_target(Path(mbox.basedir), target_bytes, dry=self.dry)
         if removed:
             changed = True
-            self.del_files += removed
+            self.del_files += len(removed)
+            self.removed_paths.update(f"{mbox.basedir}/{e.path}" for e in removed)
             if self.verbose:
                 print_info(
-                    f"quota-expire: removed {removed} message(s) from {mboxname}"
+                    f"quota-expire: removed {len(removed)} message(s) from {mboxname}"
                 )
 
         if changed:
             self.remove_file(f"{mbox.basedir}/maildirsize")
+        mbox.messages = [m for m in mbox.messages if m.path not in self.removed_paths]
+        return True
 
     def get_summary(self):
         return (
@@ -221,6 +228,23 @@ class Expiry:
             f"and {self.del_files} out of {self.all_files} files in existing mailboxes "
             f"in {time.time() - self.start:2.2f} seconds"
         )
+
+    def prom_lines(self):
+        end = time.time()
+        return [
+            "# HELP chatmail_expire_removed_mailboxes Mailboxes removed by the last run.",
+            "# TYPE chatmail_expire_removed_mailboxes gauge",
+            f"chatmail_expire_removed_mailboxes {self.del_mboxes}",
+            "# HELP chatmail_expire_removed_files Files removed by the last run.",
+            "# TYPE chatmail_expire_removed_files gauge",
+            f"chatmail_expire_removed_files {self.del_files}",
+            "# HELP chatmail_expire_duration_seconds Duration of the last run.",
+            "# TYPE chatmail_expire_duration_seconds gauge",
+            f"chatmail_expire_duration_seconds {end - self.start:.2f}",
+            "# HELP chatmail_expire_last_run_timestamp_seconds End of the last run.",
+            "# TYPE chatmail_expire_last_run_timestamp_seconds gauge",
+            f"chatmail_expire_last_run_timestamp_seconds {end:.0f}",
+        ]
 
 
 def daily_expire_main(args=None):
@@ -257,6 +281,11 @@ def daily_expire_main(args=None):
         action="store_true",
         help="actually remove all expired files and dirs",
     )
+    parser.add_argument(
+        "--prom",
+        metavar="PATH",
+        help="write storage and expiry statistics as Prometheus metrics to PATH",
+    )
     args = parser.parse_args(args)
 
     config = read_config(args.chatmail_ini)
@@ -266,9 +295,13 @@ def daily_expire_main(args=None):
 
     maxnum = int(args.maxnum) if args.maxnum else None
     exp = Expiry(config, dry=not args.remove, now=now, verbose=args.verbose)
+    rep = Report(now=now)
     for mailbox in iter_mailboxes(str(config.mailboxes_dir), maxnum=maxnum):
-        exp.process_mailbox_stat(mailbox)
+        if exp.process_mailbox_stat(mailbox):
+            rep.process_mailbox_stat(mailbox)
     print(exp.get_summary())
+    if args.prom:
+        rep.dump_textfile(args.prom, extra_lines=exp.prom_lines())
 
 
 def quota_expire_main(args=None):
@@ -292,7 +325,7 @@ def quota_expire_main(args=None):
 
     target_bytes = args.target_mb * 1024 * 1024
 
-    removed_count = expire_to_target(args.mailbox_path, target_bytes)
+    removed_count = len(expire_to_target(args.mailbox_path, target_bytes))
     if removed_count:
         (args.mailbox_path / "maildirsize").unlink(missing_ok=True)
         print(

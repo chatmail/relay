@@ -82,7 +82,7 @@ def activate_remote_units(deployer, units) -> None:
     for fn in units:
         basename = fn if "." in fn else f"{fn}.service"
 
-        if fn == "chatmail-expire" or fn == "chatmail-fsreport":
+        if fn == "chatmail-expire":
             # don't auto-start but let the corresponding timer trigger execution
             enabled = False
         else:

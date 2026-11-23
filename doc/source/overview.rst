@@ -104,6 +104,8 @@ short overview of ``chatmaild`` services:
    deletes old messages, large messages, and entire mailboxes
    of users who have not logged in for longer than
    ``delete_inactive_users_after`` days.
+   After each daily run it writes storage, account and expiry statistics
+   as Prometheus metrics to ``/var/lib/chatmail/expire.prom``.
 
 -  ``chatmail-quota-expire`` is called by Dovecot's ``quota_warning`` mechanism
    and will automatically remove oldest messages to keep mailboxes well under ``max_mailbox_size``.
@@ -142,7 +144,6 @@ Chatmail relay dependency diagram
         /var/lib/acme`")] --> nginx-internal;
         systemd-timer --- acmetool;
         systemd-timer --- chatmail-expire-daily;
-        systemd-timer --- chatmail-fsreport-daily;
         acmetool --> certs[("`TLS certs
         /var/lib/acme`")];
         nginx-external --- |993|dovecot;
@@ -165,7 +166,6 @@ Chatmail relay dependency diagram
         lastlogin --- maildir;
         doveauth --- maildir;
         chatmail-expire-daily --- maildir;
-        chatmail-fsreport-daily --- maildir;
         chatmail-metadata --- iroh-relay;
         chatmail-metadata --- |encrypted device token| notifications.delta.chat;
         certs-nginx --> postfix;
