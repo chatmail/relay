@@ -21,7 +21,6 @@ from chatmaild.expire import (
     scan_mailbox_messages,
 )
 from chatmaild.expire import daily_expire_main as expiry_main
-from chatmaild.fsreport import main as report_main
 
 MB = 1024 * 1024
 
@@ -129,57 +128,19 @@ def test_mbox_without_password(mbox1, example_config, capsys):
     assert not os.path.isdir(mbox_rescan.basedir)
 
 
-def test_report_no_mailboxes(example_config):
-    args = (str(example_config._inipath),)
-    report_main(args)
-
-
-def test_report(mbox1, example_config):
-    args = (str(example_config._inipath),)
-    report_main(args)
-    args = list(args) + "--days 1".split()
-    report_main(args)
-    args = list(args) + "--min-login-age 1".split()
-    report_main(args)
-    args = list(args) + "--mdir cur".split()
-    report_main(args)
-
-
-def test_report_mdir_filters_by_path(mbox1, example_config):
-    """Test that Report with mdir='cur' only counts messages in cur/ subdirectory."""
-    from chatmaild.fsreport import Report
-
-    now = time.time()
-
-    # Set password mtime to old enough so min_login_age check passes
-    password = Path(mbox1.basedir).joinpath("password")
-    old_time = now - 86400 * 10  # 10 days ago
-    os.utime(password, (old_time, old_time))
-
-    # Reload mailbox with updated mtime
-    from chatmaild.expire import MailboxStat
-
-    mbox = MailboxStat(mbox1.basedir)
-
-    # Report without mdir — should count all messages
-    rep_all = Report(now=now, min_login_age=1, mdir=None)
-    rep_all.process_mailbox_stat(mbox)
-    total_all = rep_all.message_buckets[0]
-
-    # Report with mdir='cur' — should only count cur/ messages
-    rep_cur = Report(now=now, min_login_age=1, mdir="cur")
-    rep_cur.process_mailbox_stat(mbox)
-    total_cur = rep_cur.message_buckets[0]
-
-    # Report with mdir='new' — should only count new/ messages
-    rep_new = Report(now=now, min_login_age=1, mdir="new")
-    rep_new.process_mailbox_stat(mbox)
-    total_new = rep_new.message_buckets[0]
-
-    # cur has 500-byte msg, new has 600-byte msg (from fill_mbox)
-    assert total_cur == 500
-    assert total_new == 600
-    assert total_all == 500 + 600
+def test_expiry_cli_prom(example_config, mbox1, tmp_path):
+    days = int(example_config.delete_mails_after) + 1
+    create_new_messages(mbox1.basedir, ["cur/msg_old"], size=1000, days=days)
+    path = tmp_path / "expire.prom"
+    expiry_main([str(example_config._inipath), "--remove", "--prom", str(path)])
+    text = path.read_text()
+    # fill_mbox leaves 500 + 600 bytes of messages after msg_old expired
+    assert 'chatmail_storage_bytes{kind="messages"} 1100\n' in text
+    assert 'chatmail_messages_count{min_size="0"} 2\n' in text
+    assert 'chatmail_accounts{kind="all"} 1\n' in text
+    # msg_old and maildirsize
+    assert "chatmail_expire_removed_files 2\n" in text
+    assert "chatmail_expire_last_run_timestamp_seconds " in text
 
 
 def test_expiry_cli_basic(example_config, mbox1):
@@ -267,7 +228,7 @@ def test_expire_to_target(tmp_path):
     assert len(scan_mailbox_messages(tmp_path)) == 3
     # removes oldest first, uses S= size not disk size
     removed = expire_to_target(tmp_path, MB)
-    assert removed == 2
+    assert len(removed) == 2
     msgs = scan_mailbox_messages(tmp_path)
     assert len(msgs) == 1
     # the surviving message is the fresh undeletable one

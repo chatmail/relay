@@ -288,6 +288,18 @@ class LegacyRemoveDeployer(Deployer):
                 enabled=False,
             )
 
+        # chatmail-expire writes the storage statistics chatmail-fsreport collected
+        timer = "chatmail-fsreport.timer"
+        if has_systemd() and host.get_fact(SystemdEnabled).get(timer):
+            systemd.service(
+                name=f"Disable {timer}",
+                service=timer,
+                running=False,
+                enabled=False,
+            )
+        self.remove_file(f"/etc/systemd/system/{timer}")
+        self.remove_file("/etc/systemd/system/chatmail-fsreport.service")
+
 
 def check_config(config):
     mail_domain = config.mail_domain
@@ -381,8 +393,6 @@ class ChatmailVenvDeployer(Deployer):
             "lastlogin",
             "chatmail-expire",
             "chatmail-expire.timer",
-            "chatmail-fsreport",
-            "chatmail-fsreport.timer",
         )
 
     def install(self):
@@ -431,6 +441,8 @@ class ChatmailDeployer(Deployer):
             owner="vmail",
             mode="700",
         )
+        # chatmail-expire writes its statistics there
+        self.ensure_directory("/var/lib/chatmail", owner="vmail")
 
         # This file is used by auth proxy.
         # https://wiki.debian.org/EtcMailName
