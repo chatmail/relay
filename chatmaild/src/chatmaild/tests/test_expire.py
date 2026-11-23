@@ -128,19 +128,36 @@ def test_mbox_without_password(mbox1, example_config, capsys):
     assert not os.path.isdir(mbox_rescan.basedir)
 
 
-def test_expiry_cli_prom(example_config, mbox1, tmp_path):
+def test_expiry_cli_prom(example_config, mbox1, tmp_path, monkeypatch):
     days = int(example_config.delete_mails_after) + 1
     create_new_messages(mbox1.basedir, ["cur/msg_old"], size=1000, days=days)
-    path = tmp_path / "expire.prom"
-    expiry_main([str(example_config._inipath), "--remove", "--prom", str(path)])
+    create_new_messages(mbox1.basedir, ["cur/msg_4days"], size=100, days=4)
+    path = tmp_path / "chatmail-expire.prom"
+    monkeypatch.setenv("CHATMAIL_EXPIRE_PROMPATH", str(path))
+    expiry_main([str(example_config._inipath), "--remove"])
     text = path.read_text()
-    # fill_mbox leaves 500 + 600 bytes of messages after msg_old expired
-    assert 'chatmail_storage_bytes{kind="messages"} 1100\n' in text
-    assert 'chatmail_messages_count{min_size="0"} 2\n' in text
+    # fill_mbox 500 + 600 bytes and msg_4days remain after msg_old expired
+    assert 'chatmail_storage_bytes{kind="messages"} 1200\n' in text
+    assert 'chatmail_messages_count{min_size="0"} 3\n' in text
+    assert 'chatmail_messages_age_bytes{min_days="3"} 100\n' in text
+    assert 'chatmail_messages_age_bytes{min_days="7"} 0\n' in text
     assert 'chatmail_accounts{kind="all"} 1\n' in text
     # msg_old and maildirsize
     assert "chatmail_expire_removed_files 2\n" in text
     assert "chatmail_expire_last_run_timestamp_seconds " in text
+
+
+@pytest.mark.parametrize("dry", [True, False])
+def test_expiry_dry_counts_like_real_run(example_config, mbox1, dry):
+    mboxdir = Path(mbox1.basedir)
+    days = int(example_config.delete_mails_after) + 1
+    _create_message(mboxdir, "cur", 400 * MB, days_old=days, disk_size=10)
+    _create_message(mboxdir, "cur", 400 * MB, days_old=2, disk_size=10)
+    exp = Expiry(example_config, dry=dry, now=time.time(), verbose=False)
+    exp.process_mailbox_stat(MailboxStat(mboxdir))
+    # age pass removes the old one, quota pass the other, plus maildirsize
+    assert exp.del_files == 3
+    assert exp.size_messages == 1100
 
 
 def test_expiry_cli_basic(example_config, mbox1):
