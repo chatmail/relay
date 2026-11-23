@@ -7,7 +7,6 @@ import os
 import re
 import shutil
 import sys
-import tempfile
 import time
 from argparse import ArgumentParser
 from collections import namedtuple
@@ -100,8 +99,9 @@ def scan_mailbox_messages(mbox):
     return messages
 
 
-def expire_to_target(mbox, target_bytes, dry=False):
+def expire_to_target(mbox, target_bytes, dry=False, skip=()):
     messages = scan_mailbox_messages(mbox)
+    messages = [m for m in messages if str(mbox / m.path) not in skip]
     total_size = sum(m.quota_size for m in messages)
     # Keep recent 24 hours of messages protected from expiry because
     # likely something is wrong with interactions on that address
@@ -125,7 +125,24 @@ def print_info(msg):
     print(msg, file=sys.stderr)
 
 
+PROM_HELP = {
+    "storage_bytes": "Mailbox storage in bytes.",
+    "messages_bytes": "Sum of msg bytes >= threshold.",
+    "messages_count": "Number of msgs >= size threshold.",
+    "messages_age_bytes": "Sum of msg bytes older than N days.",
+    "accounts": "Number of accounts.",
+    "accounts_active": "Non-CI accounts active within N days.",
+    "expire_removed_mailboxes": "Mailboxes removed by the last run.",
+    "expire_removed_files": "Files removed by the last run.",
+    "expire_duration_seconds": "Duration of the last run.",
+    "expire_last_run_timestamp_seconds": "End of the last run.",
+}
+
+
 class Expiry:
+    login_days = (1, 10, 30, 40, 80, 100, 150)
+    size_thresholds = (0, 100 * 1024, 512 * 1024, 1 << 20, 2 << 20, 5 << 20, 10 << 20)
+
     def __init__(self, config, dry, now, verbose):
         self.config = config
         self.dry = dry
@@ -135,8 +152,13 @@ class Expiry:
         self.all_mboxes = 0
         self.del_files = 0
         self.all_files = 0
-        self.removed_paths = set()
         self.start = time.time()
+        self.size_messages = self.size_extra = 0
+        self.num_ci_logins = self.num_all_logins = 0
+        self.login_buckets = dict.fromkeys(self.login_days, 0)
+        self.msg_bytes = dict.fromkeys(self.size_thresholds, 0)
+        self.msg_counts = dict.fromkeys(self.size_thresholds, 0)
+        self.msg_age_bytes = dict.fromkeys((1, 3, 7, 14), 0)
 
     def remove_mailbox(self, mboxdir):
         if self.verbose:
@@ -157,7 +179,6 @@ class Expiry:
                 os.unlink(path)
             except FileNotFoundError:
                 print_info(f"file not found/vanished {path}")
-        self.removed_paths.add(path)
         self.del_files += 1
 
     def process_mailbox_stat(self, mbox):
@@ -171,7 +192,7 @@ class Expiry:
         changed = False
         if mbox.last_login and mbox.last_login < cutoff_without_login:
             self.remove_mailbox(mbox.basedir)
-            return False
+            return
         elif mbox.last_login is None:
             try:
                 if not self.dry:
@@ -181,7 +202,7 @@ class Expiry:
                 print_info(
                     f"Skipped deleting {mbox.basedir}, doesn't have last_login but isn't empty"
                 )
-            return False
+            return
 
         mboxname = os.path.basename(mbox.basedir)
         if self.verbose:
@@ -191,15 +212,17 @@ class Expiry:
             else:
                 print_info(f"checking mailbox (no last_login) {mboxname}")
         self.all_files += len(mbox.messages)
-        self.removed_paths.clear()
+        removed_paths = set()
         for message in mbox.messages:
             if message.mtime < cutoff_mails:
                 self.remove_file(message.path, mtime=message.mtime)
+                removed_paths.add(message.path)
             elif message.size > 200000 and message.mtime < cutoff_large_mails:
                 # we only remove noticed large files (not unnoticed ones in new/)
                 parts = message.path.split("/")
                 if len(parts) >= 2 and parts[-2] == "cur":
                     self.remove_file(message.path, mtime=message.mtime)
+                    removed_paths.add(message.path)
             else:
                 continue
             changed = True
@@ -207,11 +230,13 @@ class Expiry:
         target_bytes = (
             self.config.max_mailbox_size_mb * 1024 * 1024 * QUOTA_CLEANUP_FACTOR
         )
-        removed = expire_to_target(Path(mbox.basedir), target_bytes, dry=self.dry)
+        removed = expire_to_target(
+            Path(mbox.basedir), target_bytes, dry=self.dry, skip=removed_paths
+        )
         if removed:
             changed = True
             self.del_files += len(removed)
-            self.removed_paths.update(f"{mbox.basedir}/{e.path}" for e in removed)
+            removed_paths.update(f"{mbox.basedir}/{e.path}" for e in removed)
             if self.verbose:
                 print_info(
                     f"quota-expire: removed {len(removed)} message(s) from {mboxname}"
@@ -219,8 +244,25 @@ class Expiry:
 
         if changed:
             self.remove_file(f"{mbox.basedir}/maildirsize")
-        mbox.messages = [m for m in mbox.messages if m.path not in self.removed_paths]
-        return True
+
+        self.num_all_logins += 1
+        if mboxname.startswith("ci-"):
+            self.num_ci_logins += 1
+        else:
+            for days in self.login_buckets:
+                if mbox.last_login >= self.now - days * 86400:
+                    self.login_buckets[days] += 1
+        kept = [m for m in mbox.messages if m.path not in removed_paths]
+        for size in self.msg_bytes:
+            for msg in kept:
+                if msg.size >= size:
+                    self.msg_bytes[size] += msg.size
+                    self.msg_counts[size] += 1
+        for days in self.msg_age_bytes:
+            cutoff = self.now - days * 86400
+            self.msg_age_bytes[days] += sum(m.size for m in kept if m.mtime < cutoff)
+        self.size_messages += sum(m.size for m in kept)
+        self.size_extra += sum(entry.size for entry in mbox.extrafiles)
 
     def get_summary(self):
         return (
@@ -229,122 +271,35 @@ class Expiry:
             f"in {time.time() - self.start:2.2f} seconds"
         )
 
-    def prom_lines(self):
+    def write_prom(self, path):
         end = time.time()
-        return [
-            "# HELP chatmail_expire_removed_mailboxes Mailboxes removed by the last run.",
-            "# TYPE chatmail_expire_removed_mailboxes gauge",
-            f"chatmail_expire_removed_mailboxes {self.del_mboxes}",
-            "# HELP chatmail_expire_removed_files Files removed by the last run.",
-            "# TYPE chatmail_expire_removed_files gauge",
-            f"chatmail_expire_removed_files {self.del_files}",
-            "# HELP chatmail_expire_duration_seconds Duration of the last run.",
-            "# TYPE chatmail_expire_duration_seconds gauge",
-            f"chatmail_expire_duration_seconds {end - self.start:.2f}",
-            "# HELP chatmail_expire_last_run_timestamp_seconds End of the last run.",
-            "# TYPE chatmail_expire_last_run_timestamp_seconds gauge",
-            f"chatmail_expire_last_run_timestamp_seconds {end:.0f}",
-        ]
+        storage = dict(messages=self.size_messages, extra=self.size_extra)
+        storage["total"] = self.size_messages + self.size_extra
+        accounts = dict(all=self.num_all_logins, ci=self.num_ci_logins)
+        accounts["user"] = accounts["all"] - accounts["ci"]
+        help = dict(PROM_HELP)
+        tmp = f"{path}.tmp"
+        with open(tmp, "w") as f:
 
+            def gauge(name, values, label=None):
+                print(f"# HELP chatmail_{name} {help.pop(name)}", file=f)
+                print(f"# TYPE chatmail_{name} gauge", file=f)
+                for key, value in values.items() if label else [(None, values)]:
+                    labels = f'{{{label}="{key}"}}' if label else ""
+                    print(f"chatmail_{name}{labels} {value}", file=f)
 
-class Report:
-    def __init__(self, now):
-        self.size_extra = 0
-        self.size_messages = 0
-        self.now = now
-
-        self.num_ci_logins = self.num_all_logins = 0
-        self.login_buckets = {x: 0 for x in (1, 10, 30, 40, 80, 100, 150)}
-
-        KiB = 1024
-        MiB = 1024 * KiB
-        self.message_size_thresholds = (
-            0,
-            100 * KiB,
-            MiB // 2,
-            1 * MiB,
-            2 * MiB,
-            5 * MiB,
-            10 * MiB,
-        )
-        self.message_buckets = {x: 0 for x in self.message_size_thresholds}
-        self.message_count_buckets = {x: 0 for x in self.message_size_thresholds}
-
-    def process_mailbox_stat(self, mailbox):
-        # categorize login times
-        last_login = mailbox.last_login
-        if last_login:
-            self.num_all_logins += 1
-            if os.path.basename(mailbox.basedir)[:3] == "ci-":
-                self.num_ci_logins += 1
-            else:
-                for days in self.login_buckets:
-                    if last_login >= self.now - days * 86400:
-                        self.login_buckets[days] += 1
-
-            # categorize message sizes
-            for size in self.message_buckets:
-                for msg in mailbox.messages:
-                    if msg.size >= size:
-                        self.message_buckets[size] += msg.size
-                        self.message_count_buckets[size] += 1
-
-        self.size_messages += sum(entry.size for entry in mailbox.messages)
-        self.size_extra += sum(entry.size for entry in mailbox.extrafiles)
-
-    def _write_atomic(self, filepath, content):
-        """Atomically write content to filepath via tmp+rename."""
-        dirpath = os.path.dirname(os.path.abspath(filepath))
-        fd, tmppath = tempfile.mkstemp(dir=dirpath, suffix=".tmp")
-        try:
-            with os.fdopen(fd, "w") as f:
-                f.write(content)
-            os.chmod(tmppath, 0o644)
-            os.rename(tmppath, filepath)
-        except BaseException:
-            try:
-                os.unlink(tmppath)
-            except OSError:
-                pass
-            raise
-
-    def dump_textfile(self, filepath, extra_lines=()):
-        """Dump metrics in Prometheus exposition format."""
-        lines = []
-
-        lines.append("# HELP chatmail_storage_bytes Mailbox storage in bytes.")
-        lines.append("# TYPE chatmail_storage_bytes gauge")
-        lines.append(f'chatmail_storage_bytes{{kind="messages"}} {self.size_messages}')
-        lines.append(f'chatmail_storage_bytes{{kind="extra"}} {self.size_extra}')
-        total = self.size_extra + self.size_messages
-        lines.append(f'chatmail_storage_bytes{{kind="total"}} {total}')
-
-        lines.append("# HELP chatmail_messages_bytes Sum of msg bytes >= threshold.")
-        lines.append("# TYPE chatmail_messages_bytes gauge")
-        for minsize, sumsize in self.message_buckets.items():
-            lines.append(f'chatmail_messages_bytes{{min_size="{minsize}"}} {sumsize}')
-
-        lines.append("# HELP chatmail_messages_count Number of msgs >= size threshold.")
-        lines.append("# TYPE chatmail_messages_count gauge")
-        for minsize, count in self.message_count_buckets.items():
-            lines.append(f'chatmail_messages_count{{min_size="{minsize}"}} {count}')
-
-        lines.append("# HELP chatmail_accounts Number of accounts.")
-        lines.append("# TYPE chatmail_accounts gauge")
-        user_logins = self.num_all_logins - self.num_ci_logins
-        lines.append(f'chatmail_accounts{{kind="all"}} {self.num_all_logins}')
-        lines.append(f'chatmail_accounts{{kind="ci"}} {self.num_ci_logins}')
-        lines.append(f'chatmail_accounts{{kind="user"}} {user_logins}')
-
-        lines.append(
-            "# HELP chatmail_accounts_active Non-CI accounts active within N days."
-        )
-        lines.append("# TYPE chatmail_accounts_active gauge")
-        for days, active in self.login_buckets.items():
-            lines.append(f'chatmail_accounts_active{{days="{days}"}} {active}')
-
-        lines.extend(extra_lines)
-        self._write_atomic(filepath, "\n".join(lines) + "\n")
+            gauge("storage_bytes", storage, "kind")
+            gauge("messages_bytes", self.msg_bytes, "min_size")
+            gauge("messages_count", self.msg_counts, "min_size")
+            gauge("messages_age_bytes", self.msg_age_bytes, "min_days")
+            gauge("accounts", accounts, "kind")
+            gauge("accounts_active", self.login_buckets, "days")
+            gauge("expire_removed_mailboxes", self.del_mboxes)
+            gauge("expire_removed_files", self.del_files)
+            gauge("expire_duration_seconds", f"{end - self.start:.2f}")
+            gauge("expire_last_run_timestamp_seconds", f"{end:.0f}")
+        assert not help, f"unused PROM_HELP entries: {list(help)}"
+        os.replace(tmp, path)
 
 
 def daily_expire_main(args=None):
@@ -381,11 +336,6 @@ def daily_expire_main(args=None):
         action="store_true",
         help="actually remove all expired files and dirs",
     )
-    parser.add_argument(
-        "--prom",
-        metavar="PATH",
-        help="write storage and expiry statistics as Prometheus metrics to PATH",
-    )
     args = parser.parse_args(args)
 
     config = read_config(args.chatmail_ini)
@@ -395,13 +345,11 @@ def daily_expire_main(args=None):
 
     maxnum = int(args.maxnum) if args.maxnum else None
     exp = Expiry(config, dry=not args.remove, now=now, verbose=args.verbose)
-    rep = Report(now=now)
     for mailbox in iter_mailboxes(str(config.mailboxes_dir), maxnum=maxnum):
-        if exp.process_mailbox_stat(mailbox):
-            rep.process_mailbox_stat(mailbox)
+        exp.process_mailbox_stat(mailbox)
     print(exp.get_summary())
-    if args.prom:
-        rep.dump_textfile(args.prom, extra_lines=exp.prom_lines())
+    if prompath := os.environ.get("CHATMAIL_EXPIRE_PROMPATH"):
+        exp.write_prom(prompath)
 
 
 def quota_expire_main(args=None):

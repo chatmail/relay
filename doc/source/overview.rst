@@ -104,8 +104,6 @@ short overview of ``chatmaild`` services:
    deletes old messages, large messages, and entire mailboxes
    of users who have not logged in for longer than
    ``delete_inactive_users_after`` days.
-   After each daily run it writes storage, account and expiry statistics
-   as Prometheus metrics to ``/var/lib/chatmail/expire.prom``.
 
 -  ``chatmail-quota-expire`` is called by Dovecot's ``quota_warning`` mechanism
    and will automatically remove oldest messages to keep mailboxes well under ``max_mailbox_size``.
