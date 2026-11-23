@@ -183,8 +183,13 @@ def test_report_mdir_filters_by_path(mbox1, example_config):
 
 
 def test_expiry_cli_basic(example_config, mbox1):
+    mboxdir = Path(mbox1.basedir)
+    p1 = _create_message(mboxdir, "cur", 400 * MB, days_old=2, disk_size=10)
+    p2 = _create_message(mboxdir, "cur", 400 * MB, days_old=2, disk_size=10)
     args = (str(example_config._inipath),)
     expiry_main(args)
+    assert p1.exists() and p2.exists()
+    assert mboxdir.joinpath("maildirsize").exists()
 
 
 def test_expiry_cli_old_files(capsys, example_config, mbox1):
