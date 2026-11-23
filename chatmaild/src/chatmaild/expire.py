@@ -99,7 +99,7 @@ def scan_mailbox_messages(mbox):
     return messages
 
 
-def expire_to_target(mbox, target_bytes):
+def expire_to_target(mbox, target_bytes, dry=False):
     messages = scan_mailbox_messages(mbox)
     total_size = sum(m.quota_size for m in messages)
     # Keep recent 24 hours of messages protected from expiry because
@@ -112,7 +112,8 @@ def expire_to_target(mbox, target_bytes):
             break
         if entry.mtime > undeletable_messages_cutoff:
             break
-        (mbox / entry.path).unlink(missing_ok=True)
+        if not dry:
+            (mbox / entry.path).unlink(missing_ok=True)
         total_size -= entry.quota_size
         removed += 1
 
@@ -202,7 +203,7 @@ class Expiry:
         target_bytes = (
             self.config.max_mailbox_size_mb * 1024 * 1024 * QUOTA_CLEANUP_FACTOR
         )
-        removed = expire_to_target(Path(mbox.basedir), target_bytes)
+        removed = expire_to_target(Path(mbox.basedir), target_bytes, dry=self.dry)
         if removed:
             changed = True
             self.del_files += removed
