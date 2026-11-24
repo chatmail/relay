@@ -37,6 +37,9 @@ extlinks = {
 # Warn about repository links spelled out in full instead of using the roles.
 extlinks_detect_hardcoded_links = True
 
+# delta.chat/help picks the reader's language in JavaScript and keeps the anchor.
+linkcheck_anchors_ignore_for_url = [r"https://delta\.chat/help"]
+
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
