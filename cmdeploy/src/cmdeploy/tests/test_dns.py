@@ -207,7 +207,7 @@ class TestZonefileChecks:
         parse_zonefile_into_dict(zonefile_mocked, mockdns_base)
         required_diff, recommended_diff = remote.rdns.check_zonefile(zonefile)
         assert not required_diff
-        assert len(recommended_diff) == 8
+        assert len(recommended_diff) == 7
 
     def test_check_zonefile_output_required_fine(self, cm_data, mockdns_base, mockout):
         zonefile = cm_data.get("zftest.zone")
@@ -218,7 +218,7 @@ class TestZonefileChecks:
         res = check_full_zone(mssh, mockdns_base, out=mockout, zonefile=zonefile)
         assert res == 0
         assert "WARNING" in mockout.captured_plain[0]
-        assert len(mockout.captured_plain) == 9
+        assert len(mockout.captured_plain) == 8
 
     def test_check_zonefile_output_full(self, cm_data, mockdns_base, mockout):
         zonefile = cm_data.get("zftest.zone")

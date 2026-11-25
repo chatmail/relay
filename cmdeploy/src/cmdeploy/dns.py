@@ -68,7 +68,6 @@ def get_filled_zone_file(remote_data):
             "CAA",
             f'0 issue "letsencrypt.org;accounturi={remote_data["acme_account_url"]}"',
         )
-    append_record(f"_adsp._domainkey.{d}.", "TXT", '"dkim=discardable"')
     append_record(f"_submission._tcp.{d}.", "SRV", f"0 1 587 {d}.")
     append_record(f"_submissions._tcp.{d}.", "SRV", f"0 1 465 {d}.")
     append_record(f"_imap._tcp.{d}.", "SRV", f"0 1 143 {d}.")
@@ -103,7 +102,10 @@ def check_full_zone(sshexec, remote_data, out, zonefile) -> int:
         out("WARNING: these recommended DNS entries are not set:\n")
         for line in recommended_diff:
             out(line)
+    if adsp := remote_data.get("ADSP"):
+        out("WARNING: this obsolete DNS entry can be deleted:\n")
+        out(f"_adsp._domainkey.{remote_data['mail_domain']}.   TXT  {adsp}")
 
-    if not (recommended_diff or required_diff):
+    if not (recommended_diff or required_diff or adsp):
         out.green("Great! All your DNS entries are verified and correct.")
     return returncode
