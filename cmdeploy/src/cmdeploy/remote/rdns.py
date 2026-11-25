@@ -26,6 +26,7 @@ def perform_initial_checks(mail_domain, pre_command=""):
     WWW = query_dns("CNAME", f"www.{mail_domain}")
 
     res = dict(mail_domain=mail_domain, A=A, AAAA=AAAA, MTA_STS=MTA_STS, WWW=WWW)
+    res["ADSP"] = query_dns("TXT", f"_adsp._domainkey.{mail_domain}")
     res["acme_account_url"] = shell(
         pre_command + "acmetool account-url", fail_ok=True, print=log_progress
     )
