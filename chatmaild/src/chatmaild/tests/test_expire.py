@@ -18,6 +18,7 @@ from chatmaild.expire import (
     os_listdir_if_exists,
     parse_dovecot_filename,
     quota_expire_main,
+    read_chatmail_version,
     scan_mailbox_messages,
 )
 from chatmaild.expire import daily_expire_main as expiry_main
@@ -134,6 +135,9 @@ def test_expiry_cli_prom(example_config, mbox1, tmp_path, monkeypatch):
     create_new_messages(mbox1.basedir, ["cur/msg_4days"], size=100, days=4)
     path = tmp_path / "chatmail-expire.prom"
     monkeypatch.setenv("CHATMAIL_EXPIRE_PROMPATH", str(path))
+    version = tmp_path / "chatmail-version"
+    version.write_text("a" * 40 + "\n")
+    monkeypatch.setattr("chatmaild.expire.CHATMAIL_VERSION_PATH", str(version))
     expiry_main([str(example_config._inipath), "--remove"])
     text = path.read_text()
     # fill_mbox 500 + 600 bytes and msg_4days remain after msg_old expired
@@ -145,6 +149,23 @@ def test_expiry_cli_prom(example_config, mbox1, tmp_path, monkeypatch):
     # msg_old and maildirsize
     assert "chatmail_expire_removed_files 2\n" in text
     assert "chatmail_expire_last_run_timestamp_seconds " in text
+    assert f'chatmail_version_info{{commit="{"a" * 40}",dirty="false"}} 1\n' in text
+
+
+@pytest.mark.parametrize(
+    ("content", "expected"),
+    [
+        (None, ("unknown", "false")),
+        ("", ("unknown", "false")),
+        ("abc123\n", ("abc123", "false")),
+        ("abc123\ndiff --git a/x b/x\n", ("abc123", "true")),
+    ],
+)
+def test_read_chatmail_version(tmp_path, content, expected):
+    path = tmp_path / "chatmail-version"
+    if content is not None:
+        path.write_text(content)
+    assert read_chatmail_version(path) == expected
 
 
 @pytest.mark.parametrize("dry", [True, False])

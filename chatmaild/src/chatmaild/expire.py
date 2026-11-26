@@ -125,6 +125,21 @@ def print_info(msg):
     print(msg, file=sys.stderr)
 
 
+CHATMAIL_VERSION_PATH = "/etc/chatmail-version"
+
+
+def read_chatmail_version(path):
+    """Return (commit, dirty) from the version file that cmdeploy writes."""
+    try:
+        lines = Path(path).read_text().splitlines()
+    except OSError:
+        return "unknown", "false"
+    commit = lines[0] if lines else "unknown"
+    # Lines after the commit hold the `git diff` of the deploying checkout.
+    dirty = "true" if len(lines) > 1 else "false"
+    return commit, dirty
+
+
 PROM_HELP = {
     "storage_bytes": "Mailbox storage in bytes.",
     "messages_bytes": "Sum of msg bytes >= threshold.",
@@ -136,6 +151,7 @@ PROM_HELP = {
     "expire_removed_files": "Files removed by the last run.",
     "expire_duration_seconds": "Duration of the last run.",
     "expire_last_run_timestamp_seconds": "End of the last run.",
+    "version_info": "Deployed relay commit and whether it had local changes.",
 }
 
 
@@ -298,6 +314,12 @@ class Expiry:
             gauge("expire_removed_files", self.del_files)
             gauge("expire_duration_seconds", f"{end - self.start:.2f}")
             gauge("expire_last_run_timestamp_seconds", f"{end:.0f}")
+            commit, dirty = read_chatmail_version(CHATMAIL_VERSION_PATH)
+            print(f"# HELP chatmail_version_info {help.pop('version_info')}", file=f)
+            print("# TYPE chatmail_version_info gauge", file=f)
+            print(
+                f'chatmail_version_info{{commit="{commit}",dirty="{dirty}"}} 1', file=f
+            )
         assert not help, f"unused PROM_HELP entries: {list(help)}"
         os.replace(tmp, path)
 
