@@ -28,16 +28,16 @@ MTAIL_ARTIFACTS = {
     ),
 }
 
-DOVECOT_VERSION = "2.3.21+dfsg1-3"
+DOVECOT_VERSION = "2.3.21+dfsg1-3+chatmail3"
 DOVECOT_SHA256 = {
-    ("core", "amd64"): "dd060706f52a306fa863d874717210b9fe10536c824afe1790eec247ded5b27d",
-    ("core", "arm64"): "e7548e8a82929722e973629ecc40fcfa886894cef3db88f23535149e7f730dc9",
-    ("imapd", "amd64"): "8d8dc6fc00bbb6cdb25d345844f41ce2f1c53f764b79a838eb2a03103eebfa86",
-    ("imapd", "arm64"): "178fa877ddd5df9930e8308b518f4b07df10e759050725f8217a0c1fb3fd707f",
-    ("lmtpd", "amd64"): "2f69ba5e35363de50962d42cccbfe4ed8495265044e244007d7ccddad77513ab",
-    ("lmtpd", "arm64"): "89f52fb36524f5877a177dff4a713ba771fd3f91f22ed0af7238d495e143b38f",
-    ("auth-lua", "amd64"): "d724f37712faba52e177153114af1831e54da555c57c6474c05f96f176176ce4",
-    ("auth-lua", "arm64"): "7272768e20de148c35891d99cd60205acbe7e732b056caf0a83e8194d49136e6",
+    ("core", "amd64"): "8064ca9a940684007063d4a4f60ec265b364f07d26cb4a7ffec83fc775812ebe",
+    ("core", "arm64"): "5f5665735a01c70fb22ac0415b3aea00d23c1301b52effab96bf92c1b1e4366c",
+    ("imapd", "amd64"): "1175a1dafb755e393385306bbe109fccacd31d5177a72db16c0f0b1731a83221",
+    ("imapd", "arm64"): "48399b20ab600a20eaf377f8de34eb8e2a393954e53c6636b1e37c7ea99fd8a6",
+    ("lmtpd", "amd64"): "d0681cd5ae6680d13338ee2e2bad290f929cac8b62d913d842576f2413cde48e",
+    ("lmtpd", "arm64"): "3ad2a4484b2fa52f33e536cb8e36d13d9a86cb5c98732d5fe0f5e4898af03de5",
+    ("auth-lua", "amd64"): "d2764bd247abb6dd90ee8026cea277cb044f9ac02348abd45c692ce52a2ed6f4",
+    ("auth-lua", "arm64"): "5164b74a47a70aa265097f66a7f38985ebd6c575f8432ba64122ae6267749286",
 }
 TURN_VERSION = "v0.4"
 TURN_ARTIFACTS = {
