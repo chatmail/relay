@@ -5,7 +5,7 @@ from chatmaild.config import Config
 from pyinfra import host
 from pyinfra.facts.deb import DebPackages
 from pyinfra.facts.server import Arch, Command, Sysctl
-from pyinfra.operations import apt, files, server
+from pyinfra.operations import files, server
 
 from cmdeploy.basedeploy import (
     Deployer,
@@ -15,9 +15,6 @@ from cmdeploy.basedeploy import (
     is_in_container,
 )
 from cmdeploy.pins import DOVECOT_SHA256, DOVECOT_VERSION
-
-DOVECOT_STAMPED_VERSION = f"{DOVECOT_VERSION}+deb12u1"
-DOVECOT_PACKAGE_VERSION = f"1:{DOVECOT_STAMPED_VERSION}"
 
 
 class DovecotDeployer(Deployer):
@@ -30,10 +27,12 @@ class DovecotDeployer(Deployer):
 
     def install(self):
         arch = host.get_fact(Arch)
+        version_id = host.get_fact(Command, "grep '^VERSION_ID=' /etc/os-release")
+        deb_release = _parse_version_id(version_id)
         with blocked_service_startup():
             debs = []
             for pkg in ("core", "imapd", "lmtpd", "auth-lua"):
-                deb, changed = _download_dovecot_package(pkg, arch)
+                deb, changed = _download_dovecot_package(pkg, arch, deb_release)
                 self.need_restart |= changed
                 if deb:
                     debs.append(deb)
@@ -85,6 +84,15 @@ class DovecotDeployer(Deployer):
         )
 
 
+def _parse_version_id(version_line: str) -> int:
+    """Debian major release from an /etc/os-release VERSION_ID line."""
+    _, _, raw = (version_line or "").strip().partition("=")
+    try:
+        return int(raw.strip('"'))
+    except ValueError:
+        raise ValueError(f"cannot determine Debian release from {version_line!r}")
+
+
 def _pick_url(primary, fallback):
     try:
         req = urllib.request.Request(primary, method="HEAD")
@@ -94,22 +102,27 @@ def _pick_url(primary, fallback):
         return fallback
 
 
-def _download_dovecot_package(package: str, arch: str) -> tuple[str | None, bool]:
+def _download_dovecot_package(
+    package: str, arch: str, deb_release: int
+) -> tuple[str | None, bool]:
     """Download a dovecot .deb if needed, return (path, changed)."""
     arch = "amd64" if arch == "x86_64" else arch
     arch = "arm64" if arch == "aarch64" else arch
 
     pkg_name = f"dovecot-{package}"
-    sha256 = DOVECOT_SHA256.get((package, arch))
-    if sha256 is None:
-        op = apt.packages(packages=[pkg_name])
-        return None, bool(getattr(op, "changed", False))
+    # never fall back to the distro package
+    try:
+        sha256 = DOVECOT_SHA256[(arch, deb_release, package)]
+    except KeyError:
+        raise ValueError(f"no dovecot build for {pkg_name} on deb{deb_release}/{arch}")
 
+    # chatmail/dovecot CI stamps the distro suffix into package version and filename
+    stamped_version = f"{DOVECOT_VERSION}+deb{deb_release}u1"
     installed_versions = host.get_fact(DebPackages).get(pkg_name, [])
-    if DOVECOT_PACKAGE_VERSION in installed_versions:
+    if f"1:{stamped_version}" in installed_versions:
         return None, False
 
-    url_version = DOVECOT_STAMPED_VERSION.replace("+", "%2B")
+    url_version = stamped_version.replace("+", "%2B")
     tag = DOVECOT_VERSION.replace("+", "%2B")
     deb_base = f"{pkg_name}_{url_version}_{arch}.deb"
     primary_url = f"https://download.delta.chat/dovecot/{deb_base}"
