@@ -3,8 +3,12 @@ from types import SimpleNamespace
 
 import pytest
 from pyinfra.facts.deb import DebPackages
+from pyinfra.facts.server import Command
 
 from cmdeploy.dovecot import deployer as dovecot_deployer
+
+# what dpkg reports after installing our deb12 build
+INSTALLED_DEB12 = f"1:{dovecot_deployer.DOVECOT_VERSION}+deb12u1"
 
 
 def make_host(*fact_pairs):
@@ -19,7 +23,7 @@ def make_host(*fact_pairs):
     """
     facts = dict(fact_pairs)
 
-    def get_fact(cls):
+    def get_fact(cls, *args):
         if cls not in facts:
             registered = ", ".join(c.__name__ for c in facts)
             raise LookupError(
@@ -64,7 +68,7 @@ def track_shell(monkeypatch):
 
 
 def test_download_dovecot_package_skips_epoch_matched_install(monkeypatch):
-    epoch_version = dovecot_deployer.DOVECOT_PACKAGE_VERSION
+    epoch_version = INSTALLED_DEB12
     downloads = []
     monkeypatch.setattr(
         dovecot_deployer,
@@ -82,15 +86,18 @@ def test_download_dovecot_package_skips_epoch_matched_install(monkeypatch):
         lambda **kwargs: downloads.append(kwargs),
     )
 
-    deb, changed = dovecot_deployer._download_dovecot_package("core", "amd64")
+    deb, changed = dovecot_deployer._download_dovecot_package(
+        "core", "amd64", deb_release=12
+    )
 
     assert deb is None, f"expected no deb path when version matches, got {deb!r}"
     assert changed is False, "should not flag changed when version already installed"
     assert downloads == [], "should not download when version already installed"
 
 
+@pytest.mark.parametrize(("arch", "deb_release"), [("amd64", 12), ("arm64", 13)])
 def test_download_dovecot_package_uses_archive_version_for_url_and_filename(
-    monkeypatch,
+    monkeypatch, deb_release, arch
 ):
     downloads = []
     monkeypatch.setattr(
@@ -111,10 +118,13 @@ def test_download_dovecot_package_uses_archive_version_for_url_and_filename(
         lambda **kwargs: downloads.append(kwargs),
     )
 
-    deb, changed = dovecot_deployer._download_dovecot_package("core", "amd64")
+    deb, changed = dovecot_deployer._download_dovecot_package(
+        "core", arch, deb_release=deb_release
+    )
 
     version = dovecot_deployer.DOVECOT_VERSION
-    deb_base = f"dovecot-core_{version}+deb12u1_amd64.deb".replace("+", "%2B")
+    deb_base = f"dovecot-core_{version}+deb{deb_release}u1_{arch}.deb"
+    deb_base = deb_base.replace("+", "%2B")
     tag = version.replace("+", "%2B")
 
     # the release tag carries no distro suffix and filenames carry no epoch
@@ -127,6 +137,39 @@ def test_download_dovecot_package_uses_archive_version_for_url_and_filename(
     )
     assert len(downloads) == 1, "files.download should be called exactly once"
     assert downloads[0]["src"] == urls["primary"]
+    assert (
+        downloads[0]["sha256sum"]
+        == dovecot_deployer.DOVECOT_SHA256[(arch, deb_release, "core")]
+    ), "must pass the sha256 matching (arch, release, package)"
+
+
+def test_download_dovecot_package_replaces_deb12_build_after_upgrade_to_13(
+    monkeypatch,
+):
+    downloads = []
+    monkeypatch.setattr(
+        dovecot_deployer,
+        "host",
+        make_host((DebPackages, {"dovecot-core": [INSTALLED_DEB12]})),
+    )
+    monkeypatch.setattr(
+        dovecot_deployer,
+        "_pick_url",
+        lambda primary, fallback: primary,
+    )
+    monkeypatch.setattr(
+        dovecot_deployer.files,
+        "download",
+        lambda **kwargs: downloads.append(kwargs),
+    )
+
+    deb, changed = dovecot_deployer._download_dovecot_package(
+        "core", "amd64", deb_release=13
+    )
+
+    assert changed is True, "a deb12 build on a deb13 host must be replaced"
+    assert "deb13u1" in deb, f"expected the deb13 build, got {deb!r}"
+    assert len(downloads) == 1, "files.download should be called exactly once"
 
 
 def test_install_skips_dpkg_path_when_epoch_matched_packages_present(
@@ -139,13 +182,14 @@ def test_install_skips_dpkg_path_when_epoch_matched_packages_present(
             (
                 dovecot_deployer.DebPackages,
                 {
-                    "dovecot-core": [dovecot_deployer.DOVECOT_PACKAGE_VERSION],
-                    "dovecot-imapd": [dovecot_deployer.DOVECOT_PACKAGE_VERSION],
-                    "dovecot-lmtpd": [dovecot_deployer.DOVECOT_PACKAGE_VERSION],
-                    "dovecot-auth-lua": [dovecot_deployer.DOVECOT_PACKAGE_VERSION],
+                    "dovecot-core": [INSTALLED_DEB12],
+                    "dovecot-imapd": [INSTALLED_DEB12],
+                    "dovecot-lmtpd": [INSTALLED_DEB12],
+                    "dovecot-auth-lua": [INSTALLED_DEB12],
                 },
             ),
             (dovecot_deployer.Arch, "x86_64"),
+            (Command, 'VERSION_ID="12"'),
         ),
     )
     downloads = []
@@ -164,39 +208,23 @@ def test_install_skips_dpkg_path_when_epoch_matched_packages_present(
     )
 
 
-def test_install_unsupported_arch_falls_back_to_apt(
+def test_install_unsupported_arch_raises(
     deployer, patch_blocked, mock_files_put, track_shell, monkeypatch
 ):
-    # For unsupported architectures, all fact lookups return the arch string.
     monkeypatch.setattr(
         dovecot_deployer,
         "host",
-        SimpleNamespace(get_fact=lambda cls: "riscv64"),
+        make_host(
+            (dovecot_deployer.Arch, "riscv64"),
+            (Command, 'VERSION_ID="12"'),
+        ),
     )
-    apt_calls = []
 
-    # Mirrors apt.packages() return value: OperationMeta with .changed property.
-    # Only lmtpd triggers a change to verify |= accumulation of changed flags.
-    def fake_apt(**kwargs):
-        apt_calls.append(kwargs)
-        changed = "lmtpd" in kwargs["packages"][0]
-        return SimpleNamespace(changed=changed)
+    # we never fall back to the pinned distro package
+    with pytest.raises(ValueError, match="no dovecot build for dovecot-core"):
+        deployer.install()
 
-    monkeypatch.setattr(dovecot_deployer.apt, "packages", fake_apt)
-
-    deployer.install()
-
-    actual_pkgs = [c["packages"] for c in apt_calls]
-    assert actual_pkgs == [
-        ["dovecot-core"],
-        ["dovecot-imapd"],
-        ["dovecot-lmtpd"],
-        ["dovecot-auth-lua"],
-    ], f"expected apt install of core/imapd/lmtpd/auth-lua, got {actual_pkgs}"
     assert track_shell == [], "should not run dpkg for unsupported arch"
-    assert deployer.need_restart is True, (
-        "need_restart should be True when apt installed a package"
-    )
 
 
 def test_install_runs_dpkg_when_packages_need_download(
@@ -208,6 +236,7 @@ def test_install_runs_dpkg_when_packages_need_download(
         make_host(
             (dovecot_deployer.DebPackages, {}),
             (dovecot_deployer.Arch, "x86_64"),
+            (Command, 'VERSION_ID="12"'),
         ),
     )
     monkeypatch.setattr(
@@ -245,3 +274,56 @@ def test_pick_url_falls_back_on_primary_error(monkeypatch):
     assert result == "http://fallback", (
         f"should fall back when primary fails, got {result!r}"
     )
+
+
+def test_install_fails_on_unsupported_debian_version(
+    deployer, patch_blocked, monkeypatch
+):
+    monkeypatch.setattr(
+        dovecot_deployer,
+        "host",
+        make_host(
+            (dovecot_deployer.Arch, "x86_64"),
+            (Command, 'VERSION_ID="99"'),
+        ),
+    )
+
+    with pytest.raises(ValueError, match="no dovecot build for dovecot-core on deb99"):
+        deployer.install()
+
+
+@pytest.mark.parametrize(
+    "version_line",
+    ["", None, "ID=debian", "VERSION_ID="],
+    ids=["empty", "none", "no-version-id", "empty-value"],
+)
+def test_parse_version_id_raises_without_version_id(version_line):
+    with pytest.raises(ValueError, match="cannot determine Debian release"):
+        dovecot_deployer._parse_version_id(version_line)
+
+
+@pytest.mark.parametrize(
+    ("version_line", "deb_release"),
+    [('VERSION_ID="12"\n', 12), ('VERSION_ID="13"\n', 13), ("VERSION_ID=13", 13)],
+)
+def test_parse_version_id(version_line, deb_release):
+    assert dovecot_deployer._parse_version_id(version_line) == deb_release
+
+
+def test_dovecot_sha256_covers_all_packages_per_release():
+    """Every release in the table needs all four packages on both arches."""
+    table = dovecot_deployer.DOVECOT_SHA256
+    expected = {
+        (arch, pkg)
+        for arch in ("amd64", "arm64")
+        for pkg in ("core", "imapd", "lmtpd", "auth-lua")
+    }
+    for release in {r for _, r, _ in table}:
+        got = {(arch, pkg) for arch, r, pkg in table if r == release}
+        assert got == expected, f"deb{release} incomplete: {sorted(expected - got)}"
+
+
+def test_dovecot_sha256_has_no_duplicate_hashes():
+    """Each build is a distinct file, so a repeated hash is a copy-paste error."""
+    table = dovecot_deployer.DOVECOT_SHA256
+    assert len(set(table.values())) == len(table)
