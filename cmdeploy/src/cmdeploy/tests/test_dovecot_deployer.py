@@ -98,10 +98,12 @@ def test_download_dovecot_package_uses_archive_version_for_url_and_filename(
         "host",
         make_host((DebPackages, {})),
     )
+    urls = {}
     monkeypatch.setattr(
         dovecot_deployer,
         "_pick_url",
-        lambda primary, fallback: primary,
+        lambda primary, fallback: urls.update(primary=primary, fallback=fallback)
+        or primary,
     )
     monkeypatch.setattr(
         dovecot_deployer.files,
@@ -111,16 +113,20 @@ def test_download_dovecot_package_uses_archive_version_for_url_and_filename(
 
     deb, changed = dovecot_deployer._download_dovecot_package("core", "amd64")
 
-    archive_version = dovecot_deployer.DOVECOT_STAMPED_VERSION.replace("+", "%2B")
-    expected_deb = f"/root/dovecot-core_{archive_version}_amd64.deb"
+    version = dovecot_deployer.DOVECOT_VERSION
+    deb_base = f"dovecot-core_{version}+deb12u1_amd64.deb".replace("+", "%2B")
+    tag = version.replace("+", "%2B")
 
-    # Verify the returned path uses archive version, not package version (with epoch)
+    # the release tag carries no distro suffix and filenames carry no epoch
     assert changed is True, "should flag changed when package not yet installed"
-    assert deb == expected_deb, f"deb path mismatch: {deb!r} != {expected_deb!r}"
-    assert dovecot_deployer.DOVECOT_PACKAGE_VERSION not in deb, (
-        f"deb path should use archive version (no epoch), got {deb!r}"
+    assert deb == f"/root/{deb_base}"
+    assert urls["primary"] == f"https://download.delta.chat/dovecot/{deb_base}"
+    assert urls["fallback"] == (
+        "https://github.com/chatmail/dovecot/releases/download/"
+        f"upstream%2F{tag}/{deb_base}"
     )
     assert len(downloads) == 1, "files.download should be called exactly once"
+    assert downloads[0]["src"] == urls["primary"]
 
 
 def test_install_skips_dpkg_path_when_epoch_matched_packages_present(
