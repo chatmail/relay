@@ -16,7 +16,8 @@ from cmdeploy.basedeploy import (
 )
 from cmdeploy.pins import DOVECOT_SHA256, DOVECOT_VERSION
 
-DOVECOT_PACKAGE_VERSION = f"1:{DOVECOT_VERSION}"
+DOVECOT_STAMPED_VERSION = f"{DOVECOT_VERSION}+deb12u1"
+DOVECOT_PACKAGE_VERSION = f"1:{DOVECOT_STAMPED_VERSION}"
 
 
 class DovecotDeployer(Deployer):
@@ -108,10 +109,11 @@ def _download_dovecot_package(package: str, arch: str) -> tuple[str | None, bool
     if DOVECOT_PACKAGE_VERSION in installed_versions:
         return None, False
 
-    url_version = DOVECOT_VERSION.replace("+", "%2B")
+    url_version = DOVECOT_STAMPED_VERSION.replace("+", "%2B")
+    tag = DOVECOT_VERSION.replace("+", "%2B")
     deb_base = f"{pkg_name}_{url_version}_{arch}.deb"
     primary_url = f"https://download.delta.chat/dovecot/{deb_base}"
-    fallback_url = f"https://github.com/chatmail/dovecot/releases/download/upstream%2F{url_version}/{deb_base}"
+    fallback_url = f"https://github.com/chatmail/dovecot/releases/download/upstream%2F{tag}/{deb_base}"
     url = _pick_url(primary_url, fallback_url)
     deb_filename = f"/root/{deb_base}"
 
