@@ -1,7 +1,5 @@
 import datetime
 
-from . import remote
-
 
 def parse_zone_records(text):
     """Yield ``(name, ttl, rtype, rdata)`` from standard BIND-format text."""
@@ -15,12 +13,6 @@ def parse_zone_records(text):
             raise ValueError(f"Bad zone record line: {line!r}") from None
         name = name.rstrip(".")
         yield name, ttl, rtype.upper(), rdata
-
-
-def get_initial_remote_data(sshexec, mail_domain):
-    return sshexec.logged(
-        call=remote.rdns.perform_initial_checks, kwargs=dict(mail_domain=mail_domain)
-    )
 
 
 def check_initial_remote_data(remote_data, *, strict_tls=True, print=print):
@@ -76,15 +68,8 @@ def get_filled_zone_file(remote_data):
     return "\n".join(lines)
 
 
-def check_full_zone(sshexec, remote_data, out, zonefile) -> int:
-    """Check existing DNS records, optionally write them to zone file
-    and return (exitcode, remote_data) tuple."""
-
-    required_diff, recommended_diff = sshexec.logged(
-        remote.rdns.check_zonefile,
-        kwargs=dict(zonefile=zonefile, verbose=False),
-    )
-
+def report_zone_diff(remote_data, required_diff, recommended_diff, out) -> int:
+    """Print what rdns.check_zonefile found missing, return the exit code."""
     returncode = 0
     if required_diff:
         out.red("Please set required DNS entries at your DNS provider:\n")

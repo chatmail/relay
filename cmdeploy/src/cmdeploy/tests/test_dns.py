@@ -3,7 +3,7 @@ from copy import deepcopy
 import pytest
 
 from cmdeploy import remote
-from cmdeploy.dns import check_full_zone, check_initial_remote_data, parse_zone_records
+from cmdeploy.dns import check_initial_remote_data, parse_zone_records, report_zone_diff
 from cmdeploy.remote.rdns import get_authoritative_ns
 
 
@@ -186,14 +186,6 @@ def parse_zonefile_into_dict(zonefile, mockdns_base, only_required=False):
         mockdns_base.setdefault(rtype, {})[name] = rdata
 
 
-class MockSSHExec:
-    def logged(self, func, kwargs):
-        return func(**kwargs)
-
-    def call(self, func, kwargs):
-        return func(**kwargs)
-
-
 class TestZonefileChecks:
     def test_check_zonefile_all_ok(self, cm_data, mockdns_base):
         zonefile = cm_data.get("zftest.zone")
@@ -213,9 +205,9 @@ class TestZonefileChecks:
         zonefile = cm_data.get("zftest.zone")
         zonefile_mocked = zonefile.split("; Recommended")[0]
         parse_zonefile_into_dict(zonefile_mocked, mockdns_base, only_required=True)
-        mssh = MockSSHExec()
         mockdns_base["mail_domain"] = "some.domain"
-        res = check_full_zone(mssh, mockdns_base, out=mockout, zonefile=zonefile)
+        diffs = remote.rdns.check_zonefile(zonefile, verbose=False)
+        res = report_zone_diff(mockdns_base, *diffs, out=mockout)
         assert res == 0
         assert "WARNING" in mockout.captured_plain[0]
         assert len(mockout.captured_plain) == 8
@@ -223,9 +215,9 @@ class TestZonefileChecks:
     def test_check_zonefile_output_full(self, cm_data, mockdns_base, mockout):
         zonefile = cm_data.get("zftest.zone")
         parse_zonefile_into_dict(zonefile, mockdns_base)
-        mssh = MockSSHExec()
         mockdns_base["mail_domain"] = "some.domain"
-        res = check_full_zone(mssh, mockdns_base, out=mockout, zonefile=zonefile)
+        diffs = remote.rdns.check_zonefile(zonefile, verbose=False)
+        res = report_zone_diff(mockdns_base, *diffs, out=mockout)
         assert res == 0
         assert not mockout.captured_red
         assert "correct" in mockout.captured_green[0]
