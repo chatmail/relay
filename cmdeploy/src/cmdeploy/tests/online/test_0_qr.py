@@ -22,7 +22,7 @@ def test_fastcgi_working(maildomain, chatmail_config):
 @pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")
 def test_newemail_configure(maildomain, cmrpc, chatmail_config):
     """Test configuring accounts by scanning a QR code works."""
-    url = f"DCACCOUNT:https://{maildomain}/new"
+    url = f"DCACCOUNT:{maildomain}"
     for i in range(3):
         account_id = cmrpc.add_account()
         if chatmail_config.tls_cert_mode == "self":
