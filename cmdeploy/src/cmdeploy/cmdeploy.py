@@ -103,7 +103,10 @@ def run_cmd(args, out):
     if args.config.ipv4_relay:
         args.dns_check_disabled = True
     if not args.dns_check_disabled:
-        remote_data = dns.get_initial_remote_data(sshexec, args.config.mail_domain)
+        remote_data = sshexec.logged(
+            call=remote.rdns.perform_initial_checks,
+            kwargs=dict(mail_domain=args.config.mail_domain),
+        )
         if not dns.check_initial_remote_data(remote_data, strict_tls=strict_tls, print=out.red):
             return 1
 
@@ -162,7 +165,10 @@ def dns_cmd(args, out):
     sshexec = get_sshexec(ssh_host, verbose=args.verbose)
     tls_cert_mode = args.config.tls_cert_mode
     strict_tls = tls_cert_mode == "acme"
-    remote_data = dns.get_initial_remote_data(sshexec, args.config.mail_domain)
+    remote_data = sshexec.logged(
+        call=remote.rdns.perform_initial_checks,
+        kwargs=dict(mail_domain=args.config.mail_domain),
+    )
     if not dns.check_initial_remote_data(remote_data, strict_tls=strict_tls):
         return 1
 
@@ -182,10 +188,10 @@ def dns_cmd(args, out):
         out.green(f"DNS records successfully written to: {args.zonefile}")
         return 0
 
-    retcode = dns.check_full_zone(
-        sshexec, remote_data=remote_data, zonefile=zonefile, out=out
+    required_diff, recommended_diff = sshexec.logged(
+        remote.rdns.check_zonefile, kwargs=dict(zonefile=zonefile, verbose=False)
     )
-    return retcode
+    return dns.report_zone_diff(remote_data, required_diff, recommended_diff, out)
 
 
 def status_cmd_options(parser):
