@@ -1,6 +1,6 @@
 
-Migrating to a new machine
-===========================
+Migrating the relay to a new server
+===================================
 
 This migration tutorial provides a step-wise approach
 to safely migrate a chatmail relay from one remote machine to another.
@@ -96,3 +96,17 @@ in this case, just run ``ssh-keygen -R "mail.example.org"`` as recommended.
    If you have lowered the Time-to-Live for DNS records in step 1,
    better use a higher value again (between 14400 and 86400 seconds) once you are sure everything works.
 
+
+Migrating a local chatmail/relay repository to the server
+=========================================================
+
+To move the directory with your local chatmail/relay repository and ``chatmail.ini`` file,
+clone the `relay repository <https://github.com/chatmail/relay/>` to the server where the relay is running,
+and copy the ``chatmail.ini`` file from your local chatmail/relay repository there.
+
+If you made local changes to the repository,
+you can store them in a file with ``git diff origin/main > local-changes.patch``,
+copy the file to the repository on the server,
+and run ``git apply local-changes.patch``.
+
+Then you can proceed with the `installation steps <setup>`.
